@@ -84,12 +84,18 @@
           <div
             v-for="acc in previewResult.existing_accounts"
             :key="acc.crs_account_id"
-            class="flex items-center gap-2 py-0.5"
+            class="flex items-start gap-2 py-1"
           >
             <span
               class="inline-block rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
             >{{ acc.platform }} / {{ acc.type }}</span>
-            <span class="truncate">{{ acc.name }}</span>
+            <div class="min-w-0 flex-1">
+              <div class="truncate">{{ acc.name }}</div>
+              <div class="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-gray-400 dark:text-dark-500">
+                <span v-if="acc.proxy_name">{{ t('admin.accounts.crsProxyName') }}: {{ acc.proxy_name }}</span>
+                <span :class="proxyStatusClass(acc.proxy_match_status)">{{ proxyStatusLabel(acc.proxy_match_status) }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -120,7 +126,7 @@
           <label
             v-for="acc in previewResult.new_accounts"
             :key="acc.crs_account_id"
-            class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-dark-700/40"
+            class="flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-dark-700/40"
           >
             <input
               type="checkbox"
@@ -131,7 +137,13 @@
             <span
               class="inline-block rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400"
             >{{ acc.platform }} / {{ acc.type }}</span>
-            <span class="truncate text-sm text-gray-700 dark:text-dark-300">{{ acc.name }}</span>
+            <div class="min-w-0 flex-1">
+              <div class="truncate text-sm text-gray-700 dark:text-dark-300">{{ acc.name }}</div>
+              <div class="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-gray-400 dark:text-dark-500">
+                <span v-if="acc.proxy_name">{{ t('admin.accounts.crsProxyName') }}: {{ acc.proxy_name }}</span>
+                <span :class="proxyStatusClass(acc.proxy_match_status)">{{ proxyStatusLabel(acc.proxy_match_status) }}</span>
+              </div>
+            </div>
           </label>
         </div>
         <div class="mt-1 text-xs text-gray-400">
@@ -181,6 +193,19 @@
             <div v-for="(item, idx) in errorItems" :key="idx" class="whitespace-pre-wrap">
               {{ item.kind }} {{ item.crs_account_id }} — {{ item.action
               }}{{ item.error ? `: ${item.error}` : '' }}
+            </div>
+          </div>
+        </div>
+
+        <div v-if="warningItems.length" class="mt-2">
+          <div class="text-sm font-medium text-amber-600 dark:text-amber-400">
+            {{ t('admin.accounts.crsWarnings') }}
+          </div>
+          <div
+            class="mt-2 max-h-40 overflow-auto rounded-lg bg-amber-50/70 p-3 font-mono text-xs text-amber-700 dark:bg-amber-900/10 dark:text-amber-300"
+          >
+            <div v-for="(item, idx) in warningItems" :key="idx" class="whitespace-pre-wrap">
+              {{ item.kind }} {{ item.crs_account_id }} — {{ item.warnings?.join('; ') }}
             </div>
           </div>
         </div>
@@ -289,6 +314,36 @@ const errorItems = computed(() => {
     (i) => i.action === 'failed' || (i.action === 'skipped' && i.error !== 'not selected')
   )
 })
+
+const warningItems = computed(() => {
+  if (!result.value?.items) return []
+  return result.value.items.filter((i) => (i.warnings?.length ?? 0) > 0)
+})
+
+const proxyStatusLabel = (status: PreviewFromCRSResult['new_accounts'][number]['proxy_match_status']) => {
+  switch (status) {
+    case 'matched':
+      return t('admin.accounts.crsProxyStatusMatched')
+    case 'not_found':
+      return t('admin.accounts.crsProxyStatusNotFound')
+    case 'conflict':
+      return t('admin.accounts.crsProxyStatusConflict')
+    default:
+      return t('admin.accounts.crsProxyStatusMissing')
+  }
+}
+
+const proxyStatusClass = (status: PreviewFromCRSResult['new_accounts'][number]['proxy_match_status']) => {
+  switch (status) {
+    case 'matched':
+      return 'text-green-600 dark:text-green-400'
+    case 'not_found':
+    case 'conflict':
+      return 'text-amber-600 dark:text-amber-400'
+    default:
+      return 'text-gray-400 dark:text-dark-500'
+  }
+}
 
 watch(
   () => props.show,

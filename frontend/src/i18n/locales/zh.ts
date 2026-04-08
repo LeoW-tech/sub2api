@@ -2047,10 +2047,13 @@ export default {
       syncing: '同步中...',
       syncMissingFields: '请填写服务地址、用户名和密码',
       syncResult: '同步结果',
-      syncResultSummary: '创建 {created}，更新 {updated}，跳过 {skipped}，失败 {failed}',
+      syncResultSummary:
+        '创建 {created}，更新 {updated}，跳过 {skipped}，失败 {failed}；代理匹配成功 {proxy_matched}，未匹配 {proxy_unmatched}',
       syncErrors: '错误/跳过详情',
-      syncCompleted: '同步完成：创建 {created}，更新 {updated}，跳过 {skipped}',
-      syncCompletedWithErrors: '同步完成但有错误：失败 {failed}（创建 {created}，更新 {updated}，跳过 {skipped}）',
+      syncCompleted:
+        '同步完成：创建 {created}，更新 {updated}，跳过 {skipped}；代理匹配成功 {proxy_matched}，未匹配 {proxy_unmatched}',
+      syncCompletedWithErrors:
+        '同步完成但有错误：失败 {failed}（创建 {created}，更新 {updated}，跳过 {skipped}；代理匹配成功 {proxy_matched}，未匹配 {proxy_unmatched}）',
       syncFailed: '同步失败',
       crsPreview: '预览',
       crsPreviewing: '预览中...',
@@ -2064,6 +2067,12 @@ export default {
       crsSelectedCount: '已选择 {count} 个新账号',
       crsUpdateBehaviorNote:
         '已有账号仅同步 CRS 返回的字段，缺失字段保持原值；凭据按键合并，不会清空未下发的键；未勾选"同步代理"时保留原有代理。',
+      crsProxyName: '代理名',
+      crsProxyStatusMatched: '已匹配本地代理',
+      crsProxyStatusMissing: '未提供代理名',
+      crsProxyStatusNotFound: '未找到同名代理',
+      crsProxyStatusConflict: '同名代理冲突',
+      crsWarnings: '告警',
       crsBack: '返回',
       editAccount: '编辑账号',
       deleteAccount: '删除账号',

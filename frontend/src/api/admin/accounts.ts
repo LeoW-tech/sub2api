@@ -443,11 +443,17 @@ export interface CRSPreviewAccount {
   name: string
   platform: string
   type: string
+  proxy_name?: string
+  matched_proxy_id?: number
+  proxy_match_status: 'matched' | 'missing' | 'not_found' | 'conflict'
+  warnings?: string[]
 }
 
 export interface PreviewFromCRSResult {
   new_accounts: CRSPreviewAccount[]
   existing_accounts: CRSPreviewAccount[]
+  proxy_matched: number
+  proxy_unmatched: number
 }
 
 export async function previewFromCrs(params: {
@@ -470,11 +476,16 @@ export async function syncFromCrs(params: {
   updated: number
   skipped: number
   failed: number
+  proxy_matched: number
+  proxy_unmatched: number
   items: Array<{
     crs_account_id: string
     kind: string
     name: string
     action: string
+    proxy_name?: string
+    matched_proxy_id?: number
+    warnings?: string[]
     error?: string
   }>
 }> {
@@ -483,11 +494,16 @@ export async function syncFromCrs(params: {
     updated: number
     skipped: number
     failed: number
+    proxy_matched: number
+    proxy_unmatched: number
     items: Array<{
       crs_account_id: string
       kind: string
       name: string
       action: string
+      proxy_name?: string
+      matched_proxy_id?: number
+      warnings?: string[]
       error?: string
     }>
   }>('/admin/accounts/sync/crs', params)

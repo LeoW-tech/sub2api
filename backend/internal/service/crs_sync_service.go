@@ -53,19 +53,39 @@ type SyncFromCRSInput struct {
 }
 
 type SyncFromCRSItemResult struct {
-	CRSAccountID string `json:"crs_account_id"`
-	Kind         string `json:"kind"`
-	Name         string `json:"name"`
-	Action       string `json:"action"` // created/updated/failed/skipped
-	Error        string `json:"error,omitempty"`
+	CRSAccountID   string   `json:"crs_account_id"`
+	Kind           string   `json:"kind"`
+	Name           string   `json:"name"`
+	Action         string   `json:"action"` // created/updated/failed/skipped
+	ProxyName      string   `json:"proxy_name,omitempty"`
+	MatchedProxyID *int64   `json:"matched_proxy_id,omitempty"`
+	Warnings       []string `json:"warnings,omitempty"`
+	Error          string   `json:"error,omitempty"`
 }
 
 type SyncFromCRSResult struct {
-	Created int                     `json:"created"`
-	Updated int                     `json:"updated"`
-	Skipped int                     `json:"skipped"`
-	Failed  int                     `json:"failed"`
-	Items   []SyncFromCRSItemResult `json:"items"`
+	Created        int                     `json:"created"`
+	Updated        int                     `json:"updated"`
+	Skipped        int                     `json:"skipped"`
+	Failed         int                     `json:"failed"`
+	ProxyMatched   int                     `json:"proxy_matched"`
+	ProxyUnmatched int                     `json:"proxy_unmatched"`
+	Items          []SyncFromCRSItemResult `json:"items"`
+}
+
+const (
+	crsProxyMatchMatched  = "matched"
+	crsProxyMatchMissing  = "missing"
+	crsProxyMatchNotFound = "not_found"
+	crsProxyMatchConflict = "conflict"
+)
+
+type crsProxyBinding struct {
+	ProxyName    string
+	ProxyID      *int64
+	MatchStatus  string
+	Warnings     []string
+	HasProxyName bool
 }
 
 type crsLoginResponse struct {
@@ -106,6 +126,7 @@ type crsClaudeAccount struct {
 	Description string         `json:"description"`
 	Platform    string         `json:"platform"`
 	AuthType    string         `json:"authType"` // oauth/setup-token
+	ProxyName   string         `json:"proxy_name"`
 	IsActive    bool           `json:"isActive"`
 	Schedulable bool           `json:"schedulable"`
 	Priority    int            `json:"priority"`
@@ -121,6 +142,7 @@ type crsConsoleAccount struct {
 	Name               string         `json:"name"`
 	Description        string         `json:"description"`
 	Platform           string         `json:"platform"`
+	ProxyName          string         `json:"proxy_name"`
 	IsActive           bool           `json:"isActive"`
 	Schedulable        bool           `json:"schedulable"`
 	Priority           int            `json:"priority"`
@@ -136,6 +158,7 @@ type crsOpenAIResponsesAccount struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	Platform    string         `json:"platform"`
+	ProxyName   string         `json:"proxy_name"`
 	IsActive    bool           `json:"isActive"`
 	Schedulable bool           `json:"schedulable"`
 	Priority    int            `json:"priority"`
@@ -151,6 +174,7 @@ type crsOpenAIOAuthAccount struct {
 	Description string         `json:"description"`
 	Platform    string         `json:"platform"`
 	AuthType    string         `json:"authType"` // oauth
+	ProxyName   string         `json:"proxy_name"`
 	IsActive    bool           `json:"isActive"`
 	Schedulable bool           `json:"schedulable"`
 	Priority    int            `json:"priority"`
@@ -167,6 +191,7 @@ type crsGeminiOAuthAccount struct {
 	Description string         `json:"description"`
 	Platform    string         `json:"platform"`
 	AuthType    string         `json:"authType"` // oauth
+	ProxyName   string         `json:"proxy_name"`
 	IsActive    bool           `json:"isActive"`
 	Schedulable bool           `json:"schedulable"`
 	Priority    int            `json:"priority"`
@@ -182,6 +207,7 @@ type crsGeminiAPIKeyAccount struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	Platform    string         `json:"platform"`
+	ProxyName   string         `json:"proxy_name"`
 	IsActive    bool           `json:"isActive"`
 	Schedulable bool           `json:"schedulable"`
 	Priority    int            `json:"priority"`
@@ -251,7 +277,17 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 	selectedSet := buildSelectedSet(input.SelectedAccountIDs)
 
 	var proxies []Proxy
-	if input.SyncProxies {
+	proxyNameIndex := map[string][]int64{}
+	if exportedHasNamedProxies(exported) {
+		activeProxies, err := s.proxyRepo.ListActive(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list local proxies for proxy_name matching: %w", err)
+		}
+		proxyNameIndex = buildCRSProxyNameIndex(activeProxies)
+		if input.SyncProxies {
+			proxies = activeProxies
+		}
+	} else if input.SyncProxies {
 		proxies, _ = s.proxyRepo.ListActive(ctx)
 	}
 
@@ -284,7 +320,16 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 			continue
 		}
 
-		proxyID, err := s.mapOrCreateProxy(ctx, input.SyncProxies, &proxies, src.Proxy, fmt.Sprintf("crs-%s", src.Name))
+		proxyID, binding, err := s.resolveSyncProxyID(
+			ctx,
+			input.SyncProxies,
+			&proxies,
+			src.Proxy,
+			src.ProxyName,
+			fmt.Sprintf("crs-%s", src.Name),
+			proxyNameIndex,
+		)
+		appendSyncProxyBinding(result, &item, binding)
 		if err != nil {
 			item.Action = "failed"
 			item.Error = "proxy sync failed: " + err.Error()
@@ -427,7 +472,16 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 			continue
 		}
 
-		proxyID, err := s.mapOrCreateProxy(ctx, input.SyncProxies, &proxies, src.Proxy, fmt.Sprintf("crs-%s", src.Name))
+		proxyID, binding, err := s.resolveSyncProxyID(
+			ctx,
+			input.SyncProxies,
+			&proxies,
+			src.Proxy,
+			src.ProxyName,
+			fmt.Sprintf("crs-%s", src.Name),
+			proxyNameIndex,
+		)
+		appendSyncProxyBinding(result, &item, binding)
 		if err != nil {
 			item.Action = "failed"
 			item.Error = "proxy sync failed: " + err.Error()
@@ -535,13 +589,16 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 			continue
 		}
 
-		proxyID, err := s.mapOrCreateProxy(
+		proxyID, binding, err := s.resolveSyncProxyID(
 			ctx,
 			input.SyncProxies,
 			&proxies,
 			src.Proxy,
+			src.ProxyName,
 			fmt.Sprintf("crs-%s", src.Name),
+			proxyNameIndex,
 		)
+		appendSyncProxyBinding(result, &item, binding)
 		if err != nil {
 			item.Action = "failed"
 			item.Error = "proxy sync failed: " + err.Error()
@@ -680,13 +737,16 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 		// 🔧 Remove /v1 suffix from base_url for OpenAI accounts
 		cleanBaseURL(src.Credentials, "/v1")
 
-		proxyID, err := s.mapOrCreateProxy(
+		proxyID, binding, err := s.resolveSyncProxyID(
 			ctx,
 			input.SyncProxies,
 			&proxies,
 			src.Proxy,
+			src.ProxyName,
 			fmt.Sprintf("crs-%s", src.Name),
+			proxyNameIndex,
 		)
+		appendSyncProxyBinding(result, &item, binding)
 		if err != nil {
 			item.Action = "failed"
 			item.Error = "proxy sync failed: " + err.Error()
@@ -791,7 +851,16 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 			continue
 		}
 
-		proxyID, err := s.mapOrCreateProxy(ctx, input.SyncProxies, &proxies, src.Proxy, fmt.Sprintf("crs-%s", src.Name))
+		proxyID, binding, err := s.resolveSyncProxyID(
+			ctx,
+			input.SyncProxies,
+			&proxies,
+			src.Proxy,
+			src.ProxyName,
+			fmt.Sprintf("crs-%s", src.Name),
+			proxyNameIndex,
+		)
+		appendSyncProxyBinding(result, &item, binding)
 		if err != nil {
 			item.Action = "failed"
 			item.Error = "proxy sync failed: " + err.Error()
@@ -913,7 +982,16 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 			continue
 		}
 
-		proxyID, err := s.mapOrCreateProxy(ctx, input.SyncProxies, &proxies, src.Proxy, fmt.Sprintf("crs-%s", src.Name))
+		proxyID, binding, err := s.resolveSyncProxyID(
+			ctx,
+			input.SyncProxies,
+			&proxies,
+			src.Proxy,
+			src.ProxyName,
+			fmt.Sprintf("crs-%s", src.Name),
+			proxyNameIndex,
+		)
+		appendSyncProxyBinding(result, &item, binding)
 		if err != nil {
 			item.Action = "failed"
 			item.Error = "proxy sync failed: " + err.Error()
@@ -1017,6 +1095,133 @@ func mergeMap(existing map[string]any, updates map[string]any) map[string]any {
 		out[k] = v
 	}
 	return out
+}
+
+func buildCRSProxyNameIndex(proxies []Proxy) map[string][]int64 {
+	index := make(map[string][]int64)
+	for i := range proxies {
+		name := proxies[i].Name
+		if name == "" {
+			continue
+		}
+		index[name] = append(index[name], proxies[i].ID)
+	}
+	return index
+}
+
+func resolveCRSProxyBindingByName(proxyName string, proxyNameIndex map[string][]int64) crsProxyBinding {
+	binding := crsProxyBinding{
+		ProxyName: proxyName,
+	}
+	if proxyName == "" {
+		binding.MatchStatus = crsProxyMatchMissing
+		return binding
+	}
+	binding.HasProxyName = true
+	switch ids := proxyNameIndex[proxyName]; len(ids) {
+	case 0:
+		binding.MatchStatus = crsProxyMatchNotFound
+		binding.Warnings = []string{fmt.Sprintf("proxy_name not found: %s", proxyName)}
+	case 1:
+		binding.MatchStatus = crsProxyMatchMatched
+		id := ids[0]
+		binding.ProxyID = &id
+	default:
+		binding.MatchStatus = crsProxyMatchConflict
+		binding.Warnings = []string{fmt.Sprintf("proxy_name is ambiguous: %s", proxyName)}
+	}
+	return binding
+}
+
+func appendSyncProxyBinding(result *SyncFromCRSResult, item *SyncFromCRSItemResult, binding crsProxyBinding) {
+	if binding.ProxyName != "" {
+		item.ProxyName = binding.ProxyName
+	}
+	if binding.ProxyID != nil {
+		item.MatchedProxyID = binding.ProxyID
+	}
+	if len(binding.Warnings) > 0 {
+		item.Warnings = append(item.Warnings, binding.Warnings...)
+	}
+	switch binding.MatchStatus {
+	case crsProxyMatchMatched:
+		result.ProxyMatched++
+	case crsProxyMatchNotFound, crsProxyMatchConflict:
+		result.ProxyUnmatched++
+	}
+}
+
+func appendPreviewProxyBinding(result *PreviewFromCRSResult, preview *CRSPreviewAccount, binding crsProxyBinding) {
+	if binding.ProxyName != "" {
+		preview.ProxyName = binding.ProxyName
+	}
+	if binding.ProxyID != nil {
+		preview.MatchedProxyID = binding.ProxyID
+	}
+	preview.ProxyMatchStatus = binding.MatchStatus
+	if len(binding.Warnings) > 0 {
+		preview.Warnings = append(preview.Warnings, binding.Warnings...)
+	}
+	switch binding.MatchStatus {
+	case crsProxyMatchMatched:
+		result.ProxyMatched++
+	case crsProxyMatchNotFound, crsProxyMatchConflict:
+		result.ProxyUnmatched++
+	}
+}
+
+func exportedHasNamedProxies(exported *crsExportResponse) bool {
+	if exported == nil {
+		return false
+	}
+	for _, src := range exported.Data.ClaudeAccounts {
+		if src.ProxyName != "" {
+			return true
+		}
+	}
+	for _, src := range exported.Data.ClaudeConsoleAccounts {
+		if src.ProxyName != "" {
+			return true
+		}
+	}
+	for _, src := range exported.Data.OpenAIOAuthAccounts {
+		if src.ProxyName != "" {
+			return true
+		}
+	}
+	for _, src := range exported.Data.OpenAIResponsesAccounts {
+		if src.ProxyName != "" {
+			return true
+		}
+	}
+	for _, src := range exported.Data.GeminiOAuthAccounts {
+		if src.ProxyName != "" {
+			return true
+		}
+	}
+	for _, src := range exported.Data.GeminiAPIKeyAccounts {
+		if src.ProxyName != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *CRSSyncService) resolveSyncProxyID(
+	ctx context.Context,
+	syncProxies bool,
+	cached *[]Proxy,
+	srcProxy *crsProxy,
+	proxyName string,
+	defaultName string,
+	proxyNameIndex map[string][]int64,
+) (*int64, crsProxyBinding, error) {
+	binding := resolveCRSProxyBindingByName(proxyName, proxyNameIndex)
+	if binding.HasProxyName {
+		return binding.ProxyID, binding, nil
+	}
+	proxyID, err := s.mapOrCreateProxy(ctx, syncProxies, cached, srcProxy, defaultName)
+	return proxyID, binding, err
 }
 
 func (s *CRSSyncService) mapOrCreateProxy(ctx context.Context, enabled bool, cached *[]Proxy, src *crsProxy, defaultName string) (*int64, error) {
@@ -1327,15 +1532,21 @@ func shouldCreateAccount(crsID string, selectedSet map[string]struct{}) bool {
 type PreviewFromCRSResult struct {
 	NewAccounts      []CRSPreviewAccount `json:"new_accounts"`
 	ExistingAccounts []CRSPreviewAccount `json:"existing_accounts"`
+	ProxyMatched     int                 `json:"proxy_matched"`
+	ProxyUnmatched   int                 `json:"proxy_unmatched"`
 }
 
 // CRSPreviewAccount represents a single account in the preview result.
 type CRSPreviewAccount struct {
-	CRSAccountID string `json:"crs_account_id"`
-	Kind         string `json:"kind"`
-	Name         string `json:"name"`
-	Platform     string `json:"platform"`
-	Type         string `json:"type"`
+	CRSAccountID     string   `json:"crs_account_id"`
+	Kind             string   `json:"kind"`
+	Name             string   `json:"name"`
+	Platform         string   `json:"platform"`
+	Type             string   `json:"type"`
+	ProxyName        string   `json:"proxy_name,omitempty"`
+	MatchedProxyID   *int64   `json:"matched_proxy_id,omitempty"`
+	ProxyMatchStatus string   `json:"proxy_match_status"`
+	Warnings         []string `json:"warnings,omitempty"`
 }
 
 // PreviewFromCRS connects to CRS, fetches all accounts, and classifies them
@@ -1344,6 +1555,15 @@ func (s *CRSSyncService) PreviewFromCRS(ctx context.Context, input SyncFromCRSIn
 	exported, err := s.fetchCRSExport(ctx, input.BaseURL, input.Username, input.Password)
 	if err != nil {
 		return nil, err
+	}
+
+	proxyNameIndex := map[string][]int64{}
+	if exportedHasNamedProxies(exported) {
+		activeProxies, err := s.proxyRepo.ListActive(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list local proxies for proxy_name matching: %w", err)
+		}
+		proxyNameIndex = buildCRSProxyNameIndex(activeProxies)
 	}
 
 	// Batch query all existing CRS account IDs
@@ -1357,14 +1577,16 @@ func (s *CRSSyncService) PreviewFromCRS(ctx context.Context, input SyncFromCRSIn
 		ExistingAccounts: make([]CRSPreviewAccount, 0),
 	}
 
-	classify := func(crsID, kind, name, platform, accountType string) {
+	classify := func(crsID, kind, name, platform, accountType, proxyName string) {
 		preview := CRSPreviewAccount{
-			CRSAccountID: crsID,
-			Kind:         kind,
-			Name:         defaultName(name, crsID),
-			Platform:     platform,
-			Type:         accountType,
+			CRSAccountID:     crsID,
+			Kind:             kind,
+			Name:             defaultName(name, crsID),
+			Platform:         platform,
+			Type:             accountType,
+			ProxyMatchStatus: crsProxyMatchMissing,
 		}
+		appendPreviewProxyBinding(result, &preview, resolveCRSProxyBindingByName(proxyName, proxyNameIndex))
 		if _, exists := existingCRSIDs[crsID]; exists {
 			result.ExistingAccounts = append(result.ExistingAccounts, preview)
 		} else {
@@ -1377,22 +1599,22 @@ func (s *CRSSyncService) PreviewFromCRS(ctx context.Context, input SyncFromCRSIn
 		if authType == "" {
 			authType = AccountTypeOAuth
 		}
-		classify(src.ID, src.Kind, src.Name, PlatformAnthropic, authType)
+		classify(src.ID, src.Kind, src.Name, PlatformAnthropic, authType, src.ProxyName)
 	}
 	for _, src := range exported.Data.ClaudeConsoleAccounts {
-		classify(src.ID, src.Kind, src.Name, PlatformAnthropic, AccountTypeAPIKey)
+		classify(src.ID, src.Kind, src.Name, PlatformAnthropic, AccountTypeAPIKey, src.ProxyName)
 	}
 	for _, src := range exported.Data.OpenAIOAuthAccounts {
-		classify(src.ID, src.Kind, src.Name, PlatformOpenAI, AccountTypeOAuth)
+		classify(src.ID, src.Kind, src.Name, PlatformOpenAI, AccountTypeOAuth, src.ProxyName)
 	}
 	for _, src := range exported.Data.OpenAIResponsesAccounts {
-		classify(src.ID, src.Kind, src.Name, PlatformOpenAI, AccountTypeAPIKey)
+		classify(src.ID, src.Kind, src.Name, PlatformOpenAI, AccountTypeAPIKey, src.ProxyName)
 	}
 	for _, src := range exported.Data.GeminiOAuthAccounts {
-		classify(src.ID, src.Kind, src.Name, PlatformGemini, AccountTypeOAuth)
+		classify(src.ID, src.Kind, src.Name, PlatformGemini, AccountTypeOAuth, src.ProxyName)
 	}
 	for _, src := range exported.Data.GeminiAPIKeyAccounts {
-		classify(src.ID, src.Kind, src.Name, PlatformGemini, AccountTypeAPIKey)
+		classify(src.ID, src.Kind, src.Name, PlatformGemini, AccountTypeAPIKey, src.ProxyName)
 	}
 
 	return result, nil

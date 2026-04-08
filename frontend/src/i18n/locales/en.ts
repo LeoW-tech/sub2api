@@ -1968,11 +1968,13 @@ export default {
       syncing: 'Syncing...',
       syncMissingFields: 'Please fill base URL, username and password',
       syncResult: 'Sync Result',
-      syncResultSummary: 'Created {created}, updated {updated}, skipped {skipped}, failed {failed}',
+      syncResultSummary:
+        'Created {created}, updated {updated}, skipped {skipped}, failed {failed}; proxy matched {proxy_matched}, unmatched {proxy_unmatched}',
       syncErrors: 'Errors / Skipped Details',
-      syncCompleted: 'Sync completed: created {created}, updated {updated}, skipped {skipped}',
+      syncCompleted:
+        'Sync completed: created {created}, updated {updated}, skipped {skipped}; proxy matched {proxy_matched}, unmatched {proxy_unmatched}',
       syncCompletedWithErrors:
-        'Sync completed with errors: failed {failed} (created {created}, updated {updated}, skipped {skipped})',
+        'Sync completed with errors: failed {failed} (created {created}, updated {updated}, skipped {skipped}; proxy matched {proxy_matched}, unmatched {proxy_unmatched})',
       syncFailed: 'Sync failed',
       crsPreview: 'Preview',
       crsPreviewing: 'Previewing...',
@@ -1986,6 +1988,12 @@ export default {
       crsSelectedCount: '{count} new accounts selected',
       crsUpdateBehaviorNote:
         'Existing accounts only sync fields returned by CRS; missing fields keep their current values. Credentials are merged by key — keys not returned by CRS are preserved. Proxies are kept when "Sync proxies" is unchecked.',
+      crsProxyName: 'Proxy',
+      crsProxyStatusMatched: 'Matched local proxy',
+      crsProxyStatusMissing: 'No proxy name provided',
+      crsProxyStatusNotFound: 'No local proxy matched',
+      crsProxyStatusConflict: 'Multiple local proxies matched',
+      crsWarnings: 'Warnings',
       crsBack: 'Back',
       editAccount: 'Edit Account',
       deleteAccount: 'Delete Account',
