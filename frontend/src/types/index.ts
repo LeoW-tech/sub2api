@@ -953,9 +953,11 @@ export interface AdminDataAccount {
   proxy_external_key?: string | null
   proxy_name?: string | null
   exit_ip?: string | null
-  concurrency: number
+  concurrency?: number
+  load_factor?: number | null
   priority: number
   rate_multiplier?: number | null
+  group_ids?: number[]
   expires_at?: number | null
   auto_pause_on_expired?: boolean
 }

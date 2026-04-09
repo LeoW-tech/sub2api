@@ -540,10 +540,16 @@ export async function exportData(options?: {
 export async function importData(payload: {
   data: AdminDataPayload
   skip_default_group_bind?: boolean
+  default_concurrency?: number
+  default_load_factor?: number
+  bind_all_eligible_groups?: boolean
 }): Promise<AdminDataImportResult> {
   const { data } = await apiClient.post<AdminDataImportResult>('/admin/accounts/data', {
     data: payload.data,
-    skip_default_group_bind: payload.skip_default_group_bind
+    skip_default_group_bind: payload.skip_default_group_bind,
+    default_concurrency: payload.default_concurrency,
+    default_load_factor: payload.default_load_factor,
+    bind_all_eligible_groups: payload.bind_all_eligible_groups
   })
   return data
 }

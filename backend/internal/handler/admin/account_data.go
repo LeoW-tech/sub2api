@@ -32,17 +32,17 @@ type DataPayload struct {
 }
 
 type DataProxy struct {
-	ProxyKey         string  `json:"proxy_key"`
-	ProxyExternalKey string  `json:"proxy_external_key,omitempty"`
-	Name             string  `json:"name"`
-	Protocol         string  `json:"protocol"`
-	Host             string  `json:"host"`
-	Port             int     `json:"port"`
-	Username         string  `json:"username,omitempty"`
-	Password         string  `json:"password,omitempty"`
-	Status           string  `json:"status"`
-	ExitIP           string  `json:"exit_ip,omitempty"`
-	ExitIPCheckedAt  *int64  `json:"exit_ip_checked_at,omitempty"`
+	ProxyKey         string `json:"proxy_key"`
+	ProxyExternalKey string `json:"proxy_external_key,omitempty"`
+	Name             string `json:"name"`
+	Protocol         string `json:"protocol"`
+	Host             string `json:"host"`
+	Port             int    `json:"port"`
+	Username         string `json:"username,omitempty"`
+	Password         string `json:"password,omitempty"`
+	Status           string `json:"status"`
+	ExitIP           string `json:"exit_ip,omitempty"`
+	ExitIPCheckedAt  *int64 `json:"exit_ip_checked_at,omitempty"`
 }
 
 type DataAccount struct {
@@ -56,16 +56,21 @@ type DataAccount struct {
 	ProxyExternalKey   *string        `json:"proxy_external_key,omitempty"`
 	ProxyName          *string        `json:"proxy_name,omitempty"`
 	ExitIP             *string        `json:"exit_ip,omitempty"`
-	Concurrency        int            `json:"concurrency"`
+	Concurrency        *int           `json:"concurrency,omitempty"`
+	LoadFactor         *int           `json:"load_factor,omitempty"`
 	Priority           int            `json:"priority"`
 	RateMultiplier     *float64       `json:"rate_multiplier,omitempty"`
+	GroupIDs           []int64        `json:"group_ids"`
 	ExpiresAt          *int64         `json:"expires_at,omitempty"`
 	AutoPauseOnExpired *bool          `json:"auto_pause_on_expired,omitempty"`
 }
 
 type DataImportRequest struct {
-	Data                 DataPayload `json:"data"`
-	SkipDefaultGroupBind *bool       `json:"skip_default_group_bind"`
+	Data                  DataPayload `json:"data"`
+	SkipDefaultGroupBind  *bool       `json:"skip_default_group_bind"`
+	DefaultConcurrency    *int        `json:"default_concurrency"`
+	DefaultLoadFactor     *int        `json:"default_load_factor"`
+	BindAllEligibleGroups *bool       `json:"bind_all_eligible_groups"`
 }
 
 type DataImportResult struct {
@@ -189,9 +194,11 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 			ProxyExternalKey:   proxyExternalKey,
 			ProxyName:          proxyName,
 			ExitIP:             exitIP,
-			Concurrency:        acc.Concurrency,
+			Concurrency:        intValuePtr(acc.Concurrency),
+			LoadFactor:         acc.LoadFactor,
 			Priority:           acc.Priority,
 			RateMultiplier:     acc.RateMultiplier,
+			GroupIDs:           append([]int64{}, acc.GroupIDs...),
 			ExpiresAt:          expiresAt,
 			AutoPauseOnExpired: &acc.AutoPauseOnExpired,
 		})
@@ -217,6 +224,10 @@ func (h *AccountHandler) ImportData(c *gin.Context) {
 		response.BadRequest(c, err.Error())
 		return
 	}
+	if err := validateDataImportRequest(req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 
 	executeAdminIdempotentJSON(c, "admin.accounts.import_data", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		return h.importData(ctx, req)
@@ -227,6 +238,18 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 	skipDefaultGroupBind := true
 	if req.SkipDefaultGroupBind != nil {
 		skipDefaultGroupBind = *req.SkipDefaultGroupBind
+	}
+	bindAllEligibleGroups := true
+	if req.BindAllEligibleGroups != nil {
+		bindAllEligibleGroups = *req.BindAllEligibleGroups
+	}
+	defaultConcurrency := 10
+	if req.DefaultConcurrency != nil {
+		defaultConcurrency = *req.DefaultConcurrency
+	}
+	defaultLoadFactor := 10
+	if req.DefaultLoadFactor != nil {
+		defaultLoadFactor = *req.DefaultLoadFactor
 	}
 
 	dataPayload := req.Data
@@ -317,6 +340,33 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 		}
 	}
 
+	eligibleGroupIDsByPlatform := map[string][]int64{}
+	if bindAllEligibleGroups {
+		platformSet := make(map[string]struct{})
+		for i := range dataPayload.Accounts {
+			platform := strings.TrimSpace(dataPayload.Accounts[i].Platform)
+			if platform == "" {
+				continue
+			}
+			platformSet[platform] = struct{}{}
+		}
+		for platform := range platformSet {
+			groups, groupErr := h.adminService.GetAllGroupsByPlatform(ctx, platform)
+			if groupErr != nil {
+				return result, groupErr
+			}
+			ids := make([]int64, 0, len(groups))
+			for i := range groups {
+				group := groups[i]
+				if group.Platform != platform || group.Status != service.StatusActive {
+					continue
+				}
+				ids = append(ids, group.ID)
+			}
+			eligibleGroupIDsByPlatform[platform] = ids
+		}
+	}
+
 	// 收集需要异步设置隐私的 Antigravity OAuth 账号
 	var privacyAccounts []*service.Account
 
@@ -357,6 +407,33 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 
 		enrichCredentialsFromIDToken(&item)
 
+		finalConcurrency := defaultConcurrency
+		if item.Concurrency != nil {
+			finalConcurrency = *item.Concurrency
+		}
+
+		var finalLoadFactor *int
+		if item.LoadFactor != nil {
+			finalLoadFactor = intValuePtr(*item.LoadFactor)
+		} else {
+			finalLoadFactor = intValuePtr(defaultLoadFactor)
+		}
+
+		accountGroupIDs := []int64(nil)
+		handledGroupBinding := false
+		if item.GroupIDs != nil {
+			accountGroupIDs = append([]int64(nil), item.GroupIDs...)
+			handledGroupBinding = true
+		} else if bindAllEligibleGroups {
+			accountGroupIDs = append([]int64(nil), eligibleGroupIDsByPlatform[item.Platform]...)
+			handledGroupBinding = true
+		}
+
+		accountSkipDefaultGroupBind := skipDefaultGroupBind
+		if handledGroupBinding {
+			accountSkipDefaultGroupBind = true
+		}
+
 		accountInput := &service.CreateAccountInput{
 			Name:                 item.Name,
 			Notes:                item.Notes,
@@ -365,13 +442,14 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 			Credentials:          item.Credentials,
 			Extra:                item.Extra,
 			ProxyID:              proxyID,
-			Concurrency:          item.Concurrency,
+			Concurrency:          finalConcurrency,
 			Priority:             item.Priority,
 			RateMultiplier:       item.RateMultiplier,
-			GroupIDs:             nil,
+			LoadFactor:           finalLoadFactor,
+			GroupIDs:             accountGroupIDs,
 			ExpiresAt:            item.ExpiresAt,
 			AutoPauseOnExpired:   item.AutoPauseOnExpired,
-			SkipDefaultGroupBind: skipDefaultGroupBind,
+			SkipDefaultGroupBind: accountSkipDefaultGroupBind,
 		}
 
 		created, err := h.adminService.CreateAccount(ctx, accountInput)
@@ -606,11 +684,34 @@ func validateDataAccount(item DataAccount) error {
 	if item.RateMultiplier != nil && *item.RateMultiplier < 0 {
 		return errors.New("rate_multiplier must be >= 0")
 	}
-	if item.Concurrency < 0 {
+	if item.Concurrency != nil && *item.Concurrency < 0 {
 		return errors.New("concurrency must be >= 0")
+	}
+	if item.LoadFactor != nil {
+		if *item.LoadFactor < 0 {
+			return errors.New("load_factor must be >= 0")
+		}
+		if *item.LoadFactor > 10000 {
+			return errors.New("load_factor must be <= 10000")
+		}
 	}
 	if item.Priority < 0 {
 		return errors.New("priority must be >= 0")
+	}
+	return nil
+}
+
+func validateDataImportRequest(req DataImportRequest) error {
+	if req.DefaultConcurrency != nil && *req.DefaultConcurrency < 0 {
+		return errors.New("default_concurrency must be >= 0")
+	}
+	if req.DefaultLoadFactor != nil {
+		if *req.DefaultLoadFactor < 0 {
+			return errors.New("default_load_factor must be >= 0")
+		}
+		if *req.DefaultLoadFactor > 10000 {
+			return errors.New("default_load_factor must be <= 10000")
+		}
 	}
 	return nil
 }
@@ -720,6 +821,10 @@ func stringPtr(v string) *string {
 }
 
 func int64Ptr(v int64) *int64 {
+	return &v
+}
+
+func intValuePtr(v int) *int {
 	return &v
 }
 
