@@ -26,23 +26,27 @@ func NewProxyHandler(adminService service.AdminService) *ProxyHandler {
 
 // CreateProxyRequest represents create proxy request
 type CreateProxyRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Protocol string `json:"protocol" binding:"required,oneof=http https socks5 socks5h"`
-	Host     string `json:"host" binding:"required"`
-	Port     int    `json:"port" binding:"required,min=1,max=65535"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Name        string `json:"name" binding:"required"`
+	ExternalKey string `json:"external_key"`
+	Protocol    string `json:"protocol" binding:"required,oneof=http https socks5 socks5h"`
+	Host        string `json:"host" binding:"required"`
+	Port        int    `json:"port" binding:"required,min=1,max=65535"`
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	ExitIP      string `json:"exit_ip"`
 }
 
 // UpdateProxyRequest represents update proxy request
 type UpdateProxyRequest struct {
-	Name     string `json:"name"`
-	Protocol string `json:"protocol" binding:"omitempty,oneof=http https socks5 socks5h"`
-	Host     string `json:"host"`
-	Port     int    `json:"port" binding:"omitempty,min=1,max=65535"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Status   string `json:"status" binding:"omitempty,oneof=active inactive"`
+	Name        string  `json:"name"`
+	ExternalKey *string `json:"external_key"`
+	Protocol    string  `json:"protocol" binding:"omitempty,oneof=http https socks5 socks5h"`
+	Host        string  `json:"host"`
+	Port        int     `json:"port" binding:"omitempty,min=1,max=65535"`
+	Username    string  `json:"username"`
+	Password    string  `json:"password"`
+	Status      string  `json:"status" binding:"omitempty,oneof=active inactive"`
+	ExitIP      *string `json:"exit_ip"`
 }
 
 // List handles listing all proxies with pagination
@@ -133,12 +137,14 @@ func (h *ProxyHandler) Create(c *gin.Context) {
 
 	executeAdminIdempotentJSON(c, "admin.proxies.create", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		proxy, err := h.adminService.CreateProxy(ctx, &service.CreateProxyInput{
-			Name:     strings.TrimSpace(req.Name),
-			Protocol: strings.TrimSpace(req.Protocol),
-			Host:     strings.TrimSpace(req.Host),
-			Port:     req.Port,
-			Username: strings.TrimSpace(req.Username),
-			Password: strings.TrimSpace(req.Password),
+			Name:        strings.TrimSpace(req.Name),
+			ExternalKey: strings.TrimSpace(req.ExternalKey),
+			Protocol:    strings.TrimSpace(req.Protocol),
+			Host:        strings.TrimSpace(req.Host),
+			Port:        req.Port,
+			Username:    strings.TrimSpace(req.Username),
+			Password:    strings.TrimSpace(req.Password),
+			ExitIP:      strings.TrimSpace(req.ExitIP),
 		})
 		if err != nil {
 			return nil, err
@@ -163,13 +169,15 @@ func (h *ProxyHandler) Update(c *gin.Context) {
 	}
 
 	proxy, err := h.adminService.UpdateProxy(c.Request.Context(), proxyID, &service.UpdateProxyInput{
-		Name:     strings.TrimSpace(req.Name),
-		Protocol: strings.TrimSpace(req.Protocol),
-		Host:     strings.TrimSpace(req.Host),
-		Port:     req.Port,
-		Username: strings.TrimSpace(req.Username),
-		Password: strings.TrimSpace(req.Password),
-		Status:   strings.TrimSpace(req.Status),
+		Name:        strings.TrimSpace(req.Name),
+		Protocol:    strings.TrimSpace(req.Protocol),
+		Host:        strings.TrimSpace(req.Host),
+		Port:        req.Port,
+		Username:    strings.TrimSpace(req.Username),
+		Password:    strings.TrimSpace(req.Password),
+		Status:      strings.TrimSpace(req.Status),
+		ExternalKey: trimStringPtr(req.ExternalKey),
+		ExitIP:      trimStringPtr(req.ExitIP),
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -177,6 +185,14 @@ func (h *ProxyHandler) Update(c *gin.Context) {
 	}
 
 	response.Success(c, dto.ProxyFromServiceAdmin(proxy))
+}
+
+func trimStringPtr(v *string) *string {
+	if v == nil {
+		return nil
+	}
+	s := strings.TrimSpace(*v)
+	return &s
 }
 
 // Delete handles deleting a proxy

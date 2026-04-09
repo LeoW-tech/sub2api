@@ -75,6 +75,11 @@ func Name(v string) predicate.Proxy {
 	return predicate.Proxy(sql.FieldEQ(FieldName, v))
 }
 
+// ExternalKey applies equality check predicate on the "external_key" field. It's identical to ExternalKeyEQ.
+func ExternalKey(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldExternalKey, v))
+}
+
 // Protocol applies equality check predicate on the "protocol" field. It's identical to ProtocolEQ.
 func Protocol(v string) predicate.Proxy {
 	return predicate.Proxy(sql.FieldEQ(FieldProtocol, v))
@@ -103,6 +108,16 @@ func Password(v string) predicate.Proxy {
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.Proxy {
 	return predicate.Proxy(sql.FieldEQ(FieldStatus, v))
+}
+
+// ExitIP applies equality check predicate on the "exit_ip" field. It's identical to ExitIPEQ.
+func ExitIP(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldExitIP, v))
+}
+
+// ExitIPCheckedAt applies equality check predicate on the "exit_ip_checked_at" field. It's identical to ExitIPCheckedAtEQ.
+func ExitIPCheckedAt(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldExitIPCheckedAt, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
@@ -298,6 +313,81 @@ func NameEqualFold(v string) predicate.Proxy {
 // NameContainsFold applies the ContainsFold predicate on the "name" field.
 func NameContainsFold(v string) predicate.Proxy {
 	return predicate.Proxy(sql.FieldContainsFold(FieldName, v))
+}
+
+// ExternalKeyEQ applies the EQ predicate on the "external_key" field.
+func ExternalKeyEQ(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldExternalKey, v))
+}
+
+// ExternalKeyNEQ applies the NEQ predicate on the "external_key" field.
+func ExternalKeyNEQ(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNEQ(FieldExternalKey, v))
+}
+
+// ExternalKeyIn applies the In predicate on the "external_key" field.
+func ExternalKeyIn(vs ...string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldIn(FieldExternalKey, vs...))
+}
+
+// ExternalKeyNotIn applies the NotIn predicate on the "external_key" field.
+func ExternalKeyNotIn(vs ...string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotIn(FieldExternalKey, vs...))
+}
+
+// ExternalKeyGT applies the GT predicate on the "external_key" field.
+func ExternalKeyGT(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGT(FieldExternalKey, v))
+}
+
+// ExternalKeyGTE applies the GTE predicate on the "external_key" field.
+func ExternalKeyGTE(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGTE(FieldExternalKey, v))
+}
+
+// ExternalKeyLT applies the LT predicate on the "external_key" field.
+func ExternalKeyLT(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLT(FieldExternalKey, v))
+}
+
+// ExternalKeyLTE applies the LTE predicate on the "external_key" field.
+func ExternalKeyLTE(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLTE(FieldExternalKey, v))
+}
+
+// ExternalKeyContains applies the Contains predicate on the "external_key" field.
+func ExternalKeyContains(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldContains(FieldExternalKey, v))
+}
+
+// ExternalKeyHasPrefix applies the HasPrefix predicate on the "external_key" field.
+func ExternalKeyHasPrefix(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldHasPrefix(FieldExternalKey, v))
+}
+
+// ExternalKeyHasSuffix applies the HasSuffix predicate on the "external_key" field.
+func ExternalKeyHasSuffix(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldHasSuffix(FieldExternalKey, v))
+}
+
+// ExternalKeyIsNil applies the IsNil predicate on the "external_key" field.
+func ExternalKeyIsNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldIsNull(FieldExternalKey))
+}
+
+// ExternalKeyNotNil applies the NotNil predicate on the "external_key" field.
+func ExternalKeyNotNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotNull(FieldExternalKey))
+}
+
+// ExternalKeyEqualFold applies the EqualFold predicate on the "external_key" field.
+func ExternalKeyEqualFold(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEqualFold(FieldExternalKey, v))
+}
+
+// ExternalKeyContainsFold applies the ContainsFold predicate on the "external_key" field.
+func ExternalKeyContainsFold(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldContainsFold(FieldExternalKey, v))
 }
 
 // ProtocolEQ applies the EQ predicate on the "protocol" field.
@@ -683,6 +773,131 @@ func StatusEqualFold(v string) predicate.Proxy {
 // StatusContainsFold applies the ContainsFold predicate on the "status" field.
 func StatusContainsFold(v string) predicate.Proxy {
 	return predicate.Proxy(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// ExitIPEQ applies the EQ predicate on the "exit_ip" field.
+func ExitIPEQ(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldExitIP, v))
+}
+
+// ExitIPNEQ applies the NEQ predicate on the "exit_ip" field.
+func ExitIPNEQ(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNEQ(FieldExitIP, v))
+}
+
+// ExitIPIn applies the In predicate on the "exit_ip" field.
+func ExitIPIn(vs ...string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldIn(FieldExitIP, vs...))
+}
+
+// ExitIPNotIn applies the NotIn predicate on the "exit_ip" field.
+func ExitIPNotIn(vs ...string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotIn(FieldExitIP, vs...))
+}
+
+// ExitIPGT applies the GT predicate on the "exit_ip" field.
+func ExitIPGT(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGT(FieldExitIP, v))
+}
+
+// ExitIPGTE applies the GTE predicate on the "exit_ip" field.
+func ExitIPGTE(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGTE(FieldExitIP, v))
+}
+
+// ExitIPLT applies the LT predicate on the "exit_ip" field.
+func ExitIPLT(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLT(FieldExitIP, v))
+}
+
+// ExitIPLTE applies the LTE predicate on the "exit_ip" field.
+func ExitIPLTE(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLTE(FieldExitIP, v))
+}
+
+// ExitIPContains applies the Contains predicate on the "exit_ip" field.
+func ExitIPContains(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldContains(FieldExitIP, v))
+}
+
+// ExitIPHasPrefix applies the HasPrefix predicate on the "exit_ip" field.
+func ExitIPHasPrefix(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldHasPrefix(FieldExitIP, v))
+}
+
+// ExitIPHasSuffix applies the HasSuffix predicate on the "exit_ip" field.
+func ExitIPHasSuffix(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldHasSuffix(FieldExitIP, v))
+}
+
+// ExitIPIsNil applies the IsNil predicate on the "exit_ip" field.
+func ExitIPIsNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldIsNull(FieldExitIP))
+}
+
+// ExitIPNotNil applies the NotNil predicate on the "exit_ip" field.
+func ExitIPNotNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotNull(FieldExitIP))
+}
+
+// ExitIPEqualFold applies the EqualFold predicate on the "exit_ip" field.
+func ExitIPEqualFold(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEqualFold(FieldExitIP, v))
+}
+
+// ExitIPContainsFold applies the ContainsFold predicate on the "exit_ip" field.
+func ExitIPContainsFold(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldContainsFold(FieldExitIP, v))
+}
+
+// ExitIPCheckedAtEQ applies the EQ predicate on the "exit_ip_checked_at" field.
+func ExitIPCheckedAtEQ(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldExitIPCheckedAt, v))
+}
+
+// ExitIPCheckedAtNEQ applies the NEQ predicate on the "exit_ip_checked_at" field.
+func ExitIPCheckedAtNEQ(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNEQ(FieldExitIPCheckedAt, v))
+}
+
+// ExitIPCheckedAtIn applies the In predicate on the "exit_ip_checked_at" field.
+func ExitIPCheckedAtIn(vs ...time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldIn(FieldExitIPCheckedAt, vs...))
+}
+
+// ExitIPCheckedAtNotIn applies the NotIn predicate on the "exit_ip_checked_at" field.
+func ExitIPCheckedAtNotIn(vs ...time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotIn(FieldExitIPCheckedAt, vs...))
+}
+
+// ExitIPCheckedAtGT applies the GT predicate on the "exit_ip_checked_at" field.
+func ExitIPCheckedAtGT(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGT(FieldExitIPCheckedAt, v))
+}
+
+// ExitIPCheckedAtGTE applies the GTE predicate on the "exit_ip_checked_at" field.
+func ExitIPCheckedAtGTE(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGTE(FieldExitIPCheckedAt, v))
+}
+
+// ExitIPCheckedAtLT applies the LT predicate on the "exit_ip_checked_at" field.
+func ExitIPCheckedAtLT(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLT(FieldExitIPCheckedAt, v))
+}
+
+// ExitIPCheckedAtLTE applies the LTE predicate on the "exit_ip_checked_at" field.
+func ExitIPCheckedAtLTE(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLTE(FieldExitIPCheckedAt, v))
+}
+
+// ExitIPCheckedAtIsNil applies the IsNil predicate on the "exit_ip_checked_at" field.
+func ExitIPCheckedAtIsNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldIsNull(FieldExitIPCheckedAt))
+}
+
+// ExitIPCheckedAtNotNil applies the NotNil predicate on the "exit_ip_checked_at" field.
+func ExitIPCheckedAtNotNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotNull(FieldExitIPCheckedAt))
 }
 
 // HasAccounts applies the HasEdge predicate on the "accounts" edge.

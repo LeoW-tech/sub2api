@@ -545,12 +545,15 @@ export interface ClaudeModel {
 export interface Proxy {
   id: number
   name: string
+  external_key?: string | null
   protocol: ProxyProtocol
   host: string
   port: number
   username: string | null
   password?: string | null
   status: 'active' | 'inactive'
+  exit_ip?: string | null
+  exit_ip_checked_at?: string | null
   account_count?: number // Number of accounts using this proxy
   latency_ms?: number
   latency_status?: 'success' | 'failed'
@@ -896,21 +899,25 @@ export interface CheckMixedChannelResponse {
 
 export interface CreateProxyRequest {
   name: string
+  external_key?: string | null
   protocol: ProxyProtocol
   host: string
   port: number
   username?: string | null
   password?: string | null
+  exit_ip?: string | null
 }
 
 export interface UpdateProxyRequest {
   name?: string
+  external_key?: string | null
   protocol?: ProxyProtocol
   host?: string
   port?: number
   username?: string | null
   password?: string | null
   status?: 'active' | 'inactive'
+  exit_ip?: string | null
 }
 
 export interface AdminDataPayload {
@@ -923,6 +930,7 @@ export interface AdminDataPayload {
 
 export interface AdminDataProxy {
   proxy_key: string
+  proxy_external_key?: string | null
   name: string
   protocol: ProxyProtocol
   host: string
@@ -930,6 +938,8 @@ export interface AdminDataProxy {
   username?: string | null
   password?: string | null
   status: 'active' | 'inactive'
+  exit_ip?: string | null
+  exit_ip_checked_at?: number | null
 }
 
 export interface AdminDataAccount {
@@ -940,6 +950,9 @@ export interface AdminDataAccount {
   credentials: Record<string, unknown>
   extra?: Record<string, unknown>
   proxy_key?: string | null
+  proxy_external_key?: string | null
+  proxy_name?: string | null
+  exit_ip?: string | null
   concurrency: number
   priority: number
   rate_multiplier?: number | null

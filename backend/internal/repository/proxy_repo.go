@@ -31,10 +31,13 @@ func newProxyRepositoryWithSQL(client *dbent.Client, sqlq sqlQuerier) *proxyRepo
 func (r *proxyRepository) Create(ctx context.Context, proxyIn *service.Proxy) error {
 	builder := r.client.Proxy.Create().
 		SetName(proxyIn.Name).
+		SetNillableExternalKey(nullableString(proxyIn.ExternalKey)).
 		SetProtocol(proxyIn.Protocol).
 		SetHost(proxyIn.Host).
 		SetPort(proxyIn.Port).
-		SetStatus(proxyIn.Status)
+		SetStatus(proxyIn.Status).
+		SetNillableExitIP(nullableString(proxyIn.ExitIP)).
+		SetNillableExitIPCheckedAt(proxyIn.ExitIPCheckedAt)
 	if proxyIn.Username != "" {
 		builder.SetUsername(proxyIn.Username)
 	}
@@ -82,10 +85,13 @@ func (r *proxyRepository) ListByIDs(ctx context.Context, ids []int64) ([]service
 func (r *proxyRepository) Update(ctx context.Context, proxyIn *service.Proxy) error {
 	builder := r.client.Proxy.UpdateOneID(proxyIn.ID).
 		SetName(proxyIn.Name).
+		SetNillableExternalKey(nullableString(proxyIn.ExternalKey)).
 		SetProtocol(proxyIn.Protocol).
 		SetHost(proxyIn.Host).
 		SetPort(proxyIn.Port).
-		SetStatus(proxyIn.Status)
+		SetStatus(proxyIn.Status).
+		SetNillableExitIP(nullableString(proxyIn.ExitIP)).
+		SetNillableExitIPCheckedAt(proxyIn.ExitIPCheckedAt)
 	if proxyIn.Username != "" {
 		builder.SetUsername(proxyIn.Username)
 	} else {
@@ -350,20 +356,27 @@ func proxyEntityToService(m *dbent.Proxy) *service.Proxy {
 		return nil
 	}
 	out := &service.Proxy{
-		ID:        m.ID,
-		Name:      m.Name,
-		Protocol:  m.Protocol,
-		Host:      m.Host,
-		Port:      m.Port,
-		Status:    m.Status,
-		CreatedAt: m.CreatedAt,
-		UpdatedAt: m.UpdatedAt,
+		ID:              m.ID,
+		Name:            m.Name,
+		Protocol:        m.Protocol,
+		Host:            m.Host,
+		Port:            m.Port,
+		Status:          m.Status,
+		CreatedAt:       m.CreatedAt,
+		UpdatedAt:       m.UpdatedAt,
+		ExitIPCheckedAt: m.ExitIPCheckedAt,
+	}
+	if m.ExternalKey != nil {
+		out.ExternalKey = *m.ExternalKey
 	}
 	if m.Username != nil {
 		out.Username = *m.Username
 	}
 	if m.Password != nil {
 		out.Password = *m.Password
+	}
+	if m.ExitIP != nil {
+		out.ExitIP = *m.ExitIP
 	}
 	return out
 }
@@ -375,4 +388,12 @@ func applyProxyEntityToService(dst *service.Proxy, src *dbent.Proxy) {
 	dst.ID = src.ID
 	dst.CreatedAt = src.CreatedAt
 	dst.UpdatedAt = src.UpdatedAt
+	dst.ExitIPCheckedAt = src.ExitIPCheckedAt
+}
+
+func nullableString(v string) *string {
+	if v == "" {
+		return nil
+	}
+	return &v
 }

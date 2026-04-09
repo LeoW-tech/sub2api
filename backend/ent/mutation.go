@@ -13750,27 +13750,30 @@ func (m *PromoCodeUsageMutation) ResetEdge(name string) error {
 // ProxyMutation represents an operation that mutates the Proxy nodes in the graph.
 type ProxyMutation struct {
 	config
-	op              Op
-	typ             string
-	id              *int64
-	created_at      *time.Time
-	updated_at      *time.Time
-	deleted_at      *time.Time
-	name            *string
-	protocol        *string
-	host            *string
-	port            *int
-	addport         *int
-	username        *string
-	password        *string
-	status          *string
-	clearedFields   map[string]struct{}
-	accounts        map[int64]struct{}
-	removedaccounts map[int64]struct{}
-	clearedaccounts bool
-	done            bool
-	oldValue        func(context.Context) (*Proxy, error)
-	predicates      []predicate.Proxy
+	op                 Op
+	typ                string
+	id                 *int64
+	created_at         *time.Time
+	updated_at         *time.Time
+	deleted_at         *time.Time
+	name               *string
+	external_key       *string
+	protocol           *string
+	host               *string
+	port               *int
+	addport            *int
+	username           *string
+	password           *string
+	status             *string
+	exit_ip            *string
+	exit_ip_checked_at *time.Time
+	clearedFields      map[string]struct{}
+	accounts           map[int64]struct{}
+	removedaccounts    map[int64]struct{}
+	clearedaccounts    bool
+	done               bool
+	oldValue           func(context.Context) (*Proxy, error)
+	predicates         []predicate.Proxy
 }
 
 var _ ent.Mutation = (*ProxyMutation)(nil)
@@ -14026,6 +14029,55 @@ func (m *ProxyMutation) OldName(ctx context.Context) (v string, err error) {
 // ResetName resets all changes to the "name" field.
 func (m *ProxyMutation) ResetName() {
 	m.name = nil
+}
+
+// SetExternalKey sets the "external_key" field.
+func (m *ProxyMutation) SetExternalKey(s string) {
+	m.external_key = &s
+}
+
+// ExternalKey returns the value of the "external_key" field in the mutation.
+func (m *ProxyMutation) ExternalKey() (r string, exists bool) {
+	v := m.external_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExternalKey returns the old "external_key" field's value of the Proxy entity.
+// If the Proxy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxyMutation) OldExternalKey(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExternalKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExternalKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExternalKey: %w", err)
+	}
+	return oldValue.ExternalKey, nil
+}
+
+// ClearExternalKey clears the value of the "external_key" field.
+func (m *ProxyMutation) ClearExternalKey() {
+	m.external_key = nil
+	m.clearedFields[proxy.FieldExternalKey] = struct{}{}
+}
+
+// ExternalKeyCleared returns if the "external_key" field was cleared in this mutation.
+func (m *ProxyMutation) ExternalKeyCleared() bool {
+	_, ok := m.clearedFields[proxy.FieldExternalKey]
+	return ok
+}
+
+// ResetExternalKey resets all changes to the "external_key" field.
+func (m *ProxyMutation) ResetExternalKey() {
+	m.external_key = nil
+	delete(m.clearedFields, proxy.FieldExternalKey)
 }
 
 // SetProtocol sets the "protocol" field.
@@ -14290,6 +14342,104 @@ func (m *ProxyMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetExitIP sets the "exit_ip" field.
+func (m *ProxyMutation) SetExitIP(s string) {
+	m.exit_ip = &s
+}
+
+// ExitIP returns the value of the "exit_ip" field in the mutation.
+func (m *ProxyMutation) ExitIP() (r string, exists bool) {
+	v := m.exit_ip
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExitIP returns the old "exit_ip" field's value of the Proxy entity.
+// If the Proxy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxyMutation) OldExitIP(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExitIP is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExitIP requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExitIP: %w", err)
+	}
+	return oldValue.ExitIP, nil
+}
+
+// ClearExitIP clears the value of the "exit_ip" field.
+func (m *ProxyMutation) ClearExitIP() {
+	m.exit_ip = nil
+	m.clearedFields[proxy.FieldExitIP] = struct{}{}
+}
+
+// ExitIPCleared returns if the "exit_ip" field was cleared in this mutation.
+func (m *ProxyMutation) ExitIPCleared() bool {
+	_, ok := m.clearedFields[proxy.FieldExitIP]
+	return ok
+}
+
+// ResetExitIP resets all changes to the "exit_ip" field.
+func (m *ProxyMutation) ResetExitIP() {
+	m.exit_ip = nil
+	delete(m.clearedFields, proxy.FieldExitIP)
+}
+
+// SetExitIPCheckedAt sets the "exit_ip_checked_at" field.
+func (m *ProxyMutation) SetExitIPCheckedAt(t time.Time) {
+	m.exit_ip_checked_at = &t
+}
+
+// ExitIPCheckedAt returns the value of the "exit_ip_checked_at" field in the mutation.
+func (m *ProxyMutation) ExitIPCheckedAt() (r time.Time, exists bool) {
+	v := m.exit_ip_checked_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExitIPCheckedAt returns the old "exit_ip_checked_at" field's value of the Proxy entity.
+// If the Proxy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxyMutation) OldExitIPCheckedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExitIPCheckedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExitIPCheckedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExitIPCheckedAt: %w", err)
+	}
+	return oldValue.ExitIPCheckedAt, nil
+}
+
+// ClearExitIPCheckedAt clears the value of the "exit_ip_checked_at" field.
+func (m *ProxyMutation) ClearExitIPCheckedAt() {
+	m.exit_ip_checked_at = nil
+	m.clearedFields[proxy.FieldExitIPCheckedAt] = struct{}{}
+}
+
+// ExitIPCheckedAtCleared returns if the "exit_ip_checked_at" field was cleared in this mutation.
+func (m *ProxyMutation) ExitIPCheckedAtCleared() bool {
+	_, ok := m.clearedFields[proxy.FieldExitIPCheckedAt]
+	return ok
+}
+
+// ResetExitIPCheckedAt resets all changes to the "exit_ip_checked_at" field.
+func (m *ProxyMutation) ResetExitIPCheckedAt() {
+	m.exit_ip_checked_at = nil
+	delete(m.clearedFields, proxy.FieldExitIPCheckedAt)
+}
+
 // AddAccountIDs adds the "accounts" edge to the Account entity by ids.
 func (m *ProxyMutation) AddAccountIDs(ids ...int64) {
 	if m.accounts == nil {
@@ -14378,7 +14528,7 @@ func (m *ProxyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ProxyMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 13)
 	if m.created_at != nil {
 		fields = append(fields, proxy.FieldCreatedAt)
 	}
@@ -14390,6 +14540,9 @@ func (m *ProxyMutation) Fields() []string {
 	}
 	if m.name != nil {
 		fields = append(fields, proxy.FieldName)
+	}
+	if m.external_key != nil {
+		fields = append(fields, proxy.FieldExternalKey)
 	}
 	if m.protocol != nil {
 		fields = append(fields, proxy.FieldProtocol)
@@ -14409,6 +14562,12 @@ func (m *ProxyMutation) Fields() []string {
 	if m.status != nil {
 		fields = append(fields, proxy.FieldStatus)
 	}
+	if m.exit_ip != nil {
+		fields = append(fields, proxy.FieldExitIP)
+	}
+	if m.exit_ip_checked_at != nil {
+		fields = append(fields, proxy.FieldExitIPCheckedAt)
+	}
 	return fields
 }
 
@@ -14425,6 +14584,8 @@ func (m *ProxyMutation) Field(name string) (ent.Value, bool) {
 		return m.DeletedAt()
 	case proxy.FieldName:
 		return m.Name()
+	case proxy.FieldExternalKey:
+		return m.ExternalKey()
 	case proxy.FieldProtocol:
 		return m.Protocol()
 	case proxy.FieldHost:
@@ -14437,6 +14598,10 @@ func (m *ProxyMutation) Field(name string) (ent.Value, bool) {
 		return m.Password()
 	case proxy.FieldStatus:
 		return m.Status()
+	case proxy.FieldExitIP:
+		return m.ExitIP()
+	case proxy.FieldExitIPCheckedAt:
+		return m.ExitIPCheckedAt()
 	}
 	return nil, false
 }
@@ -14454,6 +14619,8 @@ func (m *ProxyMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldDeletedAt(ctx)
 	case proxy.FieldName:
 		return m.OldName(ctx)
+	case proxy.FieldExternalKey:
+		return m.OldExternalKey(ctx)
 	case proxy.FieldProtocol:
 		return m.OldProtocol(ctx)
 	case proxy.FieldHost:
@@ -14466,6 +14633,10 @@ func (m *ProxyMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldPassword(ctx)
 	case proxy.FieldStatus:
 		return m.OldStatus(ctx)
+	case proxy.FieldExitIP:
+		return m.OldExitIP(ctx)
+	case proxy.FieldExitIPCheckedAt:
+		return m.OldExitIPCheckedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown Proxy field %s", name)
 }
@@ -14502,6 +14673,13 @@ func (m *ProxyMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetName(v)
+		return nil
+	case proxy.FieldExternalKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExternalKey(v)
 		return nil
 	case proxy.FieldProtocol:
 		v, ok := value.(string)
@@ -14544,6 +14722,20 @@ func (m *ProxyMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
+		return nil
+	case proxy.FieldExitIP:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExitIP(v)
+		return nil
+	case proxy.FieldExitIPCheckedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExitIPCheckedAt(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Proxy field %s", name)
@@ -14593,11 +14785,20 @@ func (m *ProxyMutation) ClearedFields() []string {
 	if m.FieldCleared(proxy.FieldDeletedAt) {
 		fields = append(fields, proxy.FieldDeletedAt)
 	}
+	if m.FieldCleared(proxy.FieldExternalKey) {
+		fields = append(fields, proxy.FieldExternalKey)
+	}
 	if m.FieldCleared(proxy.FieldUsername) {
 		fields = append(fields, proxy.FieldUsername)
 	}
 	if m.FieldCleared(proxy.FieldPassword) {
 		fields = append(fields, proxy.FieldPassword)
+	}
+	if m.FieldCleared(proxy.FieldExitIP) {
+		fields = append(fields, proxy.FieldExitIP)
+	}
+	if m.FieldCleared(proxy.FieldExitIPCheckedAt) {
+		fields = append(fields, proxy.FieldExitIPCheckedAt)
 	}
 	return fields
 }
@@ -14616,11 +14817,20 @@ func (m *ProxyMutation) ClearField(name string) error {
 	case proxy.FieldDeletedAt:
 		m.ClearDeletedAt()
 		return nil
+	case proxy.FieldExternalKey:
+		m.ClearExternalKey()
+		return nil
 	case proxy.FieldUsername:
 		m.ClearUsername()
 		return nil
 	case proxy.FieldPassword:
 		m.ClearPassword()
+		return nil
+	case proxy.FieldExitIP:
+		m.ClearExitIP()
+		return nil
+	case proxy.FieldExitIPCheckedAt:
+		m.ClearExitIPCheckedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown Proxy nullable field %s", name)
@@ -14642,6 +14852,9 @@ func (m *ProxyMutation) ResetField(name string) error {
 	case proxy.FieldName:
 		m.ResetName()
 		return nil
+	case proxy.FieldExternalKey:
+		m.ResetExternalKey()
+		return nil
 	case proxy.FieldProtocol:
 		m.ResetProtocol()
 		return nil
@@ -14659,6 +14872,12 @@ func (m *ProxyMutation) ResetField(name string) error {
 		return nil
 	case proxy.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case proxy.FieldExitIP:
+		m.ResetExitIP()
+		return nil
+	case proxy.FieldExitIPCheckedAt:
+		m.ResetExitIPCheckedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown Proxy field %s", name)

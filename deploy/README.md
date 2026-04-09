@@ -156,6 +156,38 @@ SELECT
 - Docker 场景下需把宿主机 Socket 挂载到容器内同路径
 - 详细步骤见：`deploy/DATAMANAGEMENTD_CN.md`
 
+### door-gateway（账号专属出口门）
+
+如果你希望：
+
+- 保留宿主机日常使用的 `Clash Pro` 通用门不变
+- 同时再给 Sub2API 提供 `10-20` 个账号专属出口门
+- 让每个账号稳定绑定自己的出口，不和其它账号串线
+
+可以额外部署宿主机侧 `tools/door-gateway`：
+
+- 每扇门对应一个独立 Mihomo worker
+- 每扇门监听自己的固定本地端口
+- 每扇门绑定你现有 Clash/Mihomo 配置里的一个节点名
+- 管理接口统一查看全部门状态
+- 可直接导出为 Sub2API 可导入的 JSON
+
+快速启动示例：
+
+```bash
+cd tools/door-gateway
+cp doors.example.json ~/door-gateway.json
+DOOR_GATEWAY_CONFIG=~/door-gateway.json npm start
+```
+
+管理接口：
+
+- `GET http://127.0.0.1:19080/health`
+- `GET http://127.0.0.1:19080/doors`
+- `GET http://127.0.0.1:19080/export/sub2api`
+
+如果 Sub2API 跑在 Docker 里，建议在 `door-gateway` 配置中把导出主机设为 `host.docker.internal`，这样导出的门可以直接在 `IP管理` 中导入使用。
+
 ### Commands
 
 For **local directory version** (docker-compose.local.yml):

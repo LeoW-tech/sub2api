@@ -33,6 +33,12 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireColumn(t, tx, "accounts", "overload_until", "timestamp with time zone", 0, true)
 	requireColumn(t, tx, "accounts", "session_window_status", "character varying", 20, true)
 
+	// proxies: door metadata
+	requireColumn(t, tx, "proxies", "external_key", "character varying", 191, true)
+	requireColumn(t, tx, "proxies", "exit_ip", "character varying", 64, true)
+	requireColumn(t, tx, "proxies", "exit_ip_checked_at", "timestamp with time zone", 0, true)
+	requireIndex(t, tx, "proxies", "idx_proxies_external_key")
+
 	// api_keys: key length should be 128
 	requireColumn(t, tx, "api_keys", "key", "character varying", 128, false)
 

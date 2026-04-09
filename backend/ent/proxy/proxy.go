@@ -23,6 +23,8 @@ const (
 	FieldDeletedAt = "deleted_at"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
+	// FieldExternalKey holds the string denoting the external_key field in the database.
+	FieldExternalKey = "external_key"
 	// FieldProtocol holds the string denoting the protocol field in the database.
 	FieldProtocol = "protocol"
 	// FieldHost holds the string denoting the host field in the database.
@@ -35,6 +37,10 @@ const (
 	FieldPassword = "password"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldExitIP holds the string denoting the exit_ip field in the database.
+	FieldExitIP = "exit_ip"
+	// FieldExitIPCheckedAt holds the string denoting the exit_ip_checked_at field in the database.
+	FieldExitIPCheckedAt = "exit_ip_checked_at"
 	// EdgeAccounts holds the string denoting the accounts edge name in mutations.
 	EdgeAccounts = "accounts"
 	// Table holds the table name of the proxy in the database.
@@ -55,12 +61,15 @@ var Columns = []string{
 	FieldUpdatedAt,
 	FieldDeletedAt,
 	FieldName,
+	FieldExternalKey,
 	FieldProtocol,
 	FieldHost,
 	FieldPort,
 	FieldUsername,
 	FieldPassword,
 	FieldStatus,
+	FieldExitIP,
+	FieldExitIPCheckedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -89,6 +98,8 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
+	// ExternalKeyValidator is a validator for the "external_key" field. It is called by the builders before save.
+	ExternalKeyValidator func(string) error
 	// ProtocolValidator is a validator for the "protocol" field. It is called by the builders before save.
 	ProtocolValidator func(string) error
 	// HostValidator is a validator for the "host" field. It is called by the builders before save.
@@ -101,6 +112,8 @@ var (
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	StatusValidator func(string) error
+	// ExitIPValidator is a validator for the "exit_ip" field. It is called by the builders before save.
+	ExitIPValidator func(string) error
 )
 
 // OrderOption defines the ordering options for the Proxy queries.
@@ -131,6 +144,11 @@ func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
 }
 
+// ByExternalKey orders the results by the external_key field.
+func ByExternalKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExternalKey, opts...).ToFunc()
+}
+
 // ByProtocol orders the results by the protocol field.
 func ByProtocol(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProtocol, opts...).ToFunc()
@@ -159,6 +177,16 @@ func ByPassword(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByExitIP orders the results by the exit_ip field.
+func ByExitIP(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExitIP, opts...).ToFunc()
+}
+
+// ByExitIPCheckedAt orders the results by the exit_ip_checked_at field.
+func ByExitIPCheckedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExitIPCheckedAt, opts...).ToFunc()
 }
 
 // ByAccountsCount orders the results by accounts count.

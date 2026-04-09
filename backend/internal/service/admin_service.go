@@ -283,22 +283,28 @@ type BulkUpdateAccountsResult struct {
 }
 
 type CreateProxyInput struct {
-	Name     string
-	Protocol string
-	Host     string
-	Port     int
-	Username string
-	Password string
+	Name            string
+	ExternalKey     string
+	Protocol        string
+	Host            string
+	Port            int
+	Username        string
+	Password        string
+	ExitIP          string
+	ExitIPCheckedAt *time.Time
 }
 
 type UpdateProxyInput struct {
-	Name     string
-	Protocol string
-	Host     string
-	Port     int
-	Username string
-	Password string
-	Status   string
+	Name            string
+	Protocol        string
+	Host            string
+	Port            int
+	Username        string
+	Password        string
+	Status          string
+	ExternalKey     *string
+	ExitIP          *string
+	ExitIPCheckedAt *time.Time
 }
 
 type GenerateRedeemCodesInput struct {
@@ -1927,13 +1933,16 @@ func (s *adminServiceImpl) GetProxiesByIDs(ctx context.Context, ids []int64) ([]
 
 func (s *adminServiceImpl) CreateProxy(ctx context.Context, input *CreateProxyInput) (*Proxy, error) {
 	proxy := &Proxy{
-		Name:     input.Name,
-		Protocol: input.Protocol,
-		Host:     input.Host,
-		Port:     input.Port,
-		Username: input.Username,
-		Password: input.Password,
-		Status:   StatusActive,
+		Name:            input.Name,
+		ExternalKey:     input.ExternalKey,
+		Protocol:        input.Protocol,
+		Host:            input.Host,
+		Port:            input.Port,
+		Username:        input.Username,
+		Password:        input.Password,
+		Status:          StatusActive,
+		ExitIP:          input.ExitIP,
+		ExitIPCheckedAt: input.ExitIPCheckedAt,
 	}
 	if err := s.proxyRepo.Create(ctx, proxy); err != nil {
 		return nil, err
@@ -1969,6 +1978,24 @@ func (s *adminServiceImpl) UpdateProxy(ctx context.Context, id int64, input *Upd
 	}
 	if input.Status != "" {
 		proxy.Status = input.Status
+	}
+	if input.ExternalKey != nil {
+		proxy.ExternalKey = strings.TrimSpace(*input.ExternalKey)
+	}
+	if input.ExitIP != nil {
+		proxy.ExitIP = strings.TrimSpace(*input.ExitIP)
+		if proxy.ExitIP == "" {
+			proxy.ExitIPCheckedAt = nil
+		} else if input.ExitIPCheckedAt != nil {
+			ts := input.ExitIPCheckedAt.UTC()
+			proxy.ExitIPCheckedAt = &ts
+		} else {
+			now := time.Now().UTC()
+			proxy.ExitIPCheckedAt = &now
+		}
+	} else if input.ExitIPCheckedAt != nil {
+		ts := input.ExitIPCheckedAt.UTC()
+		proxy.ExitIPCheckedAt = &ts
 	}
 
 	if err := s.proxyRepo.Update(ctx, proxy); err != nil {

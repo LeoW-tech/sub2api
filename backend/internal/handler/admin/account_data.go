@@ -32,14 +32,17 @@ type DataPayload struct {
 }
 
 type DataProxy struct {
-	ProxyKey string `json:"proxy_key"`
-	Name     string `json:"name"`
-	Protocol string `json:"protocol"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-	Status   string `json:"status"`
+	ProxyKey         string  `json:"proxy_key"`
+	ProxyExternalKey string  `json:"proxy_external_key,omitempty"`
+	Name             string  `json:"name"`
+	Protocol         string  `json:"protocol"`
+	Host             string  `json:"host"`
+	Port             int     `json:"port"`
+	Username         string  `json:"username,omitempty"`
+	Password         string  `json:"password,omitempty"`
+	Status           string  `json:"status"`
+	ExitIP           string  `json:"exit_ip,omitempty"`
+	ExitIPCheckedAt  *int64  `json:"exit_ip_checked_at,omitempty"`
 }
 
 type DataAccount struct {
@@ -50,6 +53,9 @@ type DataAccount struct {
 	Credentials        map[string]any `json:"credentials"`
 	Extra              map[string]any `json:"extra,omitempty"`
 	ProxyKey           *string        `json:"proxy_key,omitempty"`
+	ProxyExternalKey   *string        `json:"proxy_external_key,omitempty"`
+	ProxyName          *string        `json:"proxy_name,omitempty"`
+	ExitIP             *string        `json:"exit_ip,omitempty"`
 	Concurrency        int            `json:"concurrency"`
 	Priority           int            `json:"priority"`
 	RateMultiplier     *float64       `json:"rate_multiplier,omitempty"`
@@ -115,20 +121,30 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 	}
 
 	proxyKeyByID := make(map[int64]string, len(proxies))
+	proxyByID := make(map[int64]service.Proxy, len(proxies))
 	dataProxies := make([]DataProxy, 0, len(proxies))
 	for i := range proxies {
 		p := proxies[i]
 		key := buildProxyKey(p.Protocol, p.Host, p.Port, p.Username, p.Password)
 		proxyKeyByID[p.ID] = key
+		proxyByID[p.ID] = p
+		var exitIPCheckedAt *int64
+		if p.ExitIPCheckedAt != nil {
+			ts := p.ExitIPCheckedAt.Unix()
+			exitIPCheckedAt = &ts
+		}
 		dataProxies = append(dataProxies, DataProxy{
-			ProxyKey: key,
-			Name:     p.Name,
-			Protocol: p.Protocol,
-			Host:     p.Host,
-			Port:     p.Port,
-			Username: p.Username,
-			Password: p.Password,
-			Status:   p.Status,
+			ProxyKey:         key,
+			ProxyExternalKey: p.ExternalKey,
+			Name:             p.Name,
+			Protocol:         p.Protocol,
+			Host:             p.Host,
+			Port:             p.Port,
+			Username:         p.Username,
+			Password:         p.Password,
+			Status:           p.Status,
+			ExitIP:           p.ExitIP,
+			ExitIPCheckedAt:  exitIPCheckedAt,
 		})
 	}
 
@@ -139,6 +155,22 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 		if acc.ProxyID != nil {
 			if key, ok := proxyKeyByID[*acc.ProxyID]; ok {
 				proxyKey = &key
+			}
+		}
+		var proxyExternalKey *string
+		var proxyName *string
+		var exitIP *string
+		if acc.ProxyID != nil {
+			if proxyMeta, ok := proxyByID[*acc.ProxyID]; ok {
+				if proxyMeta.ExternalKey != "" {
+					proxyExternalKey = stringPtr(proxyMeta.ExternalKey)
+				}
+				if proxyMeta.Name != "" {
+					proxyName = stringPtr(proxyMeta.Name)
+				}
+				if proxyMeta.ExitIP != "" {
+					exitIP = stringPtr(proxyMeta.ExitIP)
+				}
 			}
 		}
 		var expiresAt *int64
@@ -154,6 +186,9 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 			Credentials:        acc.Credentials,
 			Extra:              acc.Extra,
 			ProxyKey:           proxyKey,
+			ProxyExternalKey:   proxyExternalKey,
+			ProxyName:          proxyName,
+			ExitIP:             exitIP,
 			Concurrency:        acc.Concurrency,
 			Priority:           acc.Priority,
 			RateMultiplier:     acc.RateMultiplier,
@@ -203,10 +238,19 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 	}
 
 	proxyKeyToID := make(map[string]int64, len(existingProxies))
+	proxyExternalKeyToID := make(map[string]int64, len(existingProxies))
+	proxyNameToIDs := make(map[string][]int64, len(existingProxies))
 	for i := range existingProxies {
 		p := existingProxies[i]
 		key := buildProxyKey(p.Protocol, p.Host, p.Port, p.Username, p.Password)
 		proxyKeyToID[key] = p.ID
+		if trimmed := strings.TrimSpace(p.ExternalKey); trimmed != "" {
+			proxyExternalKeyToID[trimmed] = p.ID
+		}
+		nameKey := strings.TrimSpace(p.Name)
+		if nameKey != "" {
+			proxyNameToIDs[nameKey] = append(proxyNameToIDs[nameKey], p.ID)
+		}
 	}
 
 	for i := range dataPayload.Proxies {
@@ -226,26 +270,29 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 			continue
 		}
 		normalizedStatus := normalizeProxyStatus(item.Status)
-		if existingID, ok := proxyKeyToID[key]; ok {
+		if existingID, ok := resolveExistingProxyID(key, strings.TrimSpace(item.ProxyExternalKey), "", proxyKeyToID, proxyExternalKeyToID, proxyNameToIDs); ok {
 			proxyKeyToID[key] = existingID
+			if strings.TrimSpace(item.ProxyExternalKey) != "" {
+				proxyExternalKeyToID[strings.TrimSpace(item.ProxyExternalKey)] = existingID
+			}
 			result.ProxyReused++
-			if normalizedStatus != "" {
-				if proxy, getErr := h.adminService.GetProxy(ctx, existingID); getErr == nil && proxy != nil && proxy.Status != normalizedStatus {
-					_, _ = h.adminService.UpdateProxy(ctx, existingID, &service.UpdateProxyInput{
-						Status: normalizedStatus,
-					})
-				}
+			updateInput := buildImportedProxyUpdate(item, normalizedStatus)
+			if proxy, getErr := h.adminService.GetProxy(ctx, existingID); getErr == nil && proxy != nil && shouldUpdateImportedProxy(proxy, item, normalizedStatus) {
+				_, _ = h.adminService.UpdateProxy(ctx, existingID, updateInput)
 			}
 			continue
 		}
 
 		created, createErr := h.adminService.CreateProxy(ctx, &service.CreateProxyInput{
-			Name:     defaultProxyName(item.Name),
-			Protocol: item.Protocol,
-			Host:     item.Host,
-			Port:     item.Port,
-			Username: item.Username,
-			Password: item.Password,
+			Name:            defaultProxyName(item.Name),
+			ExternalKey:     strings.TrimSpace(item.ProxyExternalKey),
+			Protocol:        item.Protocol,
+			Host:            item.Host,
+			Port:            item.Port,
+			Username:        item.Username,
+			Password:        item.Password,
+			ExitIP:          strings.TrimSpace(item.ExitIP),
+			ExitIPCheckedAt: unixPtrToTime(item.ExitIPCheckedAt),
 		})
 		if createErr != nil {
 			result.ProxyFailed++
@@ -258,6 +305,9 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 			continue
 		}
 		proxyKeyToID[key] = created.ID
+		if strings.TrimSpace(item.ProxyExternalKey) != "" {
+			proxyExternalKeyToID[strings.TrimSpace(item.ProxyExternalKey)] = created.ID
+		}
 		result.ProxyCreated++
 
 		if normalizedStatus != "" && normalizedStatus != created.Status {
@@ -283,18 +333,25 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 		}
 
 		var proxyID *int64
-		if item.ProxyKey != nil && *item.ProxyKey != "" {
-			if id, ok := proxyKeyToID[*item.ProxyKey]; ok {
-				proxyID = &id
-			} else {
-				result.AccountFailed++
-				result.Errors = append(result.Errors, DataImportError{
-					Kind:     "account",
-					Name:     item.Name,
-					ProxyKey: *item.ProxyKey,
-					Message:  "proxy_key not found",
+		if resolvedID, err := resolveAccountProxyID(item, proxyKeyToID, proxyExternalKeyToID, proxyNameToIDs); err != nil {
+			result.AccountFailed++
+			result.Errors = append(result.Errors, DataImportError{
+				Kind:     "account",
+				Name:     item.Name,
+				ProxyKey: derefOptionalString(item.ProxyKey),
+				Message:  err.Error(),
+			})
+			continue
+		} else if resolvedID != nil {
+			proxyID = resolvedID
+		}
+
+		if proxyID != nil && item.ExitIP != nil {
+			exitIP := strings.TrimSpace(*item.ExitIP)
+			if exitIP != "" {
+				_, _ = h.adminService.UpdateProxy(ctx, *proxyID, &service.UpdateProxyInput{
+					ExitIP: &exitIP,
 				})
-				continue
 			}
 		}
 
@@ -563,6 +620,130 @@ func defaultProxyName(name string) string {
 		return "imported-proxy"
 	}
 	return name
+}
+
+func buildImportedProxyUpdate(item DataProxy, normalizedStatus string) *service.UpdateProxyInput {
+	return &service.UpdateProxyInput{
+		Name:        defaultProxyName(item.Name),
+		Protocol:    item.Protocol,
+		Host:        item.Host,
+		Port:        item.Port,
+		Username:    item.Username,
+		Password:    item.Password,
+		Status:      normalizedStatus,
+		ExternalKey: nonEmptyStringPtr(item.ProxyExternalKey),
+		ExitIP:      nonEmptyStringPtr(item.ExitIP),
+	}
+}
+
+func shouldUpdateImportedProxy(existing *service.Proxy, item DataProxy, normalizedStatus string) bool {
+	if existing == nil {
+		return false
+	}
+	if defaultProxyName(item.Name) != existing.Name ||
+		item.Protocol != existing.Protocol ||
+		item.Host != existing.Host ||
+		item.Port != existing.Port ||
+		item.Username != existing.Username ||
+		item.Password != existing.Password ||
+		(strings.TrimSpace(item.ProxyExternalKey) != existing.ExternalKey) ||
+		(strings.TrimSpace(item.ExitIP) != existing.ExitIP) {
+		return true
+	}
+	return normalizedStatus != "" && normalizedStatus != existing.Status
+}
+
+func resolveExistingProxyID(
+	proxyKey string,
+	proxyExternalKey string,
+	proxyName string,
+	proxyKeyToID map[string]int64,
+	proxyExternalKeyToID map[string]int64,
+	proxyNameToIDs map[string][]int64,
+) (int64, bool) {
+	if proxyKey != "" {
+		if id, ok := proxyKeyToID[proxyKey]; ok {
+			return id, true
+		}
+	}
+	if proxyExternalKey != "" {
+		if id, ok := proxyExternalKeyToID[proxyExternalKey]; ok {
+			return id, true
+		}
+	}
+	if proxyName != "" {
+		if ids := proxyNameToIDs[proxyName]; len(ids) == 1 {
+			return ids[0], true
+		}
+	}
+	return 0, false
+}
+
+func resolveAccountProxyID(
+	item DataAccount,
+	proxyKeyToID map[string]int64,
+	proxyExternalKeyToID map[string]int64,
+	proxyNameToIDs map[string][]int64,
+) (*int64, error) {
+	if item.ProxyKey != nil && strings.TrimSpace(*item.ProxyKey) != "" {
+		if id, ok := proxyKeyToID[strings.TrimSpace(*item.ProxyKey)]; ok {
+			return int64Ptr(id), nil
+		}
+		return nil, fmt.Errorf("proxy_key not found")
+	}
+	if item.ProxyExternalKey != nil && strings.TrimSpace(*item.ProxyExternalKey) != "" {
+		if id, ok := proxyExternalKeyToID[strings.TrimSpace(*item.ProxyExternalKey)]; ok {
+			return int64Ptr(id), nil
+		}
+		return nil, fmt.Errorf("proxy_external_key not found")
+	}
+	if item.ProxyName != nil && strings.TrimSpace(*item.ProxyName) != "" {
+		ids := proxyNameToIDs[strings.TrimSpace(*item.ProxyName)]
+		switch len(ids) {
+		case 0:
+			return nil, fmt.Errorf("proxy_name not found")
+		case 1:
+			return int64Ptr(ids[0]), nil
+		default:
+			return nil, fmt.Errorf("proxy_name is ambiguous")
+		}
+	}
+	return nil, nil
+}
+
+func stringPtr(v string) *string {
+	if strings.TrimSpace(v) == "" {
+		return nil
+	}
+	s := strings.TrimSpace(v)
+	return &s
+}
+
+func int64Ptr(v int64) *int64 {
+	return &v
+}
+
+func derefOptionalString(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return strings.TrimSpace(*v)
+}
+
+func nonEmptyStringPtr(v string) *string {
+	s := strings.TrimSpace(v)
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+func unixPtrToTime(v *int64) *time.Time {
+	if v == nil {
+		return nil
+	}
+	ts := time.Unix(*v, 0).UTC()
+	return &ts
 }
 
 // enrichCredentialsFromIDToken performs best-effort extraction of user info fields

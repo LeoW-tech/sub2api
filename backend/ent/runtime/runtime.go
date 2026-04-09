@@ -594,8 +594,12 @@ func init() {
 			return nil
 		}
 	}()
+	// proxyDescExternalKey is the schema descriptor for external_key field.
+	proxyDescExternalKey := proxyFields[1].Descriptor()
+	// proxy.ExternalKeyValidator is a validator for the "external_key" field. It is called by the builders before save.
+	proxy.ExternalKeyValidator = proxyDescExternalKey.Validators[0].(func(string) error)
 	// proxyDescProtocol is the schema descriptor for protocol field.
-	proxyDescProtocol := proxyFields[1].Descriptor()
+	proxyDescProtocol := proxyFields[2].Descriptor()
 	// proxy.ProtocolValidator is a validator for the "protocol" field. It is called by the builders before save.
 	proxy.ProtocolValidator = func() func(string) error {
 		validators := proxyDescProtocol.Validators
@@ -613,7 +617,7 @@ func init() {
 		}
 	}()
 	// proxyDescHost is the schema descriptor for host field.
-	proxyDescHost := proxyFields[2].Descriptor()
+	proxyDescHost := proxyFields[3].Descriptor()
 	// proxy.HostValidator is a validator for the "host" field. It is called by the builders before save.
 	proxy.HostValidator = func() func(string) error {
 		validators := proxyDescHost.Validators
@@ -631,19 +635,23 @@ func init() {
 		}
 	}()
 	// proxyDescUsername is the schema descriptor for username field.
-	proxyDescUsername := proxyFields[4].Descriptor()
+	proxyDescUsername := proxyFields[5].Descriptor()
 	// proxy.UsernameValidator is a validator for the "username" field. It is called by the builders before save.
 	proxy.UsernameValidator = proxyDescUsername.Validators[0].(func(string) error)
 	// proxyDescPassword is the schema descriptor for password field.
-	proxyDescPassword := proxyFields[5].Descriptor()
+	proxyDescPassword := proxyFields[6].Descriptor()
 	// proxy.PasswordValidator is a validator for the "password" field. It is called by the builders before save.
 	proxy.PasswordValidator = proxyDescPassword.Validators[0].(func(string) error)
 	// proxyDescStatus is the schema descriptor for status field.
-	proxyDescStatus := proxyFields[6].Descriptor()
+	proxyDescStatus := proxyFields[7].Descriptor()
 	// proxy.DefaultStatus holds the default value on creation for the status field.
 	proxy.DefaultStatus = proxyDescStatus.Default.(string)
 	// proxy.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	proxy.StatusValidator = proxyDescStatus.Validators[0].(func(string) error)
+	// proxyDescExitIP is the schema descriptor for exit_ip field.
+	proxyDescExitIP := proxyFields[8].Descriptor()
+	// proxy.ExitIPValidator is a validator for the "exit_ip" field. It is called by the builders before save.
+	proxy.ExitIPValidator = proxyDescExitIP.Validators[0].(func(string) error)
 	redeemcodeFields := schema.RedeemCode{}.Fields()
 	_ = redeemcodeFields
 	// redeemcodeDescCode is the schema descriptor for code field.

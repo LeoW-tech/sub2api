@@ -48,15 +48,23 @@ func (h *ProxyHandler) ExportData(c *gin.Context) {
 	for i := range proxies {
 		p := proxies[i]
 		key := buildProxyKey(p.Protocol, p.Host, p.Port, p.Username, p.Password)
+		var exitIPCheckedAt *int64
+		if p.ExitIPCheckedAt != nil {
+			ts := p.ExitIPCheckedAt.Unix()
+			exitIPCheckedAt = &ts
+		}
 		dataProxies = append(dataProxies, DataProxy{
-			ProxyKey: key,
-			Name:     p.Name,
-			Protocol: p.Protocol,
-			Host:     p.Host,
-			Port:     p.Port,
-			Username: p.Username,
-			Password: p.Password,
-			Status:   p.Status,
+			ProxyKey:         key,
+			ProxyExternalKey: p.ExternalKey,
+			Name:             p.Name,
+			Protocol:         p.Protocol,
+			Host:             p.Host,
+			Port:             p.Port,
+			Username:         p.Username,
+			Password:         p.Password,
+			Status:           p.Status,
+			ExitIP:           p.ExitIP,
+			ExitIPCheckedAt:  exitIPCheckedAt,
 		})
 	}
 
@@ -96,10 +104,14 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 	}
 
 	proxyByKey := make(map[string]service.Proxy, len(existingProxies))
+	proxyByExternalKey := make(map[string]service.Proxy, len(existingProxies))
 	for i := range existingProxies {
 		p := existingProxies[i]
 		key := buildProxyKey(p.Protocol, p.Host, p.Port, p.Username, p.Password)
 		proxyByKey[key] = p
+		if trimmed := strings.TrimSpace(p.ExternalKey); trimmed != "" {
+			proxyByExternalKey[trimmed] = p
+		}
 	}
 
 	latencyProbeIDs := make([]int64, 0, len(req.Data.Proxies))
@@ -122,10 +134,11 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 		}
 
 		normalizedStatus := normalizeProxyStatus(item.Status)
+		externalKey := strings.TrimSpace(item.ProxyExternalKey)
 		if existing, ok := proxyByKey[key]; ok {
 			result.ProxyReused++
-			if normalizedStatus != "" && normalizedStatus != existing.Status {
-				if _, err := h.adminService.UpdateProxy(ctx, existing.ID, &service.UpdateProxyInput{Status: normalizedStatus}); err != nil {
+			if shouldUpdateImportedProxy(&existing, item, normalizedStatus) {
+				if _, err := h.adminService.UpdateProxy(ctx, existing.ID, buildImportedProxyUpdate(item, normalizedStatus)); err != nil {
 					result.Errors = append(result.Errors, DataImportError{
 						Kind:     "proxy",
 						Name:     item.Name,
@@ -137,14 +150,33 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 			latencyProbeIDs = append(latencyProbeIDs, existing.ID)
 			continue
 		}
+		if existing, ok := proxyByExternalKey[externalKey]; externalKey != "" && ok {
+			result.ProxyReused++
+			if shouldUpdateImportedProxy(&existing, item, normalizedStatus) {
+				if _, err := h.adminService.UpdateProxy(ctx, existing.ID, buildImportedProxyUpdate(item, normalizedStatus)); err != nil {
+					result.Errors = append(result.Errors, DataImportError{
+						Kind:     "proxy",
+						Name:     item.Name,
+						ProxyKey: key,
+						Message:  "update failed: " + err.Error(),
+					})
+				}
+			}
+			latencyProbeIDs = append(latencyProbeIDs, existing.ID)
+			proxyByKey[key] = existing
+			continue
+		}
 
 		created, err := h.adminService.CreateProxy(ctx, &service.CreateProxyInput{
-			Name:     defaultProxyName(item.Name),
-			Protocol: item.Protocol,
-			Host:     item.Host,
-			Port:     item.Port,
-			Username: item.Username,
-			Password: item.Password,
+			Name:            defaultProxyName(item.Name),
+			ExternalKey:     externalKey,
+			Protocol:        item.Protocol,
+			Host:            item.Host,
+			Port:            item.Port,
+			Username:        item.Username,
+			Password:        item.Password,
+			ExitIP:          strings.TrimSpace(item.ExitIP),
+			ExitIPCheckedAt: unixPtrToTime(item.ExitIPCheckedAt),
 		})
 		if err != nil {
 			result.ProxyFailed++
@@ -158,6 +190,9 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 		}
 		result.ProxyCreated++
 		proxyByKey[key] = *created
+		if externalKey != "" {
+			proxyByExternalKey[externalKey] = *created
+		}
 
 		if normalizedStatus != "" && normalizedStatus != created.Status {
 			if _, err := h.adminService.UpdateProxy(ctx, created.ID, &service.UpdateProxyInput{Status: normalizedStatus}); err != nil {

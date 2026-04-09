@@ -126,7 +126,16 @@
 
           <template #cell-address="{ row }">
             <div class="flex items-center gap-1.5">
-              <code class="code text-xs">{{ row.host }}:{{ row.port }}</code>
+              <div class="flex flex-col gap-1">
+                <code class="code text-xs">{{ row.host }}:{{ row.port }}</code>
+                <span
+                  v-if="row.external_key"
+                  class="max-w-[220px] truncate text-xs text-gray-500 dark:text-gray-400"
+                  :title="row.external_key || undefined"
+                >
+                  {{ t('admin.proxies.externalKeyInline') }}: {{ row.external_key }}
+                </span>
+              </div>
               <div class="relative">
                 <button
                   type="button"
@@ -183,10 +192,19 @@
                 :alt="row.country || row.country_code"
                 class="h-4 w-6 rounded-sm"
               />
-              <span v-if="formatLocation(row)" class="text-sm text-gray-700 dark:text-gray-200">
-                {{ formatLocation(row) }}
-              </span>
-              <span v-else class="text-sm text-gray-400">-</span>
+              <div class="flex flex-col gap-1">
+                <span v-if="formatLocation(row)" class="text-sm text-gray-700 dark:text-gray-200">
+                  {{ formatLocation(row) }}
+                </span>
+                <span v-else class="text-sm text-gray-400">-</span>
+                <span
+                  v-if="displayExitIP(row)"
+                  class="font-mono text-xs text-gray-500 dark:text-gray-400"
+                  :title="displayExitIP(row) || undefined"
+                >
+                  {{ displayExitIP(row) }}
+                </span>
+              </div>
             </div>
           </template>
 
@@ -408,6 +426,15 @@
           />
         </div>
         <div>
+          <label class="input-label">{{ t('admin.proxies.externalKey') }}</label>
+          <input
+            v-model="createForm.external_key"
+            type="text"
+            class="input"
+            :placeholder="t('admin.proxies.externalKeyPlaceholder')"
+          />
+        </div>
+        <div>
           <label class="input-label">{{ t('admin.proxies.protocol') }}</label>
           <Select v-model="createForm.protocol" :options="protocolSelectOptions" />
         </div>
@@ -442,6 +469,15 @@
             type="text"
             class="input"
             :placeholder="t('admin.proxies.optionalAuth')"
+          />
+        </div>
+        <div>
+          <label class="input-label">{{ t('admin.proxies.exitIp') }}</label>
+          <input
+            v-model="createForm.exit_ip"
+            type="text"
+            class="input"
+            :placeholder="t('admin.proxies.exitIpPlaceholder')"
           />
         </div>
         <div>
@@ -613,6 +649,15 @@
           <input v-model="editForm.name" type="text" required class="input" />
         </div>
         <div>
+          <label class="input-label">{{ t('admin.proxies.externalKey') }}</label>
+          <input
+            v-model="editForm.external_key"
+            type="text"
+            class="input"
+            :placeholder="t('admin.proxies.externalKeyPlaceholder')"
+          />
+        </div>
+        <div>
           <label class="input-label">{{ t('admin.proxies.protocol') }}</label>
           <Select v-model="editForm.protocol" :options="protocolSelectOptions" />
         </div>
@@ -636,6 +681,15 @@
         <div>
           <label class="input-label">{{ t('admin.proxies.username') }}</label>
           <input v-model="editForm.username" type="text" class="input" />
+        </div>
+        <div>
+          <label class="input-label">{{ t('admin.proxies.exitIp') }}</label>
+          <input
+            v-model="editForm.exit_ip"
+            type="text"
+            class="input"
+            :placeholder="t('admin.proxies.exitIpPlaceholder')"
+          />
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.password') }}</label>
@@ -1011,21 +1065,25 @@ const batchParseResult = reactive({
 
 const createForm = reactive({
   name: '',
-  protocol: 'http' as ProxyProtocol,
-  host: '',
-  port: 8080,
-  username: '',
-  password: ''
-})
-
-const editForm = reactive({
-  name: '',
+  external_key: '',
   protocol: 'http' as ProxyProtocol,
   host: '',
   port: 8080,
   username: '',
   password: '',
-  status: 'active' as 'active' | 'inactive'
+  exit_ip: ''
+})
+
+const editForm = reactive({
+  name: '',
+  external_key: '',
+  protocol: 'http' as ProxyProtocol,
+  host: '',
+  port: 8080,
+  username: '',
+  password: '',
+  status: 'active' as 'active' | 'inactive',
+  exit_ip: ''
 })
 
 let abortController: AbortController | null = null
@@ -1107,11 +1165,13 @@ const closeCreateModal = () => {
   showCreateModal.value = false
   createMode.value = 'standard'
   createForm.name = ''
+  createForm.external_key = ''
   createForm.protocol = 'http'
   createForm.host = ''
   createForm.port = 8080
   createForm.username = ''
   createForm.password = ''
+  createForm.exit_ip = ''
   createPasswordVisible.value = false
   batchInput.value = ''
   batchParseResult.total = 0
@@ -1232,11 +1292,13 @@ const handleCreateProxy = async () => {
   try {
     await adminAPI.proxies.create({
       name: createForm.name.trim(),
+      external_key: createForm.external_key.trim() || null,
       protocol: createForm.protocol,
       host: createForm.host.trim(),
       port: createForm.port,
       username: createForm.username.trim() || null,
-      password: createForm.password.trim() || null
+      password: createForm.password.trim() || null,
+      exit_ip: createForm.exit_ip.trim() || null
     })
     appStore.showSuccess(t('admin.proxies.proxyCreated'))
     closeCreateModal()
@@ -1252,12 +1314,14 @@ const handleCreateProxy = async () => {
 const handleEdit = (proxy: Proxy) => {
   editingProxy.value = proxy
   editForm.name = proxy.name
+  editForm.external_key = proxy.external_key || ''
   editForm.protocol = proxy.protocol
   editForm.host = proxy.host
   editForm.port = proxy.port
   editForm.username = proxy.username || ''
   editForm.password = proxy.password || ''
   editForm.status = proxy.status
+  editForm.exit_ip = proxy.exit_ip || ''
   editPasswordVisible.value = false
   editPasswordDirty.value = false
   showEditModal.value = true
@@ -1289,11 +1353,13 @@ const handleUpdateProxy = async () => {
   try {
     const updateData: any = {
       name: editForm.name.trim(),
+      external_key: editForm.external_key.trim() || null,
       protocol: editForm.protocol,
       host: editForm.host.trim(),
       port: editForm.port,
       username: editForm.username.trim() || null,
-      status: editForm.status
+      status: editForm.status,
+      exit_ip: editForm.exit_ip.trim() || null
     }
 
     // Only include password if user actually modified the field
@@ -1369,6 +1435,8 @@ const formatLocation = (proxy: Proxy) => {
   const parts = [proxy.country, proxy.city].filter(Boolean) as string[]
   return parts.join(' · ')
 }
+
+const displayExitIP = (proxy: Proxy) => proxy.ip_address || proxy.exit_ip || ''
 
 const flagUrl = (code: string) =>
   `https://unpkg.com/flag-icons/flags/4x3/${code.toLowerCase()}.svg`

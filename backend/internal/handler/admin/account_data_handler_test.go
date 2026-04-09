@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -25,25 +26,30 @@ type dataPayload struct {
 }
 
 type dataProxy struct {
-	ProxyKey string `json:"proxy_key"`
-	Name     string `json:"name"`
-	Protocol string `json:"protocol"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Status   string `json:"status"`
+	ProxyKey         string `json:"proxy_key"`
+	ProxyExternalKey string `json:"proxy_external_key"`
+	Name             string `json:"name"`
+	Protocol         string `json:"protocol"`
+	Host             string `json:"host"`
+	Port             int    `json:"port"`
+	Username         string `json:"username"`
+	Password         string `json:"password"`
+	Status           string `json:"status"`
+	ExitIP           string `json:"exit_ip"`
 }
 
 type dataAccount struct {
-	Name        string         `json:"name"`
-	Platform    string         `json:"platform"`
-	Type        string         `json:"type"`
-	Credentials map[string]any `json:"credentials"`
-	Extra       map[string]any `json:"extra"`
-	ProxyKey    *string        `json:"proxy_key"`
-	Concurrency int            `json:"concurrency"`
-	Priority    int            `json:"priority"`
+	Name             string         `json:"name"`
+	Platform         string         `json:"platform"`
+	Type             string         `json:"type"`
+	Credentials      map[string]any `json:"credentials"`
+	Extra            map[string]any `json:"extra"`
+	ProxyKey         *string        `json:"proxy_key"`
+	ProxyExternalKey *string        `json:"proxy_external_key"`
+	ProxyName        *string        `json:"proxy_name"`
+	ExitIP           *string        `json:"exit_ip"`
+	Concurrency      int            `json:"concurrency"`
+	Priority         int            `json:"priority"`
 }
 
 func setupAccountDataRouter() (*gin.Engine, *stubAdminService) {
@@ -78,14 +84,17 @@ func TestExportDataIncludesSecrets(t *testing.T) {
 	proxyID := int64(11)
 	adminSvc.proxies = []service.Proxy{
 		{
-			ID:       proxyID,
-			Name:     "proxy",
-			Protocol: "http",
-			Host:     "127.0.0.1",
-			Port:     8080,
-			Username: "user",
-			Password: "pass",
-			Status:   service.StatusActive,
+			ID:              proxyID,
+			Name:            "proxy",
+			ExternalKey:     "door-hk-w10",
+			Protocol:        "http",
+			Host:            "127.0.0.1",
+			Port:            8080,
+			Username:        "user",
+			Password:        "pass",
+			Status:          service.StatusActive,
+			ExitIP:          "203.0.113.10",
+			ExitIPCheckedAt: ptrTime(time.Unix(1_700_000_000, 0).UTC()),
 		},
 		{
 			ID:       12,
@@ -125,6 +134,8 @@ func TestExportDataIncludesSecrets(t *testing.T) {
 	require.Equal(t, 0, resp.Data.Version)
 	require.Len(t, resp.Data.Proxies, 1)
 	require.Equal(t, "pass", resp.Data.Proxies[0].Password)
+	require.Equal(t, "door-hk-w10", resp.Data.Proxies[0].ProxyExternalKey)
+	require.Equal(t, "203.0.113.10", resp.Data.Proxies[0].ExitIP)
 	require.Len(t, resp.Data.Accounts, 1)
 	require.Equal(t, "secret", resp.Data.Accounts[0].Credentials["token"])
 }
@@ -229,4 +240,107 @@ func TestImportDataReusesProxyAndSkipsDefaultGroup(t *testing.T) {
 	require.Len(t, adminSvc.createdProxies, 0)
 	require.Len(t, adminSvc.createdAccounts, 1)
 	require.True(t, adminSvc.createdAccounts[0].SkipDefaultGroupBind)
+}
+
+func TestImportDataBindsAccountByProxyExternalKey(t *testing.T) {
+	router, adminSvc := setupAccountDataRouter()
+
+	adminSvc.proxies = []service.Proxy{
+		{
+			ID:          88,
+			Name:        "🇭🇰 香港 W10 | IEPL",
+			ExternalKey: "door-hk-w10",
+			Protocol:    "http",
+			Host:        "host.docker.internal",
+			Port:        58052,
+			Status:      service.StatusActive,
+		},
+	}
+
+	dataPayload := map[string]any{
+		"data": map[string]any{
+			"type":     dataType,
+			"version":  dataVersion,
+			"proxies":  []map[string]any{},
+			"accounts": []map[string]any{{
+				"name":               "acc-external-key",
+				"platform":           service.PlatformOpenAI,
+				"type":               service.AccountTypeOAuth,
+				"credentials":        map[string]any{"token": "x"},
+				"proxy_external_key": "door-hk-w10",
+				"concurrency":        3,
+				"priority":           50,
+			}},
+		},
+	}
+
+	body, _ := json.Marshal(dataPayload)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/data", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	require.Len(t, adminSvc.createdAccounts, 1)
+	require.NotNil(t, adminSvc.createdAccounts[0].ProxyID)
+	require.Equal(t, int64(88), *adminSvc.createdAccounts[0].ProxyID)
+}
+
+func TestImportDataBindsAccountByProxyNameAndPersistsExitIP(t *testing.T) {
+	router, adminSvc := setupAccountDataRouter()
+
+	adminSvc.proxies = []service.Proxy{
+		{
+			ID:      99,
+			Name:    "🇭🇰 香港 W10 | IEPL",
+			Protocol: "http",
+			Host:    "host.docker.internal",
+			Port:    58053,
+			Status:  service.StatusActive,
+		},
+	}
+
+	exitIP := "203.0.113.20"
+	dataPayload := map[string]any{
+		"data": map[string]any{
+			"type":    dataType,
+			"version": dataVersion,
+			"proxies": []map[string]any{},
+			"accounts": []map[string]any{{
+				"name":         "acc-proxy-name",
+				"platform":     service.PlatformOpenAI,
+				"type":         service.AccountTypeOAuth,
+				"credentials":  map[string]any{"token": "x"},
+				"proxy_name":   "🇭🇰 香港 W10 | IEPL",
+				"exit_ip":      exitIP,
+				"concurrency":  3,
+				"priority":     50,
+			}},
+		},
+	}
+
+	body, _ := json.Marshal(dataPayload)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/data", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	require.Len(t, adminSvc.createdAccounts, 1)
+	require.NotNil(t, adminSvc.createdAccounts[0].ProxyID)
+	require.Equal(t, int64(99), *adminSvc.createdAccounts[0].ProxyID)
+	require.Len(t, adminSvc.updatedProxyIDs, 1)
+	require.Equal(t, int64(99), adminSvc.updatedProxyIDs[0])
+	require.Equal(t, exitIP, derefString(adminSvc.updatedProxies[0].ExitIP))
+}
+
+func ptrTime(v time.Time) *time.Time {
+	return &v
+}
+
+func derefString(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
 }

@@ -69,6 +69,26 @@ func (_u *ProxyUpdate) SetNillableName(v *string) *ProxyUpdate {
 	return _u
 }
 
+// SetExternalKey sets the "external_key" field.
+func (_u *ProxyUpdate) SetExternalKey(v string) *ProxyUpdate {
+	_u.mutation.SetExternalKey(v)
+	return _u
+}
+
+// SetNillableExternalKey sets the "external_key" field if the given value is not nil.
+func (_u *ProxyUpdate) SetNillableExternalKey(v *string) *ProxyUpdate {
+	if v != nil {
+		_u.SetExternalKey(*v)
+	}
+	return _u
+}
+
+// ClearExternalKey clears the value of the "external_key" field.
+func (_u *ProxyUpdate) ClearExternalKey() *ProxyUpdate {
+	_u.mutation.ClearExternalKey()
+	return _u
+}
+
 // SetProtocol sets the "protocol" field.
 func (_u *ProxyUpdate) SetProtocol(v string) *ProxyUpdate {
 	_u.mutation.SetProtocol(v)
@@ -172,6 +192,46 @@ func (_u *ProxyUpdate) SetNillableStatus(v *string) *ProxyUpdate {
 	return _u
 }
 
+// SetExitIP sets the "exit_ip" field.
+func (_u *ProxyUpdate) SetExitIP(v string) *ProxyUpdate {
+	_u.mutation.SetExitIP(v)
+	return _u
+}
+
+// SetNillableExitIP sets the "exit_ip" field if the given value is not nil.
+func (_u *ProxyUpdate) SetNillableExitIP(v *string) *ProxyUpdate {
+	if v != nil {
+		_u.SetExitIP(*v)
+	}
+	return _u
+}
+
+// ClearExitIP clears the value of the "exit_ip" field.
+func (_u *ProxyUpdate) ClearExitIP() *ProxyUpdate {
+	_u.mutation.ClearExitIP()
+	return _u
+}
+
+// SetExitIPCheckedAt sets the "exit_ip_checked_at" field.
+func (_u *ProxyUpdate) SetExitIPCheckedAt(v time.Time) *ProxyUpdate {
+	_u.mutation.SetExitIPCheckedAt(v)
+	return _u
+}
+
+// SetNillableExitIPCheckedAt sets the "exit_ip_checked_at" field if the given value is not nil.
+func (_u *ProxyUpdate) SetNillableExitIPCheckedAt(v *time.Time) *ProxyUpdate {
+	if v != nil {
+		_u.SetExitIPCheckedAt(*v)
+	}
+	return _u
+}
+
+// ClearExitIPCheckedAt clears the value of the "exit_ip_checked_at" field.
+func (_u *ProxyUpdate) ClearExitIPCheckedAt() *ProxyUpdate {
+	_u.mutation.ClearExitIPCheckedAt()
+	return _u
+}
+
 // AddAccountIDs adds the "accounts" edge to the Account entity by IDs.
 func (_u *ProxyUpdate) AddAccountIDs(ids ...int64) *ProxyUpdate {
 	_u.mutation.AddAccountIDs(ids...)
@@ -262,6 +322,11 @@ func (_u *ProxyUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Proxy.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ExternalKey(); ok {
+		if err := proxy.ExternalKeyValidator(v); err != nil {
+			return &ValidationError{Name: "external_key", err: fmt.Errorf(`ent: validator failed for field "Proxy.external_key": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Protocol(); ok {
 		if err := proxy.ProtocolValidator(v); err != nil {
 			return &ValidationError{Name: "protocol", err: fmt.Errorf(`ent: validator failed for field "Proxy.protocol": %w`, err)}
@@ -285,6 +350,11 @@ func (_u *ProxyUpdate) check() error {
 	if v, ok := _u.mutation.Status(); ok {
 		if err := proxy.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Proxy.status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ExitIP(); ok {
+		if err := proxy.ExitIPValidator(v); err != nil {
+			return &ValidationError{Name: "exit_ip", err: fmt.Errorf(`ent: validator failed for field "Proxy.exit_ip": %w`, err)}
 		}
 	}
 	return nil
@@ -314,6 +384,12 @@ func (_u *ProxyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(proxy.FieldName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.ExternalKey(); ok {
+		_spec.SetField(proxy.FieldExternalKey, field.TypeString, value)
+	}
+	if _u.mutation.ExternalKeyCleared() {
+		_spec.ClearField(proxy.FieldExternalKey, field.TypeString)
+	}
 	if value, ok := _u.mutation.Protocol(); ok {
 		_spec.SetField(proxy.FieldProtocol, field.TypeString, value)
 	}
@@ -340,6 +416,18 @@ func (_u *ProxyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(proxy.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ExitIP(); ok {
+		_spec.SetField(proxy.FieldExitIP, field.TypeString, value)
+	}
+	if _u.mutation.ExitIPCleared() {
+		_spec.ClearField(proxy.FieldExitIP, field.TypeString)
+	}
+	if value, ok := _u.mutation.ExitIPCheckedAt(); ok {
+		_spec.SetField(proxy.FieldExitIPCheckedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExitIPCheckedAtCleared() {
+		_spec.ClearField(proxy.FieldExitIPCheckedAt, field.TypeTime)
 	}
 	if _u.mutation.AccountsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -446,6 +534,26 @@ func (_u *ProxyUpdateOne) SetNillableName(v *string) *ProxyUpdateOne {
 	return _u
 }
 
+// SetExternalKey sets the "external_key" field.
+func (_u *ProxyUpdateOne) SetExternalKey(v string) *ProxyUpdateOne {
+	_u.mutation.SetExternalKey(v)
+	return _u
+}
+
+// SetNillableExternalKey sets the "external_key" field if the given value is not nil.
+func (_u *ProxyUpdateOne) SetNillableExternalKey(v *string) *ProxyUpdateOne {
+	if v != nil {
+		_u.SetExternalKey(*v)
+	}
+	return _u
+}
+
+// ClearExternalKey clears the value of the "external_key" field.
+func (_u *ProxyUpdateOne) ClearExternalKey() *ProxyUpdateOne {
+	_u.mutation.ClearExternalKey()
+	return _u
+}
+
 // SetProtocol sets the "protocol" field.
 func (_u *ProxyUpdateOne) SetProtocol(v string) *ProxyUpdateOne {
 	_u.mutation.SetProtocol(v)
@@ -546,6 +654,46 @@ func (_u *ProxyUpdateOne) SetNillableStatus(v *string) *ProxyUpdateOne {
 	if v != nil {
 		_u.SetStatus(*v)
 	}
+	return _u
+}
+
+// SetExitIP sets the "exit_ip" field.
+func (_u *ProxyUpdateOne) SetExitIP(v string) *ProxyUpdateOne {
+	_u.mutation.SetExitIP(v)
+	return _u
+}
+
+// SetNillableExitIP sets the "exit_ip" field if the given value is not nil.
+func (_u *ProxyUpdateOne) SetNillableExitIP(v *string) *ProxyUpdateOne {
+	if v != nil {
+		_u.SetExitIP(*v)
+	}
+	return _u
+}
+
+// ClearExitIP clears the value of the "exit_ip" field.
+func (_u *ProxyUpdateOne) ClearExitIP() *ProxyUpdateOne {
+	_u.mutation.ClearExitIP()
+	return _u
+}
+
+// SetExitIPCheckedAt sets the "exit_ip_checked_at" field.
+func (_u *ProxyUpdateOne) SetExitIPCheckedAt(v time.Time) *ProxyUpdateOne {
+	_u.mutation.SetExitIPCheckedAt(v)
+	return _u
+}
+
+// SetNillableExitIPCheckedAt sets the "exit_ip_checked_at" field if the given value is not nil.
+func (_u *ProxyUpdateOne) SetNillableExitIPCheckedAt(v *time.Time) *ProxyUpdateOne {
+	if v != nil {
+		_u.SetExitIPCheckedAt(*v)
+	}
+	return _u
+}
+
+// ClearExitIPCheckedAt clears the value of the "exit_ip_checked_at" field.
+func (_u *ProxyUpdateOne) ClearExitIPCheckedAt() *ProxyUpdateOne {
+	_u.mutation.ClearExitIPCheckedAt()
 	return _u
 }
 
@@ -652,6 +800,11 @@ func (_u *ProxyUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Proxy.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ExternalKey(); ok {
+		if err := proxy.ExternalKeyValidator(v); err != nil {
+			return &ValidationError{Name: "external_key", err: fmt.Errorf(`ent: validator failed for field "Proxy.external_key": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Protocol(); ok {
 		if err := proxy.ProtocolValidator(v); err != nil {
 			return &ValidationError{Name: "protocol", err: fmt.Errorf(`ent: validator failed for field "Proxy.protocol": %w`, err)}
@@ -675,6 +828,11 @@ func (_u *ProxyUpdateOne) check() error {
 	if v, ok := _u.mutation.Status(); ok {
 		if err := proxy.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Proxy.status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ExitIP(); ok {
+		if err := proxy.ExitIPValidator(v); err != nil {
+			return &ValidationError{Name: "exit_ip", err: fmt.Errorf(`ent: validator failed for field "Proxy.exit_ip": %w`, err)}
 		}
 	}
 	return nil
@@ -721,6 +879,12 @@ func (_u *ProxyUpdateOne) sqlSave(ctx context.Context) (_node *Proxy, err error)
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(proxy.FieldName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.ExternalKey(); ok {
+		_spec.SetField(proxy.FieldExternalKey, field.TypeString, value)
+	}
+	if _u.mutation.ExternalKeyCleared() {
+		_spec.ClearField(proxy.FieldExternalKey, field.TypeString)
+	}
 	if value, ok := _u.mutation.Protocol(); ok {
 		_spec.SetField(proxy.FieldProtocol, field.TypeString, value)
 	}
@@ -747,6 +911,18 @@ func (_u *ProxyUpdateOne) sqlSave(ctx context.Context) (_node *Proxy, err error)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(proxy.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ExitIP(); ok {
+		_spec.SetField(proxy.FieldExitIP, field.TypeString, value)
+	}
+	if _u.mutation.ExitIPCleared() {
+		_spec.ClearField(proxy.FieldExitIP, field.TypeString)
+	}
+	if value, ok := _u.mutation.ExitIPCheckedAt(); ok {
+		_spec.SetField(proxy.FieldExitIPCheckedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExitIPCheckedAtCleared() {
+		_spec.ClearField(proxy.FieldExitIPCheckedAt, field.TypeTime)
 	}
 	if _u.mutation.AccountsCleared() {
 		edge := &sqlgraph.EdgeSpec{

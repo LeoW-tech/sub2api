@@ -71,6 +71,20 @@ func (_c *ProxyCreate) SetName(v string) *ProxyCreate {
 	return _c
 }
 
+// SetExternalKey sets the "external_key" field.
+func (_c *ProxyCreate) SetExternalKey(v string) *ProxyCreate {
+	_c.mutation.SetExternalKey(v)
+	return _c
+}
+
+// SetNillableExternalKey sets the "external_key" field if the given value is not nil.
+func (_c *ProxyCreate) SetNillableExternalKey(v *string) *ProxyCreate {
+	if v != nil {
+		_c.SetExternalKey(*v)
+	}
+	return _c
+}
+
 // SetProtocol sets the "protocol" field.
 func (_c *ProxyCreate) SetProtocol(v string) *ProxyCreate {
 	_c.mutation.SetProtocol(v)
@@ -127,6 +141,34 @@ func (_c *ProxyCreate) SetStatus(v string) *ProxyCreate {
 func (_c *ProxyCreate) SetNillableStatus(v *string) *ProxyCreate {
 	if v != nil {
 		_c.SetStatus(*v)
+	}
+	return _c
+}
+
+// SetExitIP sets the "exit_ip" field.
+func (_c *ProxyCreate) SetExitIP(v string) *ProxyCreate {
+	_c.mutation.SetExitIP(v)
+	return _c
+}
+
+// SetNillableExitIP sets the "exit_ip" field if the given value is not nil.
+func (_c *ProxyCreate) SetNillableExitIP(v *string) *ProxyCreate {
+	if v != nil {
+		_c.SetExitIP(*v)
+	}
+	return _c
+}
+
+// SetExitIPCheckedAt sets the "exit_ip_checked_at" field.
+func (_c *ProxyCreate) SetExitIPCheckedAt(v time.Time) *ProxyCreate {
+	_c.mutation.SetExitIPCheckedAt(v)
+	return _c
+}
+
+// SetNillableExitIPCheckedAt sets the "exit_ip_checked_at" field if the given value is not nil.
+func (_c *ProxyCreate) SetNillableExitIPCheckedAt(v *time.Time) *ProxyCreate {
+	if v != nil {
+		_c.SetExitIPCheckedAt(*v)
 	}
 	return _c
 }
@@ -220,6 +262,11 @@ func (_c *ProxyCreate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Proxy.name": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.ExternalKey(); ok {
+		if err := proxy.ExternalKeyValidator(v); err != nil {
+			return &ValidationError{Name: "external_key", err: fmt.Errorf(`ent: validator failed for field "Proxy.external_key": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.Protocol(); !ok {
 		return &ValidationError{Name: "protocol", err: errors.New(`ent: missing required field "Proxy.protocol"`)}
 	}
@@ -255,6 +302,11 @@ func (_c *ProxyCreate) check() error {
 	if v, ok := _c.mutation.Status(); ok {
 		if err := proxy.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Proxy.status": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.ExitIP(); ok {
+		if err := proxy.ExitIPValidator(v); err != nil {
+			return &ValidationError{Name: "exit_ip", err: fmt.Errorf(`ent: validator failed for field "Proxy.exit_ip": %w`, err)}
 		}
 	}
 	return nil
@@ -300,6 +352,10 @@ func (_c *ProxyCreate) createSpec() (*Proxy, *sqlgraph.CreateSpec) {
 		_spec.SetField(proxy.FieldName, field.TypeString, value)
 		_node.Name = value
 	}
+	if value, ok := _c.mutation.ExternalKey(); ok {
+		_spec.SetField(proxy.FieldExternalKey, field.TypeString, value)
+		_node.ExternalKey = &value
+	}
 	if value, ok := _c.mutation.Protocol(); ok {
 		_spec.SetField(proxy.FieldProtocol, field.TypeString, value)
 		_node.Protocol = value
@@ -323,6 +379,14 @@ func (_c *ProxyCreate) createSpec() (*Proxy, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(proxy.FieldStatus, field.TypeString, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.ExitIP(); ok {
+		_spec.SetField(proxy.FieldExitIP, field.TypeString, value)
+		_node.ExitIP = &value
+	}
+	if value, ok := _c.mutation.ExitIPCheckedAt(); ok {
+		_spec.SetField(proxy.FieldExitIPCheckedAt, field.TypeTime, value)
+		_node.ExitIPCheckedAt = &value
 	}
 	if nodes := _c.mutation.AccountsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -434,6 +498,24 @@ func (u *ProxyUpsert) UpdateName() *ProxyUpsert {
 	return u
 }
 
+// SetExternalKey sets the "external_key" field.
+func (u *ProxyUpsert) SetExternalKey(v string) *ProxyUpsert {
+	u.Set(proxy.FieldExternalKey, v)
+	return u
+}
+
+// UpdateExternalKey sets the "external_key" field to the value that was provided on create.
+func (u *ProxyUpsert) UpdateExternalKey() *ProxyUpsert {
+	u.SetExcluded(proxy.FieldExternalKey)
+	return u
+}
+
+// ClearExternalKey clears the value of the "external_key" field.
+func (u *ProxyUpsert) ClearExternalKey() *ProxyUpsert {
+	u.SetNull(proxy.FieldExternalKey)
+	return u
+}
+
 // SetProtocol sets the "protocol" field.
 func (u *ProxyUpsert) SetProtocol(v string) *ProxyUpsert {
 	u.Set(proxy.FieldProtocol, v)
@@ -521,6 +603,42 @@ func (u *ProxyUpsert) SetStatus(v string) *ProxyUpsert {
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *ProxyUpsert) UpdateStatus() *ProxyUpsert {
 	u.SetExcluded(proxy.FieldStatus)
+	return u
+}
+
+// SetExitIP sets the "exit_ip" field.
+func (u *ProxyUpsert) SetExitIP(v string) *ProxyUpsert {
+	u.Set(proxy.FieldExitIP, v)
+	return u
+}
+
+// UpdateExitIP sets the "exit_ip" field to the value that was provided on create.
+func (u *ProxyUpsert) UpdateExitIP() *ProxyUpsert {
+	u.SetExcluded(proxy.FieldExitIP)
+	return u
+}
+
+// ClearExitIP clears the value of the "exit_ip" field.
+func (u *ProxyUpsert) ClearExitIP() *ProxyUpsert {
+	u.SetNull(proxy.FieldExitIP)
+	return u
+}
+
+// SetExitIPCheckedAt sets the "exit_ip_checked_at" field.
+func (u *ProxyUpsert) SetExitIPCheckedAt(v time.Time) *ProxyUpsert {
+	u.Set(proxy.FieldExitIPCheckedAt, v)
+	return u
+}
+
+// UpdateExitIPCheckedAt sets the "exit_ip_checked_at" field to the value that was provided on create.
+func (u *ProxyUpsert) UpdateExitIPCheckedAt() *ProxyUpsert {
+	u.SetExcluded(proxy.FieldExitIPCheckedAt)
+	return u
+}
+
+// ClearExitIPCheckedAt clears the value of the "exit_ip_checked_at" field.
+func (u *ProxyUpsert) ClearExitIPCheckedAt() *ProxyUpsert {
+	u.SetNull(proxy.FieldExitIPCheckedAt)
 	return u
 }
 
@@ -615,6 +733,27 @@ func (u *ProxyUpsertOne) SetName(v string) *ProxyUpsertOne {
 func (u *ProxyUpsertOne) UpdateName() *ProxyUpsertOne {
 	return u.Update(func(s *ProxyUpsert) {
 		s.UpdateName()
+	})
+}
+
+// SetExternalKey sets the "external_key" field.
+func (u *ProxyUpsertOne) SetExternalKey(v string) *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetExternalKey(v)
+	})
+}
+
+// UpdateExternalKey sets the "external_key" field to the value that was provided on create.
+func (u *ProxyUpsertOne) UpdateExternalKey() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateExternalKey()
+	})
+}
+
+// ClearExternalKey clears the value of the "external_key" field.
+func (u *ProxyUpsertOne) ClearExternalKey() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.ClearExternalKey()
 	})
 }
 
@@ -720,6 +859,48 @@ func (u *ProxyUpsertOne) SetStatus(v string) *ProxyUpsertOne {
 func (u *ProxyUpsertOne) UpdateStatus() *ProxyUpsertOne {
 	return u.Update(func(s *ProxyUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetExitIP sets the "exit_ip" field.
+func (u *ProxyUpsertOne) SetExitIP(v string) *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetExitIP(v)
+	})
+}
+
+// UpdateExitIP sets the "exit_ip" field to the value that was provided on create.
+func (u *ProxyUpsertOne) UpdateExitIP() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateExitIP()
+	})
+}
+
+// ClearExitIP clears the value of the "exit_ip" field.
+func (u *ProxyUpsertOne) ClearExitIP() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.ClearExitIP()
+	})
+}
+
+// SetExitIPCheckedAt sets the "exit_ip_checked_at" field.
+func (u *ProxyUpsertOne) SetExitIPCheckedAt(v time.Time) *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetExitIPCheckedAt(v)
+	})
+}
+
+// UpdateExitIPCheckedAt sets the "exit_ip_checked_at" field to the value that was provided on create.
+func (u *ProxyUpsertOne) UpdateExitIPCheckedAt() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateExitIPCheckedAt()
+	})
+}
+
+// ClearExitIPCheckedAt clears the value of the "exit_ip_checked_at" field.
+func (u *ProxyUpsertOne) ClearExitIPCheckedAt() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.ClearExitIPCheckedAt()
 	})
 }
 
@@ -983,6 +1164,27 @@ func (u *ProxyUpsertBulk) UpdateName() *ProxyUpsertBulk {
 	})
 }
 
+// SetExternalKey sets the "external_key" field.
+func (u *ProxyUpsertBulk) SetExternalKey(v string) *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetExternalKey(v)
+	})
+}
+
+// UpdateExternalKey sets the "external_key" field to the value that was provided on create.
+func (u *ProxyUpsertBulk) UpdateExternalKey() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateExternalKey()
+	})
+}
+
+// ClearExternalKey clears the value of the "external_key" field.
+func (u *ProxyUpsertBulk) ClearExternalKey() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.ClearExternalKey()
+	})
+}
+
 // SetProtocol sets the "protocol" field.
 func (u *ProxyUpsertBulk) SetProtocol(v string) *ProxyUpsertBulk {
 	return u.Update(func(s *ProxyUpsert) {
@@ -1085,6 +1287,48 @@ func (u *ProxyUpsertBulk) SetStatus(v string) *ProxyUpsertBulk {
 func (u *ProxyUpsertBulk) UpdateStatus() *ProxyUpsertBulk {
 	return u.Update(func(s *ProxyUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetExitIP sets the "exit_ip" field.
+func (u *ProxyUpsertBulk) SetExitIP(v string) *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetExitIP(v)
+	})
+}
+
+// UpdateExitIP sets the "exit_ip" field to the value that was provided on create.
+func (u *ProxyUpsertBulk) UpdateExitIP() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateExitIP()
+	})
+}
+
+// ClearExitIP clears the value of the "exit_ip" field.
+func (u *ProxyUpsertBulk) ClearExitIP() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.ClearExitIP()
+	})
+}
+
+// SetExitIPCheckedAt sets the "exit_ip_checked_at" field.
+func (u *ProxyUpsertBulk) SetExitIPCheckedAt(v time.Time) *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetExitIPCheckedAt(v)
+	})
+}
+
+// UpdateExitIPCheckedAt sets the "exit_ip_checked_at" field to the value that was provided on create.
+func (u *ProxyUpsertBulk) UpdateExitIPCheckedAt() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateExitIPCheckedAt()
+	})
+}
+
+// ClearExitIPCheckedAt clears the value of the "exit_ip_checked_at" field.
+func (u *ProxyUpsertBulk) ClearExitIPCheckedAt() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.ClearExitIPCheckedAt()
 	})
 }
 

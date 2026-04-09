@@ -34,6 +34,10 @@ func (Proxy) Fields() []ent.Field {
 		field.String("name").
 			MaxLen(100).
 			NotEmpty(),
+		field.String("external_key").
+			MaxLen(191).
+			Optional().
+			Nillable(),
 		field.String("protocol").
 			MaxLen(20).
 			NotEmpty(),
@@ -52,6 +56,14 @@ func (Proxy) Fields() []ent.Field {
 		field.String("status").
 			MaxLen(20).
 			Default("active"),
+		field.String("exit_ip").
+			MaxLen(64).
+			Optional().
+			Nillable(),
+		field.Time("exit_ip_checked_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{"postgres": "timestamptz"}),
 	}
 }
 
@@ -66,6 +78,8 @@ func (Proxy) Edges() []ent.Edge {
 
 func (Proxy) Indexes() []ent.Index {
 	return []ent.Index{
+		index.Fields("external_key").
+			Unique(),
 		index.Fields("status"),
 		index.Fields("deleted_at"),
 	}
