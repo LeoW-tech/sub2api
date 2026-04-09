@@ -54,6 +54,12 @@ runtime/
 - `door-gateway` worker 数据在 `runtime/stable/door-workers/`
 - `runtime/` 整体不进 git
 
+前端访问地址：
+
+- 稳定环境前端：`http://127.0.0.1:8080/`
+- 开发环境前端：`http://127.0.0.1:8081/`
+- `door-gateway` 健康检查：`http://127.0.0.1:19080/health`
+
 ## 分支与维护模式
 
 默认分支和用途如下：
@@ -83,48 +89,72 @@ runtime/
 常用命令：
 
 ```bash
-# stable
+# stable: 启动稳定环境
 ./scripts/sub2api-local stable up
+# stable: 停止稳定环境
 ./scripts/sub2api-local stable down
+# stable: 查看稳定环境日志
 ./scripts/sub2api-local stable logs
+# stable: 重启稳定环境
 ./scripts/sub2api-local stable restart
+# stable: 重建并启动稳定环境
 ./scripts/sub2api-local stable rebuild
 
-# dev
+# dev: 启动开发环境并在需要时构建
 ./scripts/sub2api-local dev up --build
+# dev: 停止开发环境
 ./scripts/sub2api-local dev down
+# dev: 查看开发环境日志
 ./scripts/sub2api-local dev logs
+# dev: 重启开发环境
 ./scripts/sub2api-local dev restart
+# dev: 重建并启动开发环境
 ./scripts/sub2api-local dev rebuild
 
-# door-gateway
+# door: 重启 door-gateway 宿主机服务
 ./scripts/sub2api-local door restart
+# door: 查看 door-gateway 当前 launchctl 状态
 ./scripts/sub2api-local door status
 
-# maintenance
+# maintenance: 同步原始仓库最新 main 到本地同步分支
 ./scripts/sub2api-local sync upstream
+# maintenance: 备份 runtime 运行时数据
 ./scripts/sub2api-local backup runtime
 ```
 
 也可以使用 Makefile 别名：
 
 ```bash
+# stable: 启动稳定环境
 make stable-up
+# stable: 停止稳定环境
 make stable-down
+# stable: 查看稳定环境日志
 make stable-logs
+# stable: 重启稳定环境
 make stable-restart
+# stable: 重建并启动稳定环境
 make stable-rebuild
 
+# dev: 启动开发环境并构建
 make dev-up
+# dev: 停止开发环境
 make dev-down
+# dev: 查看开发环境日志
 make dev-logs
+# dev: 重启开发环境
 make dev-restart
+# dev: 重建并启动开发环境
 make dev-rebuild
 
+# door: 重启 door-gateway
 make door-restart
+# door: 查看 door-gateway 状态
 make door-status
 
+# maintenance: 同步上游
 make sync-upstream
+# maintenance: 备份 runtime
 make backup-runtime
 ```
 
