@@ -53,6 +53,7 @@ pnpm-debug.log*
 *.env
 !.env.example
 docker-compose.override.yml
+runtime/
 
 # ===================
 # IDE / 编辑器
@@ -117,7 +118,10 @@ backend/.installed
 tests
 CLAUDE.md
 .claude
-scripts
+scripts/
+!scripts/
+scripts/*
+!scripts/sub2api-local
 .code-review-state
 #openspec/
 code-reviews/
@@ -127,9 +131,9 @@ deploy/docker-compose.override.yml
 .gocache/
 vite.config.js
 docs/*
+!docs/LOCAL_DEVELOPMENT_MAINTENANCE.md
 .serena/
 .codex/
 frontend/coverage/
 aicodex
 output/
-

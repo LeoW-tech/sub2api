@@ -1,4 +1,7 @@
-.PHONY: build build-backend build-frontend build-datamanagementd test test-backend test-frontend test-datamanagementd secret-scan
+.PHONY: build build-backend build-frontend build-datamanagementd test test-backend test-frontend test-datamanagementd secret-scan \
+	stable-up stable-down stable-logs stable-rebuild \
+	dev-up dev-down dev-logs dev-rebuild \
+	sync-upstream backup-runtime
 
 # 一键编译前后端
 build: build-backend build-frontend
@@ -30,3 +33,33 @@ test-datamanagementd:
 
 secret-scan:
 	@python3 tools/secret_scan.py
+
+stable-up:
+	@./scripts/sub2api-local stable up
+
+stable-down:
+	@./scripts/sub2api-local stable down
+
+stable-logs:
+	@./scripts/sub2api-local stable logs
+
+stable-rebuild:
+	@./scripts/sub2api-local stable rebuild
+
+dev-up:
+	@./scripts/sub2api-local dev up --build
+
+dev-down:
+	@./scripts/sub2api-local dev down
+
+dev-logs:
+	@./scripts/sub2api-local dev logs
+
+dev-rebuild:
+	@./scripts/sub2api-local dev rebuild
+
+sync-upstream:
+	@./scripts/sub2api-local sync upstream
+
+backup-runtime:
+	@./scripts/sub2api-local backup runtime

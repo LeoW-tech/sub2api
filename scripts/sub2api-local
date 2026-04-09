@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+COMPOSE_FILE="$REPO_ROOT/deploy/local/docker-compose.runtime.yml"
+RUNTIME_ROOT="$REPO_ROOT/runtime"
+BACKUP_ROOT="${SUB2API_BACKUP_ROOT:-$(cd "$REPO_ROOT/.." && pwd)/sub2api-runtime-backups}"
+
+usage() {
+  cat <<'EOF'
+用法:
+  ./scripts/sub2api-local stable up [--build]
+  ./scripts/sub2api-local stable down
+  ./scripts/sub2api-local stable logs
+  ./scripts/sub2api-local stable rebuild
+  ./scripts/sub2api-local dev up [--build]
+  ./scripts/sub2api-local dev down
+  ./scripts/sub2api-local dev logs
+  ./scripts/sub2api-local dev rebuild
+  ./scripts/sub2api-local sync upstream
+  ./scripts/sub2api-local backup runtime
+EOF
+}
+
+die() {
+  echo "错误: $*" >&2
+  exit 1
+}
+
+current_branch() {
+  git -C "$REPO_ROOT" branch --show-current
+}
+
+require_clean_git() {
+  git -C "$REPO_ROOT" diff --quiet || die "工作区有未提交改动，请先提交或暂存。"
+  git -C "$REPO_ROOT" diff --cached --quiet || die "暂存区有未提交改动，请先提交。"
+}
+
+ensure_main_branch() {
+  [[ "$(current_branch)" == "main" ]] || die "stable 只允许在 main 分支构建；请切换到 main 后重试。"
+}
+
+load_runtime() {
+  local env_name="$1"
+  ENV_NAME="$env_name"
+  ENV_DIR="$RUNTIME_ROOT/$env_name"
+  ENV_FILE="$ENV_DIR/.env"
+  [[ -f "$ENV_FILE" ]] || die "缺少环境文件: $ENV_FILE"
+
+  export RUNTIME_DATA_DIR="$ENV_DIR/data"
+  export RUNTIME_POSTGRES_DIR="$ENV_DIR/postgres_data"
+  export RUNTIME_REDIS_DIR="$ENV_DIR/redis_data"
+  export COMPOSE_PROJECT_NAME="sub2api_${env_name}"
+
+  mkdir -p "$RUNTIME_DATA_DIR" "$RUNTIME_POSTGRES_DIR" "$RUNTIME_REDIS_DIR"
+}
+
+env_value() {
+  local key="$1"
+  awk -F= -v wanted="$key" '
+    $0 !~ /^[[:space:]]*#/ && $1 == wanted {
+      print substr($0, index($0, "=") + 1)
+      exit
+    }
+  ' "$ENV_FILE"
+}
+
+image_exists() {
+  local image
+  image="$(env_value SUB2API_IMAGE)"
+  [[ -n "$image" ]] || die "环境文件缺少 SUB2API_IMAGE: $ENV_FILE"
+  docker image inspect "$image" >/dev/null 2>&1
+}
+
+compose_cmd() {
+  docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+}
+
+runtime_up() {
+  local env_name="$1"
+  local build_flag="${2:-}"
+  load_runtime "$env_name"
+
+  if [[ "$build_flag" == "--build" ]]; then
+    runtime_rebuild "$env_name"
+    return
+  fi
+
+  if ! image_exists; then
+    if [[ "$env_name" == "stable" ]]; then
+      ensure_main_branch
+    fi
+    compose_cmd build sub2api
+  fi
+
+  compose_cmd up -d
+}
+
+runtime_down() {
+  load_runtime "$1"
+  compose_cmd down
+}
+
+runtime_logs() {
+  load_runtime "$1"
+  compose_cmd logs -f --tail=200 "${@:2}"
+}
+
+runtime_rebuild() {
+  local env_name="$1"
+  load_runtime "$env_name"
+
+  if [[ "$env_name" == "stable" ]]; then
+    ensure_main_branch
+  fi
+
+  compose_cmd build sub2api
+  compose_cmd up -d --remove-orphans
+}
+
+sync_upstream() {
+  require_clean_git
+
+  git -C "$REPO_ROOT" fetch upstream --prune
+  git -C "$REPO_ROOT" fetch origin --prune
+
+  git -C "$REPO_ROOT" checkout upstream-main
+  git -C "$REPO_ROOT" merge --ff-only upstream/main
+  git -C "$REPO_ROOT" push origin upstream-main
+
+  git -C "$REPO_ROOT" checkout main
+
+  local branch_name="sync/upstream-$(date +%Y%m%d)"
+  if git -C "$REPO_ROOT" show-ref --verify --quiet "refs/heads/$branch_name"; then
+    branch_name="${branch_name}-$(date +%H%M%S)"
+  fi
+
+  git -C "$REPO_ROOT" checkout -b "$branch_name" main
+  git -C "$REPO_ROOT" merge upstream-main
+
+  cat <<EOF
+已创建同步分支: $branch_name
+下一步建议:
+  1. ./scripts/sub2api-local dev rebuild
+  2. ./scripts/sub2api-local dev up
+  3. 验证通过后再把 $branch_name 合回 main
+EOF
+}
+
+backup_runtime() {
+  local ts target
+  ts="$(date +%Y%m%d-%H%M%S)"
+  target="$BACKUP_ROOT/$ts"
+  mkdir -p "$target"
+  rsync -a "$RUNTIME_ROOT/" "$target/runtime/"
+
+  if [[ -f "$HOME/Library/LaunchAgents/com.sub2api.door-gateway.plist" ]]; then
+    cp "$HOME/Library/LaunchAgents/com.sub2api.door-gateway.plist" "$target/com.sub2api.door-gateway.plist"
+  fi
+
+  echo "运行时备份已创建: $target"
+}
+
+main() {
+  [[ $# -ge 2 ]] || { usage; exit 1; }
+
+  case "$1:$2" in
+    stable:up) runtime_up stable "${3:-}" ;;
+    stable:down) runtime_down stable ;;
+    stable:logs) runtime_logs stable "${@:3}" ;;
+    stable:rebuild) runtime_rebuild stable ;;
+    dev:up) runtime_up dev "${3:-}" ;;
+    dev:down) runtime_down dev ;;
+    dev:logs) runtime_logs dev "${@:3}" ;;
+    dev:rebuild) runtime_rebuild dev ;;
+    sync:upstream) sync_upstream ;;
+    backup:runtime) backup_runtime ;;
+    *) usage; exit 1 ;;
+  esac
+}
+
+main "$@"
