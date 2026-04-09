@@ -4,7 +4,8 @@ set -euo pipefail
 REPO_ROOT="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="$REPO_ROOT/deploy/local/docker-compose.runtime.yml"
 RUNTIME_ROOT="$REPO_ROOT/runtime"
-BACKUP_ROOT="${SUB2API_BACKUP_ROOT:-$(cd "$REPO_ROOT/.." && pwd)/sub2api-runtime-backups}"
+# 运行时备份默认也收敛到仓库内，避免在仓库外散落独立目录。
+BACKUP_ROOT="${SUB2API_BACKUP_ROOT:-$RUNTIME_ROOT/backups}"
 
 usage() {
   cat <<'EOF'
@@ -195,10 +196,17 @@ EOF
 
 backup_runtime() {
   local ts target
+  local -a rsync_args
   ts="$(date +%Y%m%d-%H%M%S)"
   target="$BACKUP_ROOT/$ts"
   mkdir -p "$target"
-  rsync -a "$RUNTIME_ROOT/" "$target/runtime/"
+  rsync_args=(-a)
+
+  if [[ "$BACKUP_ROOT" != "$RUNTIME_ROOT" && "$BACKUP_ROOT" == "$RUNTIME_ROOT/"* ]]; then
+    rsync_args+=(--exclude="/${BACKUP_ROOT#$RUNTIME_ROOT/}/")
+  fi
+
+  rsync "${rsync_args[@]}" "$RUNTIME_ROOT/" "$target/runtime/"
 
   if [[ -f "$HOME/Library/LaunchAgents/com.sub2api.door-gateway.plist" ]]; then
     cp "$HOME/Library/LaunchAgents/com.sub2api.door-gateway.plist" "$target/com.sub2api.door-gateway.plist"

@@ -6,6 +6,7 @@
 - 运行时数据全部收敛到 `runtime/`
 - `runtime/stable` 对应稳定环境，端口 `127.0.0.1:8080`
 - `runtime/dev` 对应开发环境，端口 `127.0.0.1:8081`
+- 默认运行时备份目录为 `runtime/backups/`，也可通过 `SUB2API_BACKUP_ROOT` 临时覆盖
 
 ## Git 约定
 
@@ -39,6 +40,8 @@
 ./scripts/sub2api-local sync upstream
 ./scripts/sub2api-local backup runtime
 ```
+
+`./scripts/sub2api-local backup runtime` 默认会把备份写到 `runtime/backups/<时间戳>/`。
 
 ## 日常重启命令
 
@@ -103,5 +106,6 @@ git checkout main
 - 稳定环境 Redis：`runtime/stable/redis_data`
 - `door-gateway` 配置：`runtime/stable/door-gateway.json`
 - `door-gateway` worker 目录：`runtime/stable/door-workers`
+- 运行时备份目录：`runtime/backups`
 
 这些目录全部不进 git。

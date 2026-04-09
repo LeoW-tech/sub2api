@@ -44,12 +44,17 @@ runtime/
     data/
     postgres_data/
     redis_data/
+  backups/
+    <timestamp>/
+      runtime/
+      com.sub2api.door-gateway.plist
 ```
 
 说明：
 
 - `runtime/stable` 是稳定环境，服务端口 `127.0.0.1:8080`
 - `runtime/dev` 是开发环境，服务端口 `127.0.0.1:8081`
+- `runtime/backups` 是默认运行时备份目录
 - `door-gateway` 配置在 `runtime/stable/door-gateway.json`
 - `door-gateway` worker 数据在 `runtime/stable/door-workers/`
 - `runtime/` 整体不进 git
@@ -121,6 +126,8 @@ runtime/
 # maintenance: 备份 runtime 运行时数据
 ./scripts/sub2api-local backup runtime
 ```
+
+`./scripts/sub2api-local backup runtime` 默认会把备份写入 `runtime/backups/<timestamp>/`；如有需要，可通过 `SUB2API_BACKUP_ROOT` 临时覆盖。
 
 也可以使用 Makefile 别名：
 
