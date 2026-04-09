@@ -48,8 +48,10 @@ type dataAccount struct {
 	ProxyExternalKey *string        `json:"proxy_external_key"`
 	ProxyName        *string        `json:"proxy_name"`
 	ExitIP           *string        `json:"exit_ip"`
-	Concurrency      int            `json:"concurrency"`
+	Concurrency      *int           `json:"concurrency"`
+	LoadFactor       *int           `json:"load_factor"`
 	Priority         int            `json:"priority"`
+	GroupIDs         []int64        `json:"group_ids"`
 }
 
 func setupAccountDataRouter() (*gin.Engine, *stubAdminService) {
@@ -117,7 +119,9 @@ func TestExportDataIncludesSecrets(t *testing.T) {
 			Extra:       map[string]any{"note": "x"},
 			ProxyID:     &proxyID,
 			Concurrency: 3,
+			LoadFactor:  intPtr(9),
 			Priority:    50,
+			GroupIDs:    []int64{101, 102},
 			Status:      service.StatusDisabled,
 		},
 	}
@@ -138,6 +142,11 @@ func TestExportDataIncludesSecrets(t *testing.T) {
 	require.Equal(t, "203.0.113.10", resp.Data.Proxies[0].ExitIP)
 	require.Len(t, resp.Data.Accounts, 1)
 	require.Equal(t, "secret", resp.Data.Accounts[0].Credentials["token"])
+	require.NotNil(t, resp.Data.Accounts[0].Concurrency)
+	require.Equal(t, 3, *resp.Data.Accounts[0].Concurrency)
+	require.NotNil(t, resp.Data.Accounts[0].LoadFactor)
+	require.Equal(t, 9, *resp.Data.Accounts[0].LoadFactor)
+	require.Equal(t, []int64{101, 102}, resp.Data.Accounts[0].GroupIDs)
 }
 
 func TestExportDataWithoutProxies(t *testing.T) {
@@ -181,6 +190,8 @@ func TestExportDataWithoutProxies(t *testing.T) {
 	require.Len(t, resp.Data.Proxies, 0)
 	require.Len(t, resp.Data.Accounts, 1)
 	require.Nil(t, resp.Data.Accounts[0].ProxyKey)
+	require.NotNil(t, resp.Data.Accounts[0].GroupIDs)
+	require.Empty(t, resp.Data.Accounts[0].GroupIDs)
 }
 
 func TestImportDataReusesProxyAndSkipsDefaultGroup(t *testing.T) {
@@ -242,6 +253,163 @@ func TestImportDataReusesProxyAndSkipsDefaultGroup(t *testing.T) {
 	require.True(t, adminSvc.createdAccounts[0].SkipDefaultGroupBind)
 }
 
+func TestImportDataAppliesDefaultsAndBindsAllEligibleGroups(t *testing.T) {
+	router, adminSvc := setupAccountDataRouter()
+
+	adminSvc.groups = []service.Group{
+		{ID: 11, Name: "openai-standard", Platform: service.PlatformOpenAI, Status: service.StatusActive},
+		{ID: 12, Name: "openai-subscription", Platform: service.PlatformOpenAI, Status: service.StatusActive},
+		{ID: 13, Name: "openai-inactive", Platform: service.PlatformOpenAI, Status: "inactive"},
+		{ID: 21, Name: "anthropic-standard", Platform: service.PlatformAnthropic, Status: service.StatusActive},
+	}
+
+	dataPayload := map[string]any{
+		"data": map[string]any{
+			"type":    dataType,
+			"version": dataVersion,
+			"proxies": []map[string]any{},
+			"accounts": []map[string]any{{
+				"name":        "acc-defaults",
+				"platform":    service.PlatformOpenAI,
+				"type":        service.AccountTypeOAuth,
+				"credentials": map[string]any{"token": "x"},
+				"priority":    50,
+			}},
+		},
+	}
+
+	body, _ := json.Marshal(dataPayload)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/data", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	require.Len(t, adminSvc.createdAccounts, 1)
+	created := adminSvc.createdAccounts[0]
+	require.Equal(t, 10, created.Concurrency)
+	require.NotNil(t, created.LoadFactor)
+	require.Equal(t, 10, *created.LoadFactor)
+	require.Equal(t, []int64{11, 12}, created.GroupIDs)
+}
+
+func TestImportDataPreservesExplicitValuesOverDefaults(t *testing.T) {
+	router, adminSvc := setupAccountDataRouter()
+
+	adminSvc.groups = []service.Group{
+		{ID: 11, Name: "openai-standard", Platform: service.PlatformOpenAI, Status: service.StatusActive},
+		{ID: 12, Name: "openai-subscription", Platform: service.PlatformOpenAI, Status: service.StatusActive},
+	}
+
+	dataPayload := map[string]any{
+		"data": map[string]any{
+			"type":    dataType,
+			"version": dataVersion,
+			"proxies": []map[string]any{},
+			"accounts": []map[string]any{{
+				"name":        "acc-explicit",
+				"platform":    service.PlatformOpenAI,
+				"type":        service.AccountTypeOAuth,
+				"credentials": map[string]any{"token": "x"},
+				"concurrency": 7,
+				"load_factor": 8,
+				"group_ids":   []int64{12},
+				"priority":    50,
+			}},
+		},
+		"default_concurrency":      10,
+		"default_load_factor":      10,
+		"bind_all_eligible_groups": true,
+	}
+
+	body, _ := json.Marshal(dataPayload)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/data", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	require.Len(t, adminSvc.createdAccounts, 1)
+	created := adminSvc.createdAccounts[0]
+	require.Equal(t, 7, created.Concurrency)
+	require.NotNil(t, created.LoadFactor)
+	require.Equal(t, 8, *created.LoadFactor)
+	require.Equal(t, []int64{12}, created.GroupIDs)
+}
+
+func TestImportDataExplicitEmptyGroupIDsSkipsDefaultBinding(t *testing.T) {
+	router, adminSvc := setupAccountDataRouter()
+
+	adminSvc.groups = []service.Group{
+		{ID: 11, Name: "openai-standard", Platform: service.PlatformOpenAI, Status: service.StatusActive},
+	}
+
+	dataPayload := map[string]any{
+		"data": map[string]any{
+			"type":    dataType,
+			"version": dataVersion,
+			"proxies": []map[string]any{},
+			"accounts": []map[string]any{{
+				"name":        "acc-empty-groups",
+				"platform":    service.PlatformOpenAI,
+				"type":        service.AccountTypeOAuth,
+				"credentials": map[string]any{"token": "x"},
+				"group_ids":   []int64{},
+				"priority":    50,
+			}},
+		},
+	}
+
+	body, _ := json.Marshal(dataPayload)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/data", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	require.Len(t, adminSvc.createdAccounts, 1)
+	created := adminSvc.createdAccounts[0]
+	require.Empty(t, created.GroupIDs)
+	require.True(t, created.SkipDefaultGroupBind)
+}
+
+func TestImportDataFallsBackToLegacySkipWhenBindAllEligibleGroupsDisabled(t *testing.T) {
+	router, adminSvc := setupAccountDataRouter()
+
+	adminSvc.groups = []service.Group{
+		{ID: 11, Name: "openai-standard", Platform: service.PlatformOpenAI, Status: service.StatusActive},
+	}
+
+	dataPayload := map[string]any{
+		"data": map[string]any{
+			"type":    dataType,
+			"version": dataVersion,
+			"proxies": []map[string]any{},
+			"accounts": []map[string]any{{
+				"name":        "acc-legacy",
+				"platform":    service.PlatformOpenAI,
+				"type":        service.AccountTypeOAuth,
+				"credentials": map[string]any{"token": "x"},
+				"priority":    50,
+			}},
+		},
+		"bind_all_eligible_groups": false,
+		"skip_default_group_bind":  true,
+	}
+
+	body, _ := json.Marshal(dataPayload)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/data", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	require.Len(t, adminSvc.createdAccounts, 1)
+	created := adminSvc.createdAccounts[0]
+	require.Nil(t, created.GroupIDs)
+	require.True(t, created.SkipDefaultGroupBind)
+}
+
 func TestImportDataBindsAccountByProxyExternalKey(t *testing.T) {
 	router, adminSvc := setupAccountDataRouter()
 
@@ -259,9 +427,9 @@ func TestImportDataBindsAccountByProxyExternalKey(t *testing.T) {
 
 	dataPayload := map[string]any{
 		"data": map[string]any{
-			"type":     dataType,
-			"version":  dataVersion,
-			"proxies":  []map[string]any{},
+			"type":    dataType,
+			"version": dataVersion,
+			"proxies": []map[string]any{},
 			"accounts": []map[string]any{{
 				"name":               "acc-external-key",
 				"platform":           service.PlatformOpenAI,
@@ -291,12 +459,12 @@ func TestImportDataBindsAccountByProxyNameAndPersistsExitIP(t *testing.T) {
 
 	adminSvc.proxies = []service.Proxy{
 		{
-			ID:      99,
-			Name:    "🇭🇰 香港 W10 | IEPL",
+			ID:       99,
+			Name:     "🇭🇰 香港 W10 | IEPL",
 			Protocol: "http",
-			Host:    "host.docker.internal",
-			Port:    58053,
-			Status:  service.StatusActive,
+			Host:     "host.docker.internal",
+			Port:     58053,
+			Status:   service.StatusActive,
 		},
 	}
 
@@ -307,14 +475,14 @@ func TestImportDataBindsAccountByProxyNameAndPersistsExitIP(t *testing.T) {
 			"version": dataVersion,
 			"proxies": []map[string]any{},
 			"accounts": []map[string]any{{
-				"name":         "acc-proxy-name",
-				"platform":     service.PlatformOpenAI,
-				"type":         service.AccountTypeOAuth,
-				"credentials":  map[string]any{"token": "x"},
-				"proxy_name":   "🇭🇰 香港 W10 | IEPL",
-				"exit_ip":      exitIP,
-				"concurrency":  3,
-				"priority":     50,
+				"name":        "acc-proxy-name",
+				"platform":    service.PlatformOpenAI,
+				"type":        service.AccountTypeOAuth,
+				"credentials": map[string]any{"token": "x"},
+				"proxy_name":  "🇭🇰 香港 W10 | IEPL",
+				"exit_ip":     exitIP,
+				"concurrency": 3,
+				"priority":    50,
 			}},
 		},
 	}

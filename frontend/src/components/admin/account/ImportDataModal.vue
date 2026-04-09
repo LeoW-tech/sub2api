@@ -174,7 +174,10 @@ const handleImport = async () => {
 
     const res = await adminAPI.accounts.importData({
       data: dataPayload,
-      skip_default_group_bind: true
+      skip_default_group_bind: true,
+      default_concurrency: 10,
+      default_load_factor: 10,
+      bind_all_eligible_groups: true
     })
 
     result.value = res
