@@ -12,11 +12,15 @@ usage() {
   ./scripts/sub2api-local stable up [--build]
   ./scripts/sub2api-local stable down
   ./scripts/sub2api-local stable logs
+  ./scripts/sub2api-local stable restart
   ./scripts/sub2api-local stable rebuild
   ./scripts/sub2api-local dev up [--build]
   ./scripts/sub2api-local dev down
   ./scripts/sub2api-local dev logs
+  ./scripts/sub2api-local dev restart
   ./scripts/sub2api-local dev rebuild
+  ./scripts/sub2api-local door restart
+  ./scripts/sub2api-local door status
   ./scripts/sub2api-local sync upstream
   ./scripts/sub2api-local backup runtime
 EOF
@@ -76,6 +80,26 @@ compose_cmd() {
   docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
 }
 
+wait_for_http() {
+  local url="$1"
+  local timeout="${2:-60}"
+  local started_at now
+
+  started_at="$(date +%s)"
+  while true; do
+    if curl -fsS "$url" >/dev/null 2>&1; then
+      return 0
+    fi
+
+    now="$(date +%s)"
+    if (( now - started_at >= timeout )); then
+      die "等待健康检查超时: $url"
+    fi
+
+    sleep 1
+  done
+}
+
 runtime_up() {
   local env_name="$1"
   local build_flag="${2:-}"
@@ -116,6 +140,28 @@ runtime_rebuild() {
 
   compose_cmd build sub2api
   compose_cmd up -d --remove-orphans
+}
+
+runtime_restart() {
+  load_runtime "$1"
+  compose_cmd restart
+  wait_for_http "http://127.0.0.1:$(env_value SERVER_PORT)/health" 90
+}
+
+door_restart() {
+  local label="gui/$(id -u)/com.sub2api.door-gateway"
+  local plist="$HOME/Library/LaunchAgents/com.sub2api.door-gateway.plist"
+
+  if ! launchctl print "$label" >/dev/null 2>&1; then
+    launchctl bootstrap "gui/$(id -u)" "$plist"
+  fi
+
+  launchctl kickstart -k "$label"
+  wait_for_http "http://127.0.0.1:19080/health" 90
+}
+
+door_status() {
+  launchctl print "gui/$(id -u)/com.sub2api.door-gateway" | sed -n '1,80p'
 }
 
 sync_upstream() {
@@ -168,11 +214,15 @@ main() {
     stable:up) runtime_up stable "${3:-}" ;;
     stable:down) runtime_down stable ;;
     stable:logs) runtime_logs stable "${@:3}" ;;
+    stable:restart) runtime_restart stable ;;
     stable:rebuild) runtime_rebuild stable ;;
     dev:up) runtime_up dev "${3:-}" ;;
     dev:down) runtime_down dev ;;
     dev:logs) runtime_logs dev "${@:3}" ;;
+    dev:restart) runtime_restart dev ;;
     dev:rebuild) runtime_rebuild dev ;;
+    door:restart) door_restart ;;
+    door:status) door_status ;;
     sync:upstream) sync_upstream ;;
     backup:runtime) backup_runtime ;;
     *) usage; exit 1 ;;

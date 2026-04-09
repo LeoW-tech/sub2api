@@ -24,15 +24,41 @@
 ./scripts/sub2api-local stable up
 ./scripts/sub2api-local stable down
 ./scripts/sub2api-local stable logs
+./scripts/sub2api-local stable restart
 ./scripts/sub2api-local stable rebuild
 
 ./scripts/sub2api-local dev up --build
 ./scripts/sub2api-local dev down
 ./scripts/sub2api-local dev logs
+./scripts/sub2api-local dev restart
 ./scripts/sub2api-local dev rebuild
+
+./scripts/sub2api-local door restart
+./scripts/sub2api-local door status
 
 ./scripts/sub2api-local sync upstream
 ./scripts/sub2api-local backup runtime
+```
+
+## 日常重启命令
+
+最常用的是这几个：
+
+```bash
+# 重启稳定环境
+./scripts/sub2api-local stable restart
+
+# 重启开发环境
+./scripts/sub2api-local dev restart
+
+# 重启 door-gateway
+./scripts/sub2api-local door restart
+
+# 如果改了源码并需要重建稳定环境
+./scripts/sub2api-local stable rebuild
+
+# 如果改了源码并需要重建开发环境
+./scripts/sub2api-local dev rebuild
 ```
 
 ## 工作流

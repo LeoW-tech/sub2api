@@ -1,6 +1,7 @@
 .PHONY: build build-backend build-frontend build-datamanagementd test test-backend test-frontend test-datamanagementd secret-scan \
-	stable-up stable-down stable-logs stable-rebuild \
-	dev-up dev-down dev-logs dev-rebuild \
+	stable-up stable-down stable-logs stable-restart stable-rebuild \
+	dev-up dev-down dev-logs dev-restart dev-rebuild \
+	door-restart door-status \
 	sync-upstream backup-runtime
 
 # 一键编译前后端
@@ -43,6 +44,9 @@ stable-down:
 stable-logs:
 	@./scripts/sub2api-local stable logs
 
+stable-restart:
+	@./scripts/sub2api-local stable restart
+
 stable-rebuild:
 	@./scripts/sub2api-local stable rebuild
 
@@ -55,8 +59,17 @@ dev-down:
 dev-logs:
 	@./scripts/sub2api-local dev logs
 
+dev-restart:
+	@./scripts/sub2api-local dev restart
+
 dev-rebuild:
 	@./scripts/sub2api-local dev rebuild
+
+door-restart:
+	@./scripts/sub2api-local door restart
+
+door-status:
+	@./scripts/sub2api-local door status
 
 sync-upstream:
 	@./scripts/sub2api-local sync upstream
