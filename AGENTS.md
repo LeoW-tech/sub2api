@@ -52,7 +52,7 @@ runtime/
 
 说明：
 
-- `runtime/stable` 是稳定环境，服务端口 `127.0.0.1:8080`
+- `runtime/stable` 是稳定环境，默认服务端口 `8080`
 - `runtime/dev` 是开发环境，服务端口 `127.0.0.1:8081`
 - `runtime/backups` 是默认运行时备份目录
 - `door-gateway` 配置在 `runtime/stable/door-gateway.json`
@@ -61,7 +61,8 @@ runtime/
 
 前端访问地址：
 
-- 稳定环境前端：`http://127.0.0.1:8080/`
+- 稳定环境前端（本机）：`http://127.0.0.1:8080/`
+- 稳定环境前端（局域网）：`http://<本机局域网IP>:8080/`
 - 开发环境前端：`http://127.0.0.1:8081/`
 - `door-gateway` 健康检查：`http://127.0.0.1:19080/health`
 

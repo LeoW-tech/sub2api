@@ -4,9 +4,14 @@
 
 - 仓库根目录固定为 `/Users/meilinwang/Projects/sub2api`
 - 运行时数据全部收敛到 `runtime/`
-- `runtime/stable` 对应稳定环境，端口 `127.0.0.1:8080`
+- `runtime/stable` 对应稳定环境，默认端口 `8080`
 - `runtime/dev` 对应开发环境，端口 `127.0.0.1:8081`
 - 默认运行时备份目录为 `runtime/backups/`，也可通过 `SUB2API_BACKUP_ROOT` 临时覆盖
+
+默认访问约定：
+
+- stable 同时支持本机 `http://127.0.0.1:8080/` 和局域网 `http://<本机局域网IP>:8080/`
+- dev 默认仅本机访问 `http://127.0.0.1:8081/`
 
 ## Git 约定
 
