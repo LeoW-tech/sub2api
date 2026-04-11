@@ -7,7 +7,7 @@ function sendJSON(res, statusCode, payload) {
   res.end(JSON.stringify(payload, null, 2))
 }
 
-const config = loadConfig()
+const config = await loadConfig()
 const runtime = new DoorRuntime(config)
 
 await runtime.start()

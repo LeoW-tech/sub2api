@@ -4,7 +4,6 @@
     "port": 19080
   },
   "mihomo_binary": "/Applications/Clash Verge.app/Contents/MacOS/verge-mihomo",
-  "source_config_path": "/Users/meilinwang/.config/clash/vv148.no-mad-world.club.yaml",
   "worker_base_dir": "/Users/meilinwang/Projects/sub2api/door-workers",
   "worker_port_start": 58080,
   "worker_socks_port_start": 59080,
@@ -12,17 +11,14 @@
   "sub2api_export_host": "host.docker.internal",
   "healthcheck_interval_ms": 30000,
   "export_protocol": "http",
-  "doors": [
+  "sources": [
     {
-      "key": "door-hk-w10",
-      "name": "🇭🇰 香港W10 | IEPL",
-      "proxy_name": "🇭🇰 香港W10 | IEPL",
-      "exit_ip": "203.0.113.10"
+      "name": "nomad",
+      "url": "https://do02n.no-mad-sub.one/link/your-token?clash=3&extend=1"
     },
     {
-      "key": "door-jp-w07",
-      "name": "🇯🇵 日本W07 | IEPL",
-      "proxy_name": "🇯🇵 日本W07 | IEPL"
+      "name": "trojanflare",
+      "url": "https://s1.trojanflare.one/clashx/your-token"
     }
   ]
 }

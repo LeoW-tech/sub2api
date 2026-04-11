@@ -4,7 +4,7 @@
 
 它做三件事：
 
-1. 从你现有的 Clash/Mihomo 配置里选出指定节点，为每扇门生成一个独立 Mihomo worker。
+1. 从一条或多条 Clash/Mihomo 订阅里收集节点，为每扇门生成一个独立 Mihomo worker。
 2. 提供统一的管理接口，方便查看 10-20 扇门是否在线。
 3. 导出成 Sub2API `账号/代理导入` 能直接消费的 JSON。
 
@@ -36,7 +36,6 @@ cp tools/door-gateway/doors.example.json ~/door-gateway.json
     "port": 19080
   },
   "mihomo_binary": "/Applications/Clash Verge.app/Contents/MacOS/verge-mihomo",
-  "source_config_path": "/Users/meilinwang/.config/clash/vv148.no-mad-world.club.yaml",
   "worker_base_dir": "/Users/meilinwang/Projects/sub2api/door-workers",
   "worker_port_start": 58080,
   "worker_socks_port_start": 59080,
@@ -44,12 +43,14 @@ cp tools/door-gateway/doors.example.json ~/door-gateway.json
   "sub2api_export_host": "host.docker.internal",
   "healthcheck_interval_ms": 30000,
   "export_protocol": "http",
-  "doors": [
+  "sources": [
     {
-      "key": "door-hk-w10",
-      "name": "🇭🇰 香港W10 | IEPL",
-      "proxy_name": "🇭🇰 香港W10 | IEPL",
-      "exit_ip": "203.0.113.10"
+      "name": "nomad",
+      "url": "https://do02n.no-mad-sub.one/link/your-token?clash=3&extend=1"
+    },
+    {
+      "name": "trojanflare",
+      "url": "https://s1.trojanflare.one/clashx/your-token"
     }
   ]
 }
@@ -57,20 +58,33 @@ cp tools/door-gateway/doors.example.json ~/door-gateway.json
 
 字段说明：
 
-- `key`: 门的稳定唯一标识，供 Sub2API 导入/绑定使用
-- `name`: 你希望在 Sub2API 里看到的名字
-- `proxy_name`: 这扇门要绑定的 Clash/Mihomo 节点名，建议直接沿用原配置里的名字
+- `sources`: 订阅源列表。每个 source 至少包含：
+  - `name`: 内部唯一别名，会参与生成稳定 `door.key`
+  - `url`: 远端 Clash/Mihomo 订阅地址
+  - `path`: 本地 YAML 路径。适合测试或本机已落盘配置；`path` 与 `url` 二选一
+  - `enabled`: 可选，默认 `true`
 - `mihomo_binary`: 本机 Mihomo 内核路径
-- `source_config_path`: 现有 Clash/Mihomo 配置文件路径
 - `worker_base_dir`: `door-gateway` 自动生成 worker 配置和日志的目录
 - `worker_port_start`: 门的 `mixed-port` 起始端口
 - `worker_socks_port_start`: 门的 `socks-port` 起始端口
 - `controller_port_start`: 门的管理控制端口起始值
 - `export_protocol`: 导出给 Sub2API 时使用的协议，默认推荐 `http`
-- `exit_ip`: 可选。你已有上游系统能提供时可直接带上
 - `sub2api_export_host`: 导出给 Docker 里的 Sub2API 时使用的宿主机地址，默认建议 `host.docker.internal`
 
+`door-gateway` 会按 `source.name + 节点指纹(type/server/port/name)` 自动生成稳定 `door.key`，所以：
+
+- 同一订阅里节点内容不变时，`door.key` 保持稳定
+- 两条订阅里就算出现同名节点，也不会互相覆盖
+- 某个 source 被移除时，只会让这一组对应 doors 从 `/doors` 快照里消失
+
 启动后，每扇门会拥有自己独立的 worker 目录、监听端口、控制端口和日志，不会去改你日常使用的 Clash Pro 通用门。
+
+## 向后兼容
+
+旧配置里的 `source_config_path + doors[]` 仍然可用：
+
+- 适合你只想从单个本地 YAML 里手工挑几个节点出门
+- 新的 `sources[]` 模式更适合“把多条订阅整体并入现有门池”
 
 ## 启动
 
