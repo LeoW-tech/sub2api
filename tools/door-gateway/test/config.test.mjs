@@ -242,6 +242,97 @@ test('loadConfigFromPath fetches source configs from url and skips disabled sour
   }
 })
 
+test('loadConfigFromPath preserves legacy doors and appends generated source doors after them', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'door-gateway-hybrid-source-'))
+  const legacySourcePath = path.join(tempDir, 'legacy.yaml')
+  const extraSourcePath = path.join(tempDir, 'extra.yaml')
+  const gatewayConfigPath = path.join(tempDir, 'doors.json')
+
+  fs.writeFileSync(
+    legacySourcePath,
+    [
+      'proxies:',
+      '  - name: Legacy JP',
+      '    type: ss',
+      '    server: legacy-jp.example.com',
+      '    port: 443',
+      '    cipher: aes-256-gcm',
+      '    password: legacy-jp-secret',
+      '  - name: Legacy HK',
+      '    type: ss',
+      '    server: legacy-hk.example.com',
+      '    port: 443',
+      '    cipher: aes-256-gcm',
+      '    password: legacy-hk-secret',
+      ''
+    ].join('\n'),
+    'utf8'
+  )
+
+  fs.writeFileSync(
+    extraSourcePath,
+    [
+      'proxies:',
+      '  - name: Extra SG',
+      '    type: trojan',
+      '    server: extra-sg.example.com',
+      '    port: 443',
+      '    password: extra-sg-secret',
+      '    sni: extra-sg.example.com',
+      ''
+    ].join('\n'),
+    'utf8'
+  )
+
+  fs.writeFileSync(
+    gatewayConfigPath,
+    JSON.stringify(
+      {
+        api: { host: '127.0.0.1', port: 19080 },
+        mihomo_binary: '/Applications/Clash Verge.app/Contents/MacOS/verge-mihomo',
+        source_config_path: './legacy.yaml',
+        worker_base_dir: path.join(tempDir, 'workers'),
+        worker_port_start: 58080,
+        worker_socks_port_start: 58180,
+        controller_port_start: 58280,
+        doors: [
+          {
+            key: 'door-legacy-jp',
+            name: 'Legacy JP',
+            proxy_name: 'Legacy JP'
+          },
+          {
+            key: 'door-legacy-hk',
+            name: 'Legacy HK',
+            proxy_name: 'Legacy HK'
+          }
+        ],
+        sources: [
+          {
+            name: 'extra',
+            path: './extra.yaml'
+          }
+        ]
+      },
+      null,
+      2
+    ),
+    'utf8'
+  )
+
+  const config = await loadConfigFromPath(gatewayConfigPath)
+
+  assert.deepEqual(
+    config.doors.map((door) => door.key),
+    ['door-legacy-jp', 'door-legacy-hk', config.doors[2].key]
+  )
+  assert.equal(config.doors[0].listen_port, 58080)
+  assert.equal(config.doors[1].listen_port, 58081)
+  assert.equal(config.doors[2].listen_port, 58082)
+  assert.equal(config.doors[2].name, 'Extra SG')
+  assert.match(config.doors[2].key, /^extra-/)
+})
+
 test('buildWorkerConfig emits a single-proxy Mihomo config for one door', () => {
   const configText = buildWorkerConfig({
     name: '🇭🇰 香港W10 | IEPL',

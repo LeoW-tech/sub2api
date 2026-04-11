@@ -61,25 +61,47 @@ export async function loadConfigFromPath(configPath) {
 }
 
 async function resolveDoors(parsed, options) {
+  const resolvedDoors = []
+
+  if (Array.isArray(parsed.doors) && parsed.doors.length > 0) {
+    if (!parsed.source_config_path) {
+      throw new Error('config.source_config_path is required')
+    }
+
+    const sourceConfigPath = path.resolve(options.configDir, parsed.source_config_path)
+    const sourceConfig = parseSourceConfigText(fs.readFileSync(sourceConfigPath, 'utf8'), sourceConfigPath)
+    const proxyMap = buildProxyMap(sourceConfig)
+
+    resolvedDoors.push(
+      ...parsed.doors.map((door, index) => normalizeDoor(door, index, {
+        ...options,
+        proxyMap
+      }))
+    )
+  }
+
   if (Array.isArray(parsed.sources) && parsed.sources.length > 0) {
-    return loadDoorsFromSources(parsed.sources, options)
+    resolvedDoors.push(
+      ...(await loadDoorsFromSources(parsed.sources, {
+        ...options,
+        indexOffset: resolvedDoors.length
+      }))
+    )
   }
 
-  if (!Array.isArray(parsed.doors) || parsed.doors.length === 0) {
-    throw new Error('config.doors must be a non-empty array')
-  }
-  if (!parsed.source_config_path) {
-    throw new Error('config.source_config_path is required')
+  if (resolvedDoors.length === 0) {
+    throw new Error('config.doors or config.sources must provide at least one door')
   }
 
-  const sourceConfigPath = path.resolve(options.configDir, parsed.source_config_path)
-  const sourceConfig = parseSourceConfigText(fs.readFileSync(sourceConfigPath, 'utf8'), sourceConfigPath)
-  const proxyMap = buildProxyMap(sourceConfig)
+  const keySet = new Set()
+  for (const door of resolvedDoors) {
+    if (keySet.has(door.key)) {
+      throw new Error(`duplicate door key: ${door.key}`)
+    }
+    keySet.add(door.key)
+  }
 
-  return parsed.doors.map((door, index) => normalizeDoor(door, index, {
-    ...options,
-    proxyMap
-  }))
+  return resolvedDoors
 }
 
 async function loadDoorsFromSources(sources, options) {
@@ -118,7 +140,8 @@ async function loadDoorsFromSources(sources, options) {
     }
   }
 
-  return generatedDoors.map((door, index) => normalizeDoor(door, index, options))
+  const indexOffset = Number(options.indexOffset || 0)
+  return generatedDoors.map((door, index) => normalizeDoor(door, indexOffset + index, options))
 }
 
 function normalizeDoor(door, index, options) {
