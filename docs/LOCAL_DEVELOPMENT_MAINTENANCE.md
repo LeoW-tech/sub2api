@@ -42,11 +42,16 @@
 ./scripts/sub2api-local door restart
 ./scripts/sub2api-local door status
 
+./scripts/sub2api-local autostart install
+./scripts/sub2api-local autostart uninstall
+./scripts/sub2api-local autostart status
+./scripts/sub2api-local autostart restart
+
 ./scripts/sub2api-local sync upstream
 ./scripts/sub2api-local backup runtime
 ```
 
-`./scripts/sub2api-local backup runtime` 默认会把备份写到 `runtime/backups/<时间戳>/`。
+`./scripts/sub2api-local backup runtime` 默认会把备份写到 `runtime/backups/<时间戳>/`，并同时备份当前用户目录下的 `com.sub2api.autostart.plist` 与 `com.sub2api.door-gateway.plist`（如果存在）。
 
 ## 日常重启命令
 
@@ -62,6 +67,9 @@
 # 重启 door-gateway
 ./scripts/sub2api-local door restart
 
+# 重新触发登录后自动恢复链路
+./scripts/sub2api-local autostart restart
+
 # 如果改了源码并需要重建稳定环境
 ./scripts/sub2api-local stable rebuild
 
@@ -70,6 +78,41 @@
 ```
 
 ## 工作流
+
+### 设置登录后自动恢复
+
+如果你希望 macOS 在登录后自动恢复 `stable + door-gateway`，使用：
+
+```bash
+./scripts/sub2api-local autostart install
+```
+
+安装动作会：
+
+- 校验 `colima`、`docker`、`node` 是否可用
+- 生成 `~/Library/LaunchAgents/com.sub2api.autostart.plist`
+- 生成 `~/Library/LaunchAgents/com.sub2api.door-gateway.plist`
+- 启动主协调器，自动恢复 `stable` 与 `door-gateway`
+- 校验 `http://127.0.0.1:8080/health` 与 `http://127.0.0.1:19080/health`
+
+查看当前状态：
+
+```bash
+./scripts/sub2api-local autostart status
+```
+
+如果更换了 Node 路径、Homebrew 路径或希望重新生成 plist，可执行：
+
+```bash
+./scripts/sub2api-local autostart install
+./scripts/sub2api-local autostart restart
+```
+
+如果只想取消“登录后自动恢复”，但不主动停止当前运行中的服务，可执行：
+
+```bash
+./scripts/sub2api-local autostart uninstall
+```
 
 ### 开发自己的功能
 
@@ -112,5 +155,6 @@ git checkout main
 - `door-gateway` 配置：`runtime/stable/door-gateway.json`
 - `door-gateway` worker 目录：`runtime/stable/door-workers`
 - 运行时备份目录：`runtime/backups`
+- 当前用户 `LaunchAgent`：`~/Library/LaunchAgents/com.sub2api.autostart.plist`、`~/Library/LaunchAgents/com.sub2api.door-gateway.plist`
 
 这些目录全部不进 git。

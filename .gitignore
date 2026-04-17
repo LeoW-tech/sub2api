@@ -122,6 +122,7 @@ scripts/
 !scripts/
 scripts/*
 !scripts/sub2api-local
+!scripts/sub2api-autostart
 .code-review-state
 #openspec/
 code-reviews/

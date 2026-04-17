@@ -2,6 +2,7 @@
 	stable-up stable-down stable-logs stable-restart stable-rebuild \
 	dev-up dev-down dev-logs dev-restart dev-rebuild \
 	door-restart door-status \
+	autostart-install autostart-uninstall autostart-status autostart-restart \
 	sync-upstream backup-runtime
 
 # 一键编译前后端
@@ -70,6 +71,18 @@ door-restart:
 
 door-status:
 	@./scripts/sub2api-local door status
+
+autostart-install:
+	@./scripts/sub2api-local autostart install
+
+autostart-uninstall:
+	@./scripts/sub2api-local autostart uninstall
+
+autostart-status:
+	@./scripts/sub2api-local autostart status
+
+autostart-restart:
+	@./scripts/sub2api-local autostart restart
 
 sync-upstream:
 	@./scripts/sub2api-local sync upstream

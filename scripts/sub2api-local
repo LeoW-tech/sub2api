@@ -22,6 +22,10 @@ usage() {
   ./scripts/sub2api-local dev rebuild
   ./scripts/sub2api-local door restart
   ./scripts/sub2api-local door status
+  ./scripts/sub2api-local autostart install
+  ./scripts/sub2api-local autostart uninstall
+  ./scripts/sub2api-local autostart status
+  ./scripts/sub2api-local autostart restart
   ./scripts/sub2api-local sync upstream
   ./scripts/sub2api-local backup runtime
 EOF
@@ -30,6 +34,94 @@ EOF
 die() {
   echo "错误: $*" >&2
   exit 1
+}
+
+require_macos() {
+  [[ "$(uname -s)" == "Darwin" ]] || die "autostart 仅支持 macOS。"
+}
+
+command_path() {
+  local command_name="$1"
+  local path
+  path="$(command -v "$command_name" 2>/dev/null || true)"
+  [[ -n "$path" ]] || die "未找到命令: $command_name"
+  printf '%s\n' "$path"
+}
+
+launch_agents_dir() {
+  printf '%s\n' "$HOME/Library/LaunchAgents"
+}
+
+launch_agent_path() {
+  local service_name="$1"
+  printf '%s/%s.plist\n' "$(launch_agents_dir)" "$service_name"
+}
+
+launch_agent_label() {
+  local service_name="$1"
+  printf 'gui/%s/%s\n' "$(id -u)" "$service_name"
+}
+
+launch_agent_loaded() {
+  local label="$1"
+  launchctl print "$label" >/dev/null 2>&1
+}
+
+launch_agent_bootout() {
+  local label="$1"
+  if launch_agent_loaded "$label"; then
+    launchctl bootout "$label" >/dev/null 2>&1 || true
+  fi
+}
+
+launch_agent_bootstrap() {
+  local plist="$1"
+  launchctl bootstrap "gui/$(id -u)" "$plist"
+}
+
+launch_agent_kickstart() {
+  local label="$1"
+  launchctl kickstart -k "$label"
+}
+
+build_launchd_path() {
+  local result=""
+  local entry dir
+
+  for entry in "$@" /usr/bin /bin /usr/sbin /sbin /usr/local/bin /opt/homebrew/bin; do
+    if [[ -x "$entry" && ! -d "$entry" ]]; then
+      dir="$(dirname "$entry")"
+    else
+      dir="$entry"
+    fi
+
+    case ":$result:" in
+      *":$dir:"*) ;;
+      *) result="${result:+$result:}$dir" ;;
+    esac
+  done
+
+  printf '%s\n' "$result"
+}
+
+render_launchd_template() {
+  local template_path="$1"
+  local output_path="$2"
+  shift 2
+
+  local -a sed_args=()
+  local placeholder value
+
+  while [[ $# -gt 0 ]]; do
+    placeholder="$1"
+    value="$2"
+    shift 2
+    value="${value//\\/\\\\}"
+    value="${value//&/\\&}"
+    sed_args+=("-e" "s|$placeholder|$value|g")
+  done
+
+  sed "${sed_args[@]}" "$template_path" > "$output_path"
 }
 
 current_branch() {
@@ -112,6 +204,10 @@ runtime_up() {
   fi
 
   if ! image_exists; then
+    if [[ "${SUB2API_SKIP_AUTO_BUILD:-0}" == "1" ]]; then
+      die "镜像不存在，当前模式禁止自动构建；请先执行 ./scripts/sub2api-local ${env_name} rebuild。"
+    fi
+
     if [[ "$env_name" == "stable" ]]; then
       ensure_main_branch
     fi
@@ -150,19 +246,183 @@ runtime_restart() {
 }
 
 door_restart() {
-  local label="gui/$(id -u)/com.sub2api.door-gateway"
-  local plist="$HOME/Library/LaunchAgents/com.sub2api.door-gateway.plist"
+  local label
+  local plist
+  label="$(launch_agent_label "com.sub2api.door-gateway")"
+  plist="$(launch_agent_path "com.sub2api.door-gateway")"
 
-  if ! launchctl print "$label" >/dev/null 2>&1; then
-    launchctl bootstrap "gui/$(id -u)" "$plist"
+  [[ -f "$plist" ]] || die "缺少 LaunchAgent 配置: $plist"
+
+  if ! launch_agent_loaded "$label"; then
+    launch_agent_bootstrap "$plist"
   fi
 
-  launchctl kickstart -k "$label"
+  launch_agent_kickstart "$label"
   wait_for_http "http://127.0.0.1:19080/health" 90
 }
 
 door_status() {
-  launchctl print "gui/$(id -u)/com.sub2api.door-gateway" | sed -n '1,80p'
+  launchctl print "$(launch_agent_label "com.sub2api.door-gateway")" | sed -n '1,80p'
+}
+
+autostart_install() {
+  require_macos
+
+  local autostart_template="$REPO_ROOT/deploy/local/launchd/com.sub2api.autostart.plist.template"
+  local door_template="$REPO_ROOT/deploy/local/launchd/com.sub2api.door-gateway.plist.template"
+  local autostart_plist
+  local door_plist
+  local autostart_label
+  local door_label
+  local bash_bin
+  local colima_bin
+  local docker_bin
+  local node_bin
+  local launchd_path
+
+  autostart_plist="$(launch_agent_path "com.sub2api.autostart")"
+  door_plist="$(launch_agent_path "com.sub2api.door-gateway")"
+  autostart_label="$(launch_agent_label "com.sub2api.autostart")"
+  door_label="$(launch_agent_label "com.sub2api.door-gateway")"
+
+  [[ -f "$autostart_template" ]] || die "缺少模板文件: $autostart_template"
+  [[ -f "$door_template" ]] || die "缺少模板文件: $door_template"
+  [[ -f "$RUNTIME_ROOT/stable/.env" ]] || die "缺少环境文件: $RUNTIME_ROOT/stable/.env"
+  [[ -f "$RUNTIME_ROOT/stable/door-gateway.json" ]] || die "缺少 door-gateway 配置: $RUNTIME_ROOT/stable/door-gateway.json"
+
+  mkdir -p "$(launch_agents_dir)" "$RUNTIME_ROOT/stable/data/logs"
+
+  bash_bin="$(command_path bash)"
+  colima_bin="$(command_path colima)"
+  docker_bin="$(command_path docker)"
+  node_bin="$(command_path node)"
+  launchd_path="$(build_launchd_path "$bash_bin" "$colima_bin" "$docker_bin" "$node_bin")"
+
+  render_launchd_template \
+    "$autostart_template" \
+    "$autostart_plist" \
+    "__REPO_ROOT__" "$REPO_ROOT" \
+    "__BASH_BIN__" "$bash_bin" \
+    "__AUTOSTART_SCRIPT__" "$REPO_ROOT/scripts/sub2api-autostart" \
+    "__AUTOSTART_STDOUT__" "$RUNTIME_ROOT/stable/data/logs/autostart.log" \
+    "__AUTOSTART_STDERR__" "$RUNTIME_ROOT/stable/data/logs/autostart.err.log" \
+    "__PATH__" "$launchd_path" \
+    "__COLIMA_BIN__" "$colima_bin" \
+    "__DOCKER_BIN__" "$docker_bin" \
+    "__NODE_BIN__" "$node_bin"
+
+  render_launchd_template \
+    "$door_template" \
+    "$door_plist" \
+    "__REPO_ROOT__" "$REPO_ROOT" \
+    "__NODE_BIN__" "$node_bin" \
+    "__DOOR_SCRIPT__" "$REPO_ROOT/tools/door-gateway/src/server.mjs" \
+    "__DOOR_WORKDIR__" "$REPO_ROOT/tools/door-gateway" \
+    "__DOOR_CONFIG__" "$RUNTIME_ROOT/stable/door-gateway.json" \
+    "__DOOR_STDOUT__" "$RUNTIME_ROOT/stable/data/logs/door-gateway.log" \
+    "__DOOR_STDERR__" "$RUNTIME_ROOT/stable/data/logs/door-gateway.err.log" \
+    "__PATH__" "$launchd_path"
+
+  plutil -lint "$autostart_plist" >/dev/null
+  plutil -lint "$door_plist" >/dev/null
+
+  launch_agent_bootout "$autostart_label"
+  launch_agent_bootout "$door_label"
+  launch_agent_bootstrap "$autostart_plist"
+
+  wait_for_http "http://127.0.0.1:8080/health" 120
+  wait_for_http "http://127.0.0.1:19080/health" 120
+}
+
+autostart_uninstall() {
+  require_macos
+
+  local autostart_plist
+  local door_plist
+  autostart_plist="$(launch_agent_path "com.sub2api.autostart")"
+  door_plist="$(launch_agent_path "com.sub2api.door-gateway")"
+
+  launch_agent_bootout "$(launch_agent_label "com.sub2api.autostart")"
+
+  rm -f "$autostart_plist" "$door_plist"
+}
+
+autostart_status() {
+  require_macos
+
+  local status=0
+  local colima_bin
+  colima_bin="$(command -v colima 2>/dev/null || true)"
+
+  echo "== colima status =="
+  if [[ -n "$colima_bin" ]]; then
+    "$colima_bin" status || status=1
+  else
+    echo "未找到 colima"
+    status=1
+  fi
+
+  echo
+  echo "== launchctl print $(launch_agent_label "com.sub2api.autostart") =="
+  if ! launchctl print "$(launch_agent_label "com.sub2api.autostart")" | sed -n '1,120p'; then
+    status=1
+  fi
+
+  echo
+  echo "== launchctl print $(launch_agent_label "com.sub2api.door-gateway") =="
+  if ! launchctl print "$(launch_agent_label "com.sub2api.door-gateway")" | sed -n '1,120p'; then
+    status=1
+  fi
+
+  echo
+  echo "== health checks =="
+  if curl -fsS "http://127.0.0.1:8080/health" >/dev/null 2>&1; then
+    echo "stable: ok"
+  else
+    echo "stable: failed"
+    status=1
+  fi
+
+  if curl -fsS "http://127.0.0.1:19080/health" >/dev/null 2>&1; then
+    echo "door-gateway: ok"
+  else
+    echo "door-gateway: failed"
+    status=1
+  fi
+
+  return "$status"
+}
+
+autostart_restart() {
+  require_macos
+
+  local autostart_plist
+  local door_plist
+  local autostart_label
+  local door_label
+
+  autostart_plist="$(launch_agent_path "com.sub2api.autostart")"
+  door_plist="$(launch_agent_path "com.sub2api.door-gateway")"
+  autostart_label="$(launch_agent_label "com.sub2api.autostart")"
+  door_label="$(launch_agent_label "com.sub2api.door-gateway")"
+
+  [[ -f "$autostart_plist" ]] || die "缺少 LaunchAgent 配置: $autostart_plist"
+  [[ -f "$door_plist" ]] || die "缺少 LaunchAgent 配置: $door_plist"
+
+  if ! launch_agent_loaded "$autostart_label"; then
+    launch_agent_bootstrap "$autostart_plist"
+  else
+    launch_agent_kickstart "$autostart_label"
+  fi
+
+  if ! launch_agent_loaded "$door_label"; then
+    launch_agent_bootstrap "$door_plist"
+  else
+    launch_agent_kickstart "$door_label"
+  fi
+
+  wait_for_http "http://127.0.0.1:8080/health" 120
+  wait_for_http "http://127.0.0.1:19080/health" 120
 }
 
 sync_upstream() {
@@ -208,6 +468,10 @@ backup_runtime() {
 
   rsync "${rsync_args[@]}" "$RUNTIME_ROOT/" "$target/runtime/"
 
+  if [[ -f "$(launch_agent_path "com.sub2api.autostart")" ]]; then
+    cp "$(launch_agent_path "com.sub2api.autostart")" "$target/com.sub2api.autostart.plist"
+  fi
+
   if [[ -f "$HOME/Library/LaunchAgents/com.sub2api.door-gateway.plist" ]]; then
     cp "$HOME/Library/LaunchAgents/com.sub2api.door-gateway.plist" "$target/com.sub2api.door-gateway.plist"
   fi
@@ -231,6 +495,10 @@ main() {
     dev:rebuild) runtime_rebuild dev ;;
     door:restart) door_restart ;;
     door:status) door_status ;;
+    autostart:install) autostart_install ;;
+    autostart:uninstall) autostart_uninstall ;;
+    autostart:status) autostart_status ;;
+    autostart:restart) autostart_restart ;;
     sync:upstream) sync_upstream ;;
     backup:runtime) backup_runtime ;;
     *) usage; exit 1 ;;
