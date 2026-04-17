@@ -20,6 +20,30 @@
 2. 在本地 `main` 上叠加用户自己的定制功能
 3. 使用双环境运行，避免开发环境影响稳定环境
 
+## 终端打开位置与一键复制命令
+
+后面文档里所有 `./scripts/...`、`make ...`、`git ...` 命令，默认都应该在这个目录打开终端后再执行：
+
+```bash
+cd /Users/meilinwang/Projects/sub2api
+```
+
+如果你不想记“当前是不是已经在仓库根目录”，最稳妥的方式是每次都直接复制下面这一行：
+
+```bash
+cd /Users/meilinwang/Projects/sub2api && <把后面的命令接在这里>
+```
+
+例如：
+
+```bash
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local stable up
+cd /Users/meilinwang/Projects/sub2api && make dev-up
+cd /Users/meilinwang/Projects/sub2api && git status
+```
+
+不建议在 `runtime/`、`frontend/`、`backend/` 或其他子目录里直接执行本文档中的仓库级命令；除非命令本身明确写了 `cd backend && ...` 这类子目录切换。
+
 ## 目录约定
 
 必须遵守下面的目录边界：
@@ -96,74 +120,80 @@ runtime/
 
 ```bash
 # stable: 启动稳定环境
-./scripts/sub2api-local stable up
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local stable up
 # stable: 停止稳定环境
-./scripts/sub2api-local stable down
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local stable down
 # stable: 查看稳定环境日志
-./scripts/sub2api-local stable logs
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local stable logs
 # stable: 重启稳定环境
-./scripts/sub2api-local stable restart
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local stable restart
 # stable: 重建并启动稳定环境
-./scripts/sub2api-local stable rebuild
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local stable rebuild
 
 # dev: 启动开发环境并在需要时构建
-./scripts/sub2api-local dev up --build
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local dev up --build
 # dev: 停止开发环境
-./scripts/sub2api-local dev down
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local dev down
 # dev: 查看开发环境日志
-./scripts/sub2api-local dev logs
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local dev logs
 # dev: 重启开发环境
-./scripts/sub2api-local dev restart
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local dev restart
 # dev: 重建并启动开发环境
-./scripts/sub2api-local dev rebuild
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local dev rebuild
 
 # door: 重启 door-gateway 宿主机服务
-./scripts/sub2api-local door restart
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local door restart
 # door: 查看 door-gateway 当前 launchctl 状态
-./scripts/sub2api-local door status
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local door status
 
 # maintenance: 同步原始仓库最新 main 到本地同步分支
-./scripts/sub2api-local sync upstream
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local sync upstream
 # maintenance: 备份 runtime 运行时数据
-./scripts/sub2api-local backup runtime
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local backup runtime
 ```
 
-`./scripts/sub2api-local backup runtime` 默认会把备份写入 `runtime/backups/<timestamp>/`；如有需要，可通过 `SUB2API_BACKUP_ROOT` 临时覆盖。
+`cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local backup runtime` 默认会把备份写入 `runtime/backups/<timestamp>/`；如有需要，可通过 `SUB2API_BACKUP_ROOT` 临时覆盖。
+
+例如，把备份临时写到桌面某个目录：
+
+```bash
+cd /Users/meilinwang/Projects/sub2api && SUB2API_BACKUP_ROOT="$HOME/Desktop/sub2api-backups" ./scripts/sub2api-local backup runtime
+```
 
 也可以使用 Makefile 别名：
 
 ```bash
 # stable: 启动稳定环境
-make stable-up
+cd /Users/meilinwang/Projects/sub2api && make stable-up
 # stable: 停止稳定环境
-make stable-down
+cd /Users/meilinwang/Projects/sub2api && make stable-down
 # stable: 查看稳定环境日志
-make stable-logs
+cd /Users/meilinwang/Projects/sub2api && make stable-logs
 # stable: 重启稳定环境
-make stable-restart
+cd /Users/meilinwang/Projects/sub2api && make stable-restart
 # stable: 重建并启动稳定环境
-make stable-rebuild
+cd /Users/meilinwang/Projects/sub2api && make stable-rebuild
 
 # dev: 启动开发环境并构建
-make dev-up
+cd /Users/meilinwang/Projects/sub2api && make dev-up
 # dev: 停止开发环境
-make dev-down
+cd /Users/meilinwang/Projects/sub2api && make dev-down
 # dev: 查看开发环境日志
-make dev-logs
+cd /Users/meilinwang/Projects/sub2api && make dev-logs
 # dev: 重启开发环境
-make dev-restart
+cd /Users/meilinwang/Projects/sub2api && make dev-restart
 # dev: 重建并启动开发环境
-make dev-rebuild
+cd /Users/meilinwang/Projects/sub2api && make dev-rebuild
 
 # door: 重启 door-gateway
-make door-restart
+cd /Users/meilinwang/Projects/sub2api && make door-restart
 # door: 查看 door-gateway 状态
-make door-status
+cd /Users/meilinwang/Projects/sub2api && make door-status
 
 # maintenance: 同步上游
-make sync-upstream
+cd /Users/meilinwang/Projects/sub2api && make sync-upstream
 # maintenance: 备份 runtime
-make backup-runtime
+cd /Users/meilinwang/Projects/sub2api && make backup-runtime
 ```
 
 ## 日常开发流程
@@ -171,6 +201,7 @@ make backup-runtime
 开发用户自己的功能时：
 
 ```bash
+cd /Users/meilinwang/Projects/sub2api
 git checkout main
 git pull --ff-only origin main
 git checkout -b feature/<topic>
@@ -178,11 +209,32 @@ git checkout -b feature/<topic>
 ./scripts/sub2api-local dev up
 ```
 
+如果你希望“一整段一次复制执行”，可以直接用下面的形式：
+
+```bash
+cd /Users/meilinwang/Projects/sub2api && \
+git checkout main && \
+git pull --ff-only origin main && \
+git checkout -b feature/<topic> && \
+./scripts/sub2api-local dev rebuild && \
+./scripts/sub2api-local dev up
+```
+
 完成后：
 
 ```bash
+cd /Users/meilinwang/Projects/sub2api
 git add .
 git commit -m "feat: <topic>"
+git push -u origin feature/<topic>
+```
+
+如果你想整段复制，也可以用：
+
+```bash
+cd /Users/meilinwang/Projects/sub2api && \
+git add . && \
+git commit -m "feat: <topic>" && \
 git push -u origin feature/<topic>
 ```
 
@@ -193,7 +245,7 @@ git push -u origin feature/<topic>
 同步上游时不要自己重新发明流程，直接使用：
 
 ```bash
-./scripts/sub2api-local sync upstream
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local sync upstream
 ```
 
 它会做这些事：
@@ -207,8 +259,8 @@ git push -u origin feature/<topic>
 同步后应继续：
 
 ```bash
-./scripts/sub2api-local dev rebuild
-./scripts/sub2api-local dev up
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local dev rebuild
+cd /Users/meilinwang/Projects/sub2api && ./scripts/sub2api-local dev up
 ```
 
 验证无误后，再把同步分支合回 `main`。
