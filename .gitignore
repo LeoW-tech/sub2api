@@ -133,6 +133,8 @@ deploy/docker-compose.override.yml
 vite.config.js
 docs/*
 !docs/LOCAL_DEVELOPMENT_MAINTENANCE.md
+!docs/PAYMENT.md
+!docs/PAYMENT_CN.md
 .serena/
 .codex/
 frontend/coverage/
