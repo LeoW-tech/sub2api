@@ -2305,10 +2305,14 @@ export default {
         disableScheduling: 'Disable Scheduling',
         resetStatus: 'Reset Status',
         refreshToken: 'Refresh Token',
+        testActivate: 'Bulk Test Activate',
+        testActivating: 'Bulk Test Activating...',
+        testActivateConfirm: 'Test and activate the selected {count} account(s)?',
         resetStatusSuccess: 'Successfully reset {count} account(s) status',
         refreshTokenSuccess: 'Successfully refreshed {count} account(s) token',
         partialSuccess: 'Partially completed: {success} succeeded, {failed} failed'
       },
+      bulkTestActivateSummary: 'Test succeeded for {success} account(s), failed for {failed}, activated {activated}',
       bulkEdit: {
         title: 'Bulk Edit Accounts',
         selectionInfo:
