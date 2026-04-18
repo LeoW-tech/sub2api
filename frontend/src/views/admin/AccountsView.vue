@@ -1154,7 +1154,7 @@ const normalizeBulkUpdateResult = (
   }
 }
 const BULK_TEST_ACTIVATE_MODEL_ID = 'gpt-5.4'
-const BULK_TEST_ACTIVATE_CONCURRENCY = 3
+const BULK_TEST_ACTIVATE_CONCURRENCY = 10
 
 const runWithConcurrency = async <T>(
   accountIds: number[],

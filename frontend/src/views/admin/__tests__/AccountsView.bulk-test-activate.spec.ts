@@ -257,7 +257,7 @@ describe('AccountsView bulk test activate', () => {
     vi.stubGlobal('confirm', vi.fn(() => true))
   })
 
-  it('批量测试激活按 3 并发启动测试任务', async () => {
+  it('批量测试激活按 10 并发启动测试任务', async () => {
     const started: number[] = []
     const resolvers = new Map<number, (value: { success: boolean }) => void>()
 
@@ -283,7 +283,7 @@ describe('AccountsView bulk test activate', () => {
     await wrapper.get('button.bulk-test-activate-trigger').trigger('click')
     await flushPromises()
 
-    expect(started).toEqual([1, 2, 3])
+    expect(started).toEqual([1, 2, 3, 4])
 
     resolvers.get(1)?.({ success: true })
     await flushPromises()
