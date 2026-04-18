@@ -141,7 +141,11 @@
         </div>
       </template>
       <template #table>
-        <AccountBulkActionsBar :selected-ids="selIds" @delete="handleBulkDelete" @reset-status="handleBulkResetStatus" @refresh-token="handleBulkRefreshToken" @edit="showBulkEdit = true" @clear="clearSelection" @select-page="selectPage" @toggle-schedulable="handleBulkToggleSchedulable" />
+        <AccountBulkActionsBar
+          :selected-ids="selIds"
+          :testing-activate="bulkTestingActivate"
+          v-on="bulkActionBarListeners"
+        />
         <div ref="accountTableRef" class="flex min-h-0 flex-1 flex-col overflow-hidden">
         <DataTable
           ref="dataTableRef"
@@ -345,6 +349,7 @@ import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import Icon from '@/components/icons/Icon.vue'
 import ErrorPassthroughRulesModal from '@/components/admin/ErrorPassthroughRulesModal.vue'
 import TLSFingerprintProfilesModal from '@/components/admin/TLSFingerprintProfilesModal.vue'
+import { runAccountTestStream } from '@/api/admin/accountTestStream'
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel } from '@/types'
@@ -397,6 +402,7 @@ const showSchedulePanel = ref(false)
 const scheduleAcc = ref<Account | null>(null)
 const scheduleModelOptions = ref<SelectOption[]>([])
 const togglingSchedulable = ref<number | null>(null)
+const bulkTestingActivate = ref(false)
 const menu = reactive<{show:boolean, acc:Account|null, pos:{top:number, left:number}|null}>({ show: false, acc: null, pos: null })
 const exportingData = ref(false)
 
@@ -1070,12 +1076,24 @@ const handleBulkRefreshToken = async () => {
     appStore.showError(String(error))
   }
 }
+const updateStatusInList = (accountIds: number[], status: Account['status']) => {
+  if (accountIds.length === 0) return
+  const idSet = new Set(accountIds)
+  accounts.value = accounts.value.map((account) => (
+    idSet.has(account.id)
+      ? {
+          ...account,
+          status
+        }
+      : account
+  ))
+}
 const updateSchedulableInList = (accountIds: number[], schedulable: boolean) => {
   if (accountIds.length === 0) return
   const idSet = new Set(accountIds)
   accounts.value = accounts.value.map((account) => (idSet.has(account.id) ? { ...account, schedulable } : account))
 }
-const normalizeBulkSchedulableResult = (
+const normalizeBulkUpdateResult = (
   result: {
     success?: number
     failed?: number
@@ -1135,11 +1153,127 @@ const normalizeBulkSchedulableResult = (
     hasCounts: hasExplicitCounts
   }
 }
+const BULK_TEST_ACTIVATE_MODEL_ID = 'gpt-5.4'
+const BULK_TEST_ACTIVATE_CONCURRENCY = 3
+
+const runWithConcurrency = async <T>(
+  accountIds: number[],
+  concurrency: number,
+  workerFn: (accountId: number) => Promise<T>
+) => {
+  const results = new Map<number, T>()
+  const errors = new Map<number, unknown>()
+  let index = 0
+
+  const worker = async () => {
+    while (index < accountIds.length) {
+      const current = accountIds[index]
+      index += 1
+      try {
+        results.set(current, await workerFn(current))
+      } catch (error) {
+        errors.set(current, error)
+      }
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, accountIds.length) }, () => worker())
+  await Promise.all(workers)
+
+  return { results, errors }
+}
+
+const dedupeAccountIDs = (accountIds: number[]) => [...new Set(accountIds)]
+
+const handleBulkTestActivate = async () => {
+  const accountIds = [...selIds.value]
+  if (accountIds.length === 0) return
+  if (bulkTestingActivate.value) return
+  if (!confirm(t('admin.accounts.bulkActions.testActivateConfirm', { count: accountIds.length }))) return
+
+  bulkTestingActivate.value = true
+
+  try {
+    const testExecution = await runWithConcurrency(
+      accountIds,
+      BULK_TEST_ACTIVATE_CONCURRENCY,
+      async (accountId) => runAccountTestStream(accountId, { modelId: BULK_TEST_ACTIVATE_MODEL_ID })
+    )
+
+    const testSuccessIds = accountIds.filter((accountId) => {
+      const result = testExecution.results.get(accountId)
+      return result?.success === true
+    })
+    const testFailedIds = accountIds.filter((accountId) => {
+      const result = testExecution.results.get(accountId)
+      return testExecution.errors.has(accountId) || result?.success !== true
+    })
+
+    const statusLookup = await runWithConcurrency(
+      testSuccessIds,
+      BULK_TEST_ACTIVATE_CONCURRENCY,
+      async (accountId) => adminAPI.accounts.getById(accountId)
+    )
+
+    const statusLookupFailedIds = testSuccessIds.filter((accountId) => statusLookup.errors.has(accountId))
+    const activateIds = testSuccessIds.filter((accountId) => {
+      const account = statusLookup.results.get(accountId)
+      return account?.status !== 'active'
+    })
+
+    let activatedCount = 0
+    let activationFailedIds: number[] = []
+
+    if (activateIds.length > 0) {
+      const activationResult = await adminAPI.accounts.bulkUpdate(activateIds, { status: 'active' })
+      const normalized = normalizeBulkUpdateResult(activationResult, activateIds)
+
+      if (!normalized.hasIds && !normalized.hasCounts) {
+        activationFailedIds = activateIds
+      } else {
+        activatedCount = normalized.successCount
+        activationFailedIds = normalized.failedIds.length > 0 ? normalized.failedIds : (
+          normalized.failedCount > 0 ? activateIds : []
+        )
+        if (normalized.successIds.length > 0) {
+          updateStatusInList(normalized.successIds, 'active')
+          enterAutoRefreshSilentWindow()
+        }
+      }
+    }
+
+    const failedIds = dedupeAccountIDs([
+      ...testFailedIds,
+      ...statusLookupFailedIds,
+      ...activationFailedIds
+    ])
+
+    const message = t('admin.accounts.bulkTestActivateSummary', {
+      success: testSuccessIds.length,
+      failed: failedIds.length,
+      activated: activatedCount
+    })
+
+    if (failedIds.length > 0) {
+      appStore.showError(message)
+      setSelectedIds(failedIds)
+    } else {
+      appStore.showSuccess(message)
+      clearSelection()
+    }
+  } catch (error) {
+    console.error('Failed to bulk test activate accounts:', error)
+    appStore.showError(t('common.error'))
+    setSelectedIds(accountIds)
+  } finally {
+    bulkTestingActivate.value = false
+  }
+}
 const handleBulkToggleSchedulable = async (schedulable: boolean) => {
   const accountIds = [...selIds.value]
   try {
     const result = await adminAPI.accounts.bulkUpdate(accountIds, { schedulable })
-    const { successIds, failedIds, successCount, failedCount, hasIds, hasCounts } = normalizeBulkSchedulableResult(result, accountIds)
+    const { successIds, failedIds, successCount, failedCount, hasIds, hasCounts } = normalizeBulkUpdateResult(result, accountIds)
     if (!hasIds && !hasCounts) {
       appStore.showError(t('admin.accounts.bulkSchedulableResultUnknown'))
       setSelectedIds(accountIds)
@@ -1171,6 +1305,19 @@ const handleBulkToggleSchedulable = async (schedulable: boolean) => {
     console.error('Failed to bulk toggle schedulable:', error)
     appStore.showError(t('common.error'))
   }
+}
+const openBulkEdit = () => {
+  showBulkEdit.value = true
+}
+const bulkActionBarListeners = {
+  delete: handleBulkDelete,
+  'reset-status': handleBulkResetStatus,
+  'refresh-token': handleBulkRefreshToken,
+  'test-activate': handleBulkTestActivate,
+  edit: openBulkEdit,
+  clear: clearSelection,
+  'select-page': selectPage,
+  'toggle-schedulable': handleBulkToggleSchedulable
 }
 const handleBulkUpdated = () => { showBulkEdit.value = false; clearSelection(); reload() }
 const handleDataImported = () => { showImportData.value = false; reload() }

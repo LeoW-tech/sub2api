@@ -2455,10 +2455,14 @@ export default {
         disableScheduling: '批量停止调度',
         resetStatus: '批量重置状态',
         refreshToken: '批量刷新令牌',
+        testActivate: '批量测试激活',
+        testActivating: '批量测试激活中...',
+        testActivateConfirm: '确定要测试并激活选中的 {count} 个账号吗？',
         resetStatusSuccess: '已成功重置 {count} 个账号状态',
         refreshTokenSuccess: '已成功刷新 {count} 个账号令牌',
         partialSuccess: '操作部分完成：{success} 成功，{failed} 失败'
       },
+      bulkTestActivateSummary: '测试成功 {success} 个，测试失败 {failed} 个，已启用 {activated} 个',
       bulkEdit: {
         title: '批量编辑账号',
         selectionInfo: '已选择 {count} 个账号。只更新您勾选或填写的字段，未勾选的字段保持不变。',
