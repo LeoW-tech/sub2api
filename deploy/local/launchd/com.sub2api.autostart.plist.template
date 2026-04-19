@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.sub2api.autostart</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>__BASH_BIN__</string>
+      <string>__AUTOSTART_SCRIPT__</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__REPO_ROOT__</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+      <key>SuccessfulExit</key>
+      <false/>
+    </dict>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>PATH</key>
+      <string>__PATH__</string>
+      <key>SUB2API_REPO_ROOT</key>
+      <string>__REPO_ROOT__</string>
+      <key>SUB2API_COLIMA_BIN</key>
+      <string>__COLIMA_BIN__</string>
+      <key>SUB2API_DOCKER_BIN</key>
+      <string>__DOCKER_BIN__</string>
+      <key>SUB2API_NODE_BIN</key>
+      <string>__NODE_BIN__</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>__AUTOSTART_STDOUT__</string>
+
+    <key>StandardErrorPath</key>
+    <string>__AUTOSTART_STDERR__</string>
+  </dict>
+</plist>

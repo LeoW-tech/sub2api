@@ -1,0 +1,24 @@
+{
+  "api": {
+    "host": "127.0.0.1",
+    "port": 19080
+  },
+  "mihomo_binary": "/Applications/Clash Verge.app/Contents/MacOS/verge-mihomo",
+  "worker_base_dir": "/Users/meilinwang/Projects/sub2api/door-workers",
+  "worker_port_start": 58080,
+  "worker_socks_port_start": 59080,
+  "controller_port_start": 60080,
+  "sub2api_export_host": "host.docker.internal",
+  "healthcheck_interval_ms": 30000,
+  "export_protocol": "http",
+  "sources": [
+    {
+      "name": "nomad",
+      "url": "https://do02n.no-mad-sub.one/link/your-token?clash=3&extend=1"
+    },
+    {
+      "name": "trojanflare",
+      "url": "https://s1.trojanflare.one/clashx/your-token"
+    }
+  ]
+}

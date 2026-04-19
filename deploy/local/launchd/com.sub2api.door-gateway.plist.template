@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.sub2api.door-gateway</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>__NODE_BIN__</string>
+      <string>__DOOR_SCRIPT__</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__DOOR_WORKDIR__</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>PATH</key>
+      <string>__PATH__</string>
+      <key>DOOR_GATEWAY_CONFIG</key>
+      <string>__DOOR_CONFIG__</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>__DOOR_STDOUT__</string>
+
+    <key>StandardErrorPath</key>
+    <string>__DOOR_STDERR__</string>
+  </dict>
+</plist>

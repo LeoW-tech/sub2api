@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="${SUB2API_REPO_ROOT:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+STABLE_ENV_FILE="$REPO_ROOT/runtime/stable/.env"
+DOOR_PLIST="$HOME/Library/LaunchAgents/com.sub2api.door-gateway.plist"
+LOCAL_SCRIPT="$REPO_ROOT/scripts/sub2api-local"
+
+log() {
+  printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
+}
+
+die() {
+  log "错误: $*"
+  exit 1
+}
+
+command_or_env_path() {
+  local env_name="$1"
+  local fallback_name="$2"
+  local resolved="${!env_name:-}"
+
+  if [[ -n "$resolved" ]]; then
+    printf '%s\n' "$resolved"
+    return 0
+  fi
+
+  resolved="$(command -v "$fallback_name" 2>/dev/null || true)"
+  [[ -n "$resolved" ]] || die "未找到命令: $fallback_name"
+  printf '%s\n' "$resolved"
+}
+
+wait_for_command() {
+  local timeout="$1"
+  shift
+  local started_at now
+
+  started_at="$(date +%s)"
+  while true; do
+    if "$@" >/dev/null 2>&1; then
+      return 0
+    fi
+
+    now="$(date +%s)"
+    if (( now - started_at >= timeout )); then
+      die "等待命令成功超时: $*"
+    fi
+
+    sleep 1
+  done
+}
+
+wait_for_http() {
+  local url="$1"
+  local timeout="${2:-120}"
+  local started_at now
+
+  started_at="$(date +%s)"
+  while true; do
+    if curl -fsS "$url" >/dev/null 2>&1; then
+      return 0
+    fi
+
+    now="$(date +%s)"
+    if (( now - started_at >= timeout )); then
+      die "等待健康检查超时: $url"
+    fi
+
+    sleep 1
+  done
+}
+
+main() {
+  local colima_bin
+  local docker_bin
+  local node_bin
+
+  [[ "$(uname -s)" == "Darwin" ]] || die "仅支持在 macOS 上运行。"
+  [[ -d "$REPO_ROOT" ]] || die "仓库目录不存在: $REPO_ROOT"
+  [[ -x "$LOCAL_SCRIPT" ]] || die "缺少可执行脚本: $LOCAL_SCRIPT"
+  [[ -f "$STABLE_ENV_FILE" ]] || die "缺少环境文件: $STABLE_ENV_FILE"
+  [[ -f "$DOOR_PLIST" ]] || die "缺少 door-gateway LaunchAgent: $DOOR_PLIST"
+
+  colima_bin="$(command_or_env_path SUB2API_COLIMA_BIN colima)"
+  docker_bin="$(command_or_env_path SUB2API_DOCKER_BIN docker)"
+  node_bin="$(command_or_env_path SUB2API_NODE_BIN node)"
+
+  export PATH="$(dirname "$colima_bin"):$(dirname "$docker_bin"):$(dirname "$node_bin"):/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  export SUB2API_SKIP_AUTO_BUILD=1
+
+  if ! "$colima_bin" status >/dev/null 2>&1; then
+    log "colima 未运行，开始启动"
+    "$colima_bin" start
+  else
+    log "colima 已运行"
+  fi
+
+  log "等待 Docker API 就绪"
+  wait_for_command 120 "$docker_bin" info
+
+  log "恢复 stable 环境"
+  "$LOCAL_SCRIPT" stable up
+  wait_for_http "http://127.0.0.1:8080/health" 120
+
+  log "恢复 door-gateway"
+  "$LOCAL_SCRIPT" door restart
+
+  wait_for_http "http://127.0.0.1:8080/health" 120
+  wait_for_http "http://127.0.0.1:19080/health" 120
+  log "自动恢复完成"
+}
+
+main "$@"
