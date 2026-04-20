@@ -2,9 +2,30 @@
 set -euo pipefail
 
 REPO_ROOT="${SUB2API_REPO_ROOT:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-STABLE_ENV_FILE="$REPO_ROOT/runtime/stable/.env"
 DOOR_PLIST="$HOME/Library/LaunchAgents/com.sub2api.door-gateway.plist"
 LOCAL_SCRIPT="$REPO_ROOT/scripts/sub2api-local"
+
+default_runtime_root() {
+  local repo_runtime="$REPO_ROOT/runtime"
+  local sibling_runtime
+
+  sibling_runtime="$(cd -- "$REPO_ROOT/.." && pwd)/runtime"
+
+  if [[ -e "$repo_runtime/stable/.env" || -d "$repo_runtime" ]]; then
+    printf '%s\n' "$repo_runtime"
+    return 0
+  fi
+
+  if [[ -e "$sibling_runtime/stable/.env" || -d "$sibling_runtime" ]]; then
+    printf '%s\n' "$sibling_runtime"
+    return 0
+  fi
+
+  printf '%s\n' "$repo_runtime"
+}
+
+RUNTIME_ROOT="${SUB2API_RUNTIME_ROOT:-$(default_runtime_root)}"
+STABLE_ENV_FILE="$RUNTIME_ROOT/stable/.env"
 
 log() {
   printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
@@ -87,6 +108,7 @@ main() {
 
   export PATH="$(dirname "$colima_bin"):$(dirname "$docker_bin"):$(dirname "$node_bin"):/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
   export SUB2API_SKIP_AUTO_BUILD=1
+  export SUB2API_RUNTIME_ROOT="$RUNTIME_ROOT"
 
   if ! "$colima_bin" status >/dev/null 2>&1; then
     log "colima 未运行，开始启动"

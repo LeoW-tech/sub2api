@@ -1,0 +1,18 @@
+[Unit]
+Description=Sub2API door-gateway
+After=network-online.target docker.service sub2api-stable.service
+Wants=network-online.target docker.service sub2api-stable.service
+
+[Service]
+Type=simple
+WorkingDirectory=__DOOR_WORKDIR__
+Environment=SUB2API_RUNTIME_ROOT=__RUNTIME_ROOT__
+Environment=DOOR_GATEWAY_CONFIG=__DOOR_CONFIG__
+ExecStart=__NODE_BIN__ __DOOR_SCRIPT__
+Restart=always
+RestartSec=5
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target

@@ -2,10 +2,47 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPOSE_FILE="$REPO_ROOT/deploy/local/docker-compose.runtime.yml"
-RUNTIME_ROOT="$REPO_ROOT/runtime"
+RUNTIME_COMPOSE_SCRIPT="$REPO_ROOT/scripts/sub2api-runtime-compose"
 # 运行时备份默认也收敛到仓库内，避免在仓库外散落独立目录。
+
+default_runtime_root() {
+  local repo_runtime="$REPO_ROOT/runtime"
+  local sibling_runtime
+
+  sibling_runtime="$(cd -- "$REPO_ROOT/.." && pwd)/runtime"
+
+  if [[ -e "$repo_runtime/stable/.env" || -d "$repo_runtime" ]]; then
+    printf '%s\n' "$repo_runtime"
+    return 0
+  fi
+
+  if [[ -e "$sibling_runtime/stable/.env" || -d "$sibling_runtime" ]]; then
+    printf '%s\n' "$sibling_runtime"
+    return 0
+  fi
+
+  printf '%s\n' "$repo_runtime"
+}
+
+RUNTIME_ROOT="${SUB2API_RUNTIME_ROOT:-$(default_runtime_root)}"
 BACKUP_ROOT="${SUB2API_BACKUP_ROOT:-$RUNTIME_ROOT/backups}"
+
+maybe_reexec_with_sudo() {
+  local stable_env="$RUNTIME_ROOT/stable/.env"
+
+  if [[ "$(uname -s)" != "Linux" || "$(id -u)" -eq 0 ]]; then
+    return 0
+  fi
+
+  if [[ -e "$stable_env" && ! -r "$stable_env" ]]; then
+    if command -v sudo >/dev/null 2>&1 && sudo -n test -r "$stable_env" >/dev/null 2>&1; then
+      exec sudo -n env \
+        "SUB2API_REPO_ROOT=$REPO_ROOT" \
+        "SUB2API_RUNTIME_ROOT=$RUNTIME_ROOT" \
+        "$0" "$@"
+    fi
+  fi
+}
 
 usage() {
   cat <<'EOF'
@@ -13,15 +50,20 @@ usage() {
   ./scripts/sub2api-local stable up [--build]
   ./scripts/sub2api-local stable down
   ./scripts/sub2api-local stable logs
+  ./scripts/sub2api-local stable status
   ./scripts/sub2api-local stable restart
   ./scripts/sub2api-local stable rebuild
   ./scripts/sub2api-local dev up [--build]
   ./scripts/sub2api-local dev down
   ./scripts/sub2api-local dev logs
+  ./scripts/sub2api-local dev status
   ./scripts/sub2api-local dev restart
   ./scripts/sub2api-local dev rebuild
   ./scripts/sub2api-local door restart
   ./scripts/sub2api-local door status
+  ./scripts/sub2api-local systemd install
+  ./scripts/sub2api-local systemd status
+  ./scripts/sub2api-local systemd restart
   ./scripts/sub2api-local autostart install
   ./scripts/sub2api-local autostart uninstall
   ./scripts/sub2api-local autostart status
@@ -38,6 +80,14 @@ die() {
 
 require_macos() {
   [[ "$(uname -s)" == "Darwin" ]] || die "autostart 仅支持 macOS。"
+}
+
+require_linux() {
+  [[ "$(uname -s)" == "Linux" ]] || die "systemd 仅支持 Linux。"
+}
+
+require_root() {
+  [[ "$(id -u)" -eq 0 ]] || die "该操作需要 root 权限。"
 }
 
 command_path() {
@@ -104,7 +154,7 @@ build_launchd_path() {
   printf '%s\n' "$result"
 }
 
-render_launchd_template() {
+render_template() {
   local template_path="$1"
   local output_path="$2"
   shift 2
@@ -131,6 +181,16 @@ current_branch() {
 require_clean_git() {
   git -C "$REPO_ROOT" diff --quiet || die "工作区有未提交改动，请先提交或暂存。"
   git -C "$REPO_ROOT" diff --cached --quiet || die "暂存区有未提交改动，请先提交。"
+}
+
+systemd_unit_path() {
+  local service_name="$1"
+  printf '/etc/systemd/system/%s\n' "$service_name"
+}
+
+systemd_unit_exists() {
+  local service_name="$1"
+  command -v systemctl >/dev/null 2>&1 && systemctl cat "$service_name" >/dev/null 2>&1
 }
 
 ensure_main_branch() {
@@ -169,8 +229,12 @@ image_exists() {
   docker image inspect "$image" >/dev/null 2>&1
 }
 
+runtime_compose_files() {
+  "$RUNTIME_COMPOSE_SCRIPT" "$ENV_NAME" --print-compose-files
+}
+
 compose_cmd() {
-  docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+  "$RUNTIME_COMPOSE_SCRIPT" "$ENV_NAME" "$@"
 }
 
 wait_for_http() {
@@ -227,6 +291,150 @@ runtime_logs() {
   compose_cmd logs -f --tail=200 "${@:2}"
 }
 
+runtime_container_id() {
+  local service_name="$1"
+  compose_cmd ps -q "$service_name" 2>/dev/null | head -n 1
+}
+
+runtime_container_status() {
+  local service_name="$1"
+  local container_id
+  local container_name
+  local state
+  local health
+
+  container_id="$(runtime_container_id "$service_name")"
+  if [[ -z "$container_id" ]]; then
+    printf '%s: 未创建容器\n' "$service_name"
+    return 1
+  fi
+
+  container_name="$(docker inspect --format '{{.Name}}' "$container_id" | sed 's#^/##')"
+  state="$(docker inspect --format '{{.State.Status}}' "$container_id")"
+  health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}n/a{{end}}' "$container_id")"
+  printf '%s: %s status=%s health=%s\n' "$service_name" "$container_name" "$state" "$health"
+}
+
+door_health_payload() {
+  curl -fsS "http://127.0.0.1:19080/health"
+}
+
+door_health_summary() {
+  local payload="$1"
+  local online
+  local total
+
+  online="$(printf '%s\n' "$payload" | sed -n 's/.*"online_doors"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1)"
+  total="$(printf '%s\n' "$payload" | sed -n 's/.*"total_doors"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1)"
+
+  if [[ -n "$online" && -n "$total" ]]; then
+    printf ' online_doors=%s/%s' "$online" "$total"
+  fi
+}
+
+door_health_status() {
+  local payload
+
+  if ! payload="$(door_health_payload 2>/dev/null)"; then
+    echo "door-gateway: failed"
+    return 1
+  fi
+
+  if printf '%s\n' "$payload" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'; then
+    echo "door-gateway: ok$(door_health_summary "$payload")"
+    return 0
+  fi
+
+  echo "door-gateway: failed$(door_health_summary "$payload")"
+  return 1
+}
+
+runtime_host_resolution_status() {
+  local container_id
+
+  container_id="$(runtime_container_id sub2api)"
+  if [[ -z "$container_id" ]]; then
+    echo "host.docker.internal: sub2api 容器未运行"
+    return 1
+  fi
+
+  if docker exec "$container_id" getent hosts host.docker.internal 2>/dev/null; then
+    return 0
+  fi
+
+  echo "host.docker.internal: 解析失败"
+  return 1
+}
+
+runtime_status() {
+  local env_name="$1"
+  local status=0
+  local server_port
+
+  load_runtime "$env_name"
+  server_port="$(env_value SERVER_PORT)"
+  [[ -n "$server_port" ]] || server_port="8080"
+
+  echo "== 平台 =="
+  uname -s
+
+  echo
+  echo "== compose files =="
+  runtime_compose_files | sed 's#^#- #'
+
+  echo
+  echo "== docker compose ps =="
+  if ! compose_cmd ps; then
+    status=1
+  fi
+
+  echo
+  echo "== 容器状态 =="
+  runtime_container_status sub2api || status=1
+  runtime_container_status postgres || status=1
+  runtime_container_status redis || status=1
+
+  echo
+  echo "== 健康检查 =="
+  if curl -fsS "http://127.0.0.1:${server_port}/health" >/dev/null 2>&1; then
+    echo "sub2api: ok"
+  else
+    echo "sub2api: failed"
+    status=1
+  fi
+
+  if [[ "$env_name" == "stable" ]]; then
+    if ! door_health_status; then
+      status=1
+    fi
+  fi
+
+  echo
+  echo "== host.docker.internal =="
+  if ! runtime_host_resolution_status; then
+    status=1
+  fi
+
+  if [[ "$(uname -s)" == "Linux" && "$env_name" == "stable" ]]; then
+    echo
+    echo "== systemd =="
+    if systemd_unit_exists sub2api-stable.service; then
+      echo "sub2api-stable.service: active=$(systemctl is-active sub2api-stable.service) enabled=$(systemctl is-enabled sub2api-stable.service)"
+    else
+      echo "sub2api-stable.service: 未安装"
+      status=1
+    fi
+    if systemd_unit_exists sub2api-door-gateway.service; then
+      echo "sub2api-door-gateway.service: active=$(systemctl is-active sub2api-door-gateway.service) enabled=$(systemctl is-enabled sub2api-door-gateway.service)"
+    else
+      echo "sub2api-door-gateway.service: 未安装"
+      status=1
+    fi
+  fi
+
+  return "$status"
+}
+
 runtime_rebuild() {
   local env_name="$1"
   load_runtime "$env_name"
@@ -246,23 +454,41 @@ runtime_restart() {
 }
 
 door_restart() {
-  local label
-  local plist
-  label="$(launch_agent_label "com.sub2api.door-gateway")"
-  plist="$(launch_agent_path "com.sub2api.door-gateway")"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    local label
+    local plist
+    label="$(launch_agent_label "com.sub2api.door-gateway")"
+    plist="$(launch_agent_path "com.sub2api.door-gateway")"
 
-  [[ -f "$plist" ]] || die "缺少 LaunchAgent 配置: $plist"
+    [[ -f "$plist" ]] || die "缺少 LaunchAgent 配置: $plist"
 
-  if ! launch_agent_loaded "$label"; then
-    launch_agent_bootstrap "$plist"
+    if ! launch_agent_loaded "$label"; then
+      launch_agent_bootstrap "$plist"
+    fi
+
+    launch_agent_kickstart "$label"
+    wait_for_http "http://127.0.0.1:19080/health" 90
+    return
   fi
 
-  launch_agent_kickstart "$label"
+  require_linux
+  systemd_unit_exists sub2api-door-gateway.service || die "缺少 systemd 服务: sub2api-door-gateway.service"
+  systemctl restart sub2api-door-gateway.service
   wait_for_http "http://127.0.0.1:19080/health" 90
 }
 
 door_status() {
-  launchctl print "$(launch_agent_label "com.sub2api.door-gateway")" | sed -n '1,80p'
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    launchctl print "$(launch_agent_label "com.sub2api.door-gateway")" | sed -n '1,80p'
+  else
+    require_linux
+    systemctl status sub2api-door-gateway.service --no-pager --full | sed -n '1,80p'
+  fi
+
+  echo
+  if ! door_health_status; then
+    return 1
+  fi
 }
 
 autostart_install() {
@@ -298,10 +524,11 @@ autostart_install() {
   node_bin="$(command_path node)"
   launchd_path="$(build_launchd_path "$bash_bin" "$colima_bin" "$docker_bin" "$node_bin")"
 
-  render_launchd_template \
+  render_template \
     "$autostart_template" \
     "$autostart_plist" \
     "__REPO_ROOT__" "$REPO_ROOT" \
+    "__RUNTIME_ROOT__" "$RUNTIME_ROOT" \
     "__BASH_BIN__" "$bash_bin" \
     "__AUTOSTART_SCRIPT__" "$REPO_ROOT/scripts/sub2api-autostart" \
     "__AUTOSTART_STDOUT__" "$RUNTIME_ROOT/stable/data/logs/autostart.log" \
@@ -311,10 +538,11 @@ autostart_install() {
     "__DOCKER_BIN__" "$docker_bin" \
     "__NODE_BIN__" "$node_bin"
 
-  render_launchd_template \
+  render_template \
     "$door_template" \
     "$door_plist" \
     "__REPO_ROOT__" "$REPO_ROOT" \
+    "__RUNTIME_ROOT__" "$RUNTIME_ROOT" \
     "__NODE_BIN__" "$node_bin" \
     "__DOOR_SCRIPT__" "$REPO_ROOT/tools/door-gateway/src/server.mjs" \
     "__DOOR_WORKDIR__" "$REPO_ROOT/tools/door-gateway" \
@@ -331,6 +559,66 @@ autostart_install() {
   launch_agent_bootstrap "$autostart_plist"
 
   wait_for_http "http://127.0.0.1:8080/health" 120
+  wait_for_http "http://127.0.0.1:19080/health" 120
+}
+
+systemd_install() {
+  require_linux
+  require_root
+
+  local stable_template="$REPO_ROOT/deploy/local/systemd/sub2api-stable.service.template"
+  local door_template="$REPO_ROOT/deploy/local/systemd/sub2api-door-gateway.service.template"
+  local stable_unit
+  local door_unit
+  local node_bin
+
+  stable_unit="$(systemd_unit_path sub2api-stable.service)"
+  door_unit="$(systemd_unit_path sub2api-door-gateway.service)"
+  node_bin="$(command_path node)"
+
+  [[ -x "$RUNTIME_COMPOSE_SCRIPT" ]] || die "缺少可执行脚本: $RUNTIME_COMPOSE_SCRIPT"
+  [[ -f "$stable_template" ]] || die "缺少模板文件: $stable_template"
+  [[ -f "$door_template" ]] || die "缺少模板文件: $door_template"
+  [[ -f "$RUNTIME_ROOT/stable/.env" ]] || die "缺少环境文件: $RUNTIME_ROOT/stable/.env"
+  [[ -f "$RUNTIME_ROOT/stable/door-gateway.json" ]] || die "缺少 door-gateway 配置: $RUNTIME_ROOT/stable/door-gateway.json"
+
+  render_template \
+    "$stable_template" \
+    "$stable_unit" \
+    "__REPO_ROOT__" "$REPO_ROOT" \
+    "__RUNTIME_ROOT__" "$RUNTIME_ROOT" \
+    "__RUNTIME_COMPOSE_SCRIPT__" "$RUNTIME_COMPOSE_SCRIPT"
+
+  render_template \
+    "$door_template" \
+    "$door_unit" \
+    "__RUNTIME_ROOT__" "$RUNTIME_ROOT" \
+    "__DOOR_WORKDIR__" "$REPO_ROOT/tools/door-gateway" \
+    "__DOOR_CONFIG__" "$RUNTIME_ROOT/stable/door-gateway.json" \
+    "__NODE_BIN__" "$node_bin" \
+    "__DOOR_SCRIPT__" "$REPO_ROOT/tools/door-gateway/src/server.mjs"
+
+  systemctl daemon-reload
+  systemctl enable sub2api-stable.service sub2api-door-gateway.service
+  systemctl restart sub2api-stable.service
+  wait_for_http "http://127.0.0.1:8080/health" 120
+  systemctl restart sub2api-door-gateway.service
+  wait_for_http "http://127.0.0.1:19080/health" 120
+}
+
+systemd_status() {
+  require_linux
+
+  systemctl status sub2api-door-gateway.service --no-pager --full | sed -n '1,80p'
+  echo
+  systemctl status sub2api-stable.service --no-pager --full | sed -n '1,80p'
+}
+
+systemd_restart() {
+  require_linux
+  systemctl restart sub2api-stable.service
+  wait_for_http "http://127.0.0.1:8080/health" 120
+  systemctl restart sub2api-door-gateway.service
   wait_for_http "http://127.0.0.1:19080/health" 120
 }
 
@@ -480,21 +768,28 @@ backup_runtime() {
 }
 
 main() {
+  maybe_reexec_with_sudo "$@"
+
   [[ $# -ge 2 ]] || { usage; exit 1; }
 
   case "$1:$2" in
     stable:up) runtime_up stable "${3:-}" ;;
     stable:down) runtime_down stable ;;
     stable:logs) runtime_logs stable "${@:3}" ;;
+    stable:status) runtime_status stable ;;
     stable:restart) runtime_restart stable ;;
     stable:rebuild) runtime_rebuild stable ;;
     dev:up) runtime_up dev "${3:-}" ;;
     dev:down) runtime_down dev ;;
     dev:logs) runtime_logs dev "${@:3}" ;;
+    dev:status) runtime_status dev ;;
     dev:restart) runtime_restart dev ;;
     dev:rebuild) runtime_rebuild dev ;;
     door:restart) door_restart ;;
     door:status) door_status ;;
+    systemd:install) systemd_install ;;
+    systemd:status) systemd_status ;;
+    systemd:restart) systemd_restart ;;
     autostart:install) autostart_install ;;
     autostart:uninstall) autostart_uninstall ;;
     autostart:status) autostart_status ;;

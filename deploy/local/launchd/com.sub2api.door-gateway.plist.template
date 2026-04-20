@@ -24,6 +24,8 @@
     <dict>
       <key>PATH</key>
       <string>__PATH__</string>
+      <key>SUB2API_RUNTIME_ROOT</key>
+      <string>__RUNTIME_ROOT__</string>
       <key>DOOR_GATEWAY_CONFIG</key>
       <string>__DOOR_CONFIG__</string>
     </dict>

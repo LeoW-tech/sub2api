@@ -1,0 +1,18 @@
+[Unit]
+Description=Sub2API stable stack
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=__REPO_ROOT__
+Environment=SUB2API_RUNTIME_ROOT=__RUNTIME_ROOT__
+ExecStart=__RUNTIME_COMPOSE_SCRIPT__ stable up -d
+ExecStop=__RUNTIME_COMPOSE_SCRIPT__ stable down
+ExecReload=__RUNTIME_COMPOSE_SCRIPT__ stable up -d
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

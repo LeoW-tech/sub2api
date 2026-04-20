@@ -29,6 +29,8 @@
       <string>__PATH__</string>
       <key>SUB2API_REPO_ROOT</key>
       <string>__REPO_ROOT__</string>
+      <key>SUB2API_RUNTIME_ROOT</key>
+      <string>__RUNTIME_ROOT__</string>
       <key>SUB2API_COLIMA_BIN</key>
       <string>__COLIMA_BIN__</string>
       <key>SUB2API_DOCKER_BIN</key>

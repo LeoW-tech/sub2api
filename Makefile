@@ -1,7 +1,8 @@
 .PHONY: build build-backend build-frontend build-datamanagementd test test-backend test-frontend test-datamanagementd secret-scan \
-	stable-up stable-down stable-logs stable-restart stable-rebuild \
-	dev-up dev-down dev-logs dev-restart dev-rebuild \
+	stable-up stable-down stable-logs stable-status stable-restart stable-rebuild \
+	dev-up dev-down dev-logs dev-status dev-restart dev-rebuild \
 	door-restart door-status \
+	systemd-install systemd-status systemd-restart \
 	autostart-install autostart-uninstall autostart-status autostart-restart \
 	sync-upstream backup-runtime
 
@@ -45,6 +46,9 @@ stable-down:
 stable-logs:
 	@./scripts/sub2api-local stable logs
 
+stable-status:
+	@./scripts/sub2api-local stable status
+
 stable-restart:
 	@./scripts/sub2api-local stable restart
 
@@ -60,6 +64,9 @@ dev-down:
 dev-logs:
 	@./scripts/sub2api-local dev logs
 
+dev-status:
+	@./scripts/sub2api-local dev status
+
 dev-restart:
 	@./scripts/sub2api-local dev restart
 
@@ -71,6 +78,15 @@ door-restart:
 
 door-status:
 	@./scripts/sub2api-local door status
+
+systemd-install:
+	@./scripts/sub2api-local systemd install
+
+systemd-status:
+	@./scripts/sub2api-local systemd status
+
+systemd-restart:
+	@./scripts/sub2api-local systemd restart
 
 autostart-install:
 	@./scripts/sub2api-local autostart install

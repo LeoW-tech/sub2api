@@ -2,7 +2,8 @@
 
 ## 目录约定
 
-- 仓库根目录固定为 `/Users/meilinwang/Projects/sub2api`
+- macOS 默认仓库根目录为 `/Users/meilinwang/Projects/sub2api`
+- Linux 本地 runtime 默认仓库根目录为 `/srv/sub2api/repo`
 - 运行时数据全部收敛到 `runtime/`
 - `runtime/stable` 对应稳定环境，默认端口 `8080`
 - `runtime/dev` 对应开发环境，端口 `127.0.0.1:8081`
@@ -30,17 +31,23 @@
 ./scripts/sub2api-local stable up
 ./scripts/sub2api-local stable down
 ./scripts/sub2api-local stable logs
+./scripts/sub2api-local stable status
 ./scripts/sub2api-local stable restart
 ./scripts/sub2api-local stable rebuild
 
 ./scripts/sub2api-local dev up --build
 ./scripts/sub2api-local dev down
 ./scripts/sub2api-local dev logs
+./scripts/sub2api-local dev status
 ./scripts/sub2api-local dev restart
 ./scripts/sub2api-local dev rebuild
 
 ./scripts/sub2api-local door restart
 ./scripts/sub2api-local door status
+
+./scripts/sub2api-local systemd install
+./scripts/sub2api-local systemd status
+./scripts/sub2api-local systemd restart
 
 ./scripts/sub2api-local autostart install
 ./scripts/sub2api-local autostart uninstall
@@ -60,6 +67,9 @@
 ```bash
 # 重启稳定环境
 ./scripts/sub2api-local stable restart
+
+# 查看稳定环境状态（容器、health、host.docker.internal、systemd）
+./scripts/sub2api-local stable status
 
 # 重启开发环境
 ./scripts/sub2api-local dev restart
@@ -95,6 +105,8 @@
 - 启动主协调器，自动恢复 `stable` 与 `door-gateway`
 - 校验 `http://127.0.0.1:8080/health` 与 `http://127.0.0.1:19080/health`
 
+当前默认 macOS 容器运行时为 Colima；`autostart` 会在登录后先恢复 Colima，再恢复 stable 栈和 `door-gateway`。
+
 查看当前状态：
 
 ```bash
@@ -113,6 +125,52 @@
 ```bash
 ./scripts/sub2api-local autostart uninstall
 ```
+
+### Linux 本地 runtime 的 systemd 托管
+
+如果你希望 Linux 在开机后自动恢复 `stable + door-gateway`，并让 `door-gateway` 在异常退出后自动拉起，使用：
+
+```bash
+sudo ./scripts/sub2api-local systemd install
+```
+
+安装动作会：
+
+- 渲染并安装 `/etc/systemd/system/sub2api-stable.service`
+- 渲染并安装 `/etc/systemd/system/sub2api-door-gateway.service`
+- 让 stable 栈统一通过仓库内 `scripts/sub2api-runtime-compose` 启动
+- 把当前 runtime 根目录显式写入 launchd / systemd 环境，避免仓库内外 runtime 路径漂移
+- 在 Linux 自动追加 `deploy/local/docker-compose.runtime.linux.yml`
+- 为 `sub2api` 容器注入 `host.docker.internal:host-gateway`
+- 先恢复 stable 栈，再按顺序拉起 `door-gateway`
+
+查看 Linux 守护状态：
+
+```bash
+./scripts/sub2api-local systemd status
+./scripts/sub2api-local stable status
+```
+
+重启 Linux 守护链路：
+
+```bash
+sudo ./scripts/sub2api-local systemd restart
+```
+
+`stable status` 会同时输出：
+
+- 当前平台使用的 compose 文件
+- `sub2api/postgres/redis` 容器状态
+- `sub2api` 与 `door-gateway` 的 health 结果
+- 容器内 `host.docker.internal` 的解析结果
+- Linux 上的 `sub2api-stable.service` / `sub2api-door-gateway.service` 状态
+
+预期恢复链路：
+
+- 宿主机重启后，systemd 先执行 `sub2api-stable.service`，再启动 `sub2api-door-gateway.service`
+- Docker 服务恢复后，可执行 `sudo ./scripts/sub2api-local systemd restart` 重新串起 stable 和 `door-gateway`
+- `door-gateway` 进程异常退出后，systemd 会按 `Restart=always` 自动拉起
+- 容器本身异常退出后，由 compose 中的 `restart: unless-stopped` 自动恢复
 
 ### 开发自己的功能
 
@@ -153,8 +211,10 @@ git checkout main
 - 稳定环境数据库：`runtime/stable/postgres_data`
 - 稳定环境 Redis：`runtime/stable/redis_data`
 - `door-gateway` 配置：`runtime/stable/door-gateway.json`
+- Linux 专用 compose override：`deploy/local/docker-compose.runtime.linux.yml`
 - `door-gateway` worker 目录：`runtime/stable/door-workers`
 - 运行时备份目录：`runtime/backups`
+- Linux systemd 模板：`deploy/local/systemd/*.service.template`
 - 当前用户 `LaunchAgent`：`~/Library/LaunchAgents/com.sub2api.autostart.plist`、`~/Library/LaunchAgents/com.sub2api.door-gateway.plist`
 
 这些目录全部不进 git。
