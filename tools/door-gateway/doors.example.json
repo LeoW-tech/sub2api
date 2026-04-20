@@ -5,6 +5,8 @@
   },
   "mihomo_binary": "/Applications/Clash Verge.app/Contents/MacOS/verge-mihomo",
   "worker_base_dir": "/Users/meilinwang/Projects/sub2api/door-workers",
+  "worker_bind_host": "127.0.0.1",
+  "controller_bind_host": "127.0.0.1",
   "worker_port_start": 58080,
   "worker_socks_port_start": 59080,
   "controller_port_start": 60080,

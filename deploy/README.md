@@ -187,6 +187,8 @@ DOOR_GATEWAY_CONFIG=~/door-gateway.json npm start
 - `GET http://127.0.0.1:19080/export/sub2api`
 
 如果 Sub2API 跑在 Docker 里，建议在 `door-gateway` 配置中把导出主机设为 `host.docker.internal`，这样导出的门可以直接在 `IP管理` 中导入使用。
+同时需要把 `worker_bind_host` 设为 `0.0.0.0`，否则 Mihomo worker 只监听宿主机回环地址，Docker 容器访问 `host.docker.internal:58xxx` 仍会被拒绝。
+`controller_bind_host` 一般保持默认 `127.0.0.1`，避免把管理端口一并暴露出去。
 
 ### Commands
 

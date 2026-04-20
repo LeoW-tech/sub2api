@@ -30,10 +30,10 @@ function probePort(host, port) {
   })
 }
 
-async function waitForPort(host, port, timeoutMs) {
+async function waitForPort(host, port, timeoutMs, probeFn = probePort) {
   const startedAt = Date.now()
   while (Date.now() - startedAt < timeoutMs) {
-    const result = await probePort(host, port)
+    const result = await probeFn(host, port)
     if (result.ok) {
       return
     }
@@ -55,6 +55,7 @@ export class DoorRuntime {
     this.restartLocks = new Set()
     this.isStopping = false
     this.spawnImpl = dependencies.spawnImpl || defaultSpawnImpl
+    this.probePort = dependencies.probePort || probePort
     this.startupTimeoutMs = dependencies.startupTimeoutMs || 15000
   }
 
@@ -108,7 +109,7 @@ export class DoorRuntime {
         await this.ensureWorkerRunning(door)
       }
 
-      const result = await probePort(door.listen_host, door.listen_port)
+      const result = await this.probePort(door.probe_host || door.listen_host, door.listen_port)
       this.states.set(door.key, {
         online: result.ok,
         last_checked_at: nowISO(),
@@ -154,7 +155,7 @@ export class DoorRuntime {
         '-f',
         configPath,
         '-ext-ctl',
-        `${door.listen_host}:${door.controller_port}`,
+        `${door.controller_host || '127.0.0.1'}:${door.controller_port}`,
         '-secret',
         door.secret
       ],
@@ -178,7 +179,12 @@ export class DoorRuntime {
     this.workers.set(door.key, child)
 
     try {
-      await waitForPort(door.listen_host, door.listen_port, this.startupTimeoutMs)
+      await waitForPort(
+        door.probe_host || door.listen_host,
+        door.listen_port,
+        this.startupTimeoutMs,
+        this.probePort
+      )
       this.states.set(door.key, {
         online: true,
         last_checked_at: nowISO(),

@@ -71,6 +71,9 @@ test('loadConfigFromPath resolves Clash proxy definitions into door workers', as
   const config = await loadConfigFromPath(gatewayConfigPath)
 
   assert.equal(config.doors.length, 2)
+  assert.equal(config.doors[0].listen_host, '127.0.0.1')
+  assert.equal(config.doors[0].probe_host, '127.0.0.1')
+  assert.equal(config.doors[0].controller_host, '127.0.0.1')
   assert.equal(config.doors[0].listen_port, 58080)
   assert.equal(config.doors[0].socks_port, 58180)
   assert.equal(config.doors[0].controller_port, 58280)
@@ -79,6 +82,51 @@ test('loadConfigFromPath resolves Clash proxy definitions into door workers', as
   assert.equal(config.doors[1].socks_port, 58181)
   assert.equal(config.doors[1].controller_port, 58281)
   assert.equal(config.doors[1].upstream_proxy.type, 'vmess')
+})
+
+test('loadConfigFromPath applies worker and controller bind hosts to generated doors', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'door-gateway-bind-hosts-'))
+  const sourceConfigPath = path.join(tempDir, 'source.yaml')
+  const gatewayConfigPath = path.join(tempDir, 'doors.json')
+
+  fs.writeFileSync(
+    sourceConfigPath,
+    [
+      'proxies:',
+      '  - name: Public Door',
+      '    type: ss',
+      '    server: public-door.example.com',
+      '    port: 443',
+      '    cipher: aes-256-gcm',
+      '    password: secret-1',
+      ''
+    ].join('\n'),
+    'utf8'
+  )
+
+  fs.writeFileSync(
+    gatewayConfigPath,
+    JSON.stringify(
+      {
+        api: { host: '127.0.0.1', port: 19080 },
+        mihomo_binary: '/Applications/Clash Verge.app/Contents/MacOS/verge-mihomo',
+        worker_base_dir: path.join(tempDir, 'workers'),
+        worker_bind_host: '0.0.0.0',
+        controller_bind_host: '127.0.0.1',
+        sources: [{ name: 'public', path: './source.yaml' }]
+      },
+      null,
+      2
+    ),
+    'utf8'
+  )
+
+  const config = await loadConfigFromPath(gatewayConfigPath)
+
+  assert.equal(config.doors.length, 1)
+  assert.equal(config.doors[0].listen_host, '0.0.0.0')
+  assert.equal(config.doors[0].probe_host, '127.0.0.1')
+  assert.equal(config.doors[0].controller_host, '127.0.0.1')
 })
 
 test('loadConfigFromPath aggregates doors from multiple source files with stable unique keys', async () => {
@@ -354,8 +402,35 @@ test('buildWorkerConfig emits a single-proxy Mihomo config for one door', () => 
 
   assert.match(configText, /mixed-port: 58080/)
   assert.match(configText, /socks-port: 58180/)
+  assert.match(configText, /bind-address: 127\.0\.0\.1/)
+  assert.match(configText, /allow-lan: false/)
   assert.match(configText, /external-controller: 127\.0\.0\.1:58280/)
   assert.match(configText, /secret: door-secret/)
   assert.match(configText, /MATCH, 🇭🇰 香港W10 \| IEPL/)
   assert.match(configText, /server: hk10\.example\.com/)
+})
+
+test('buildWorkerConfig exposes worker port while keeping controller on loopback when bind host is public', () => {
+  const configText = buildWorkerConfig({
+    name: 'Public Door',
+    proxy_name: 'Public Door',
+    listen_host: '0.0.0.0',
+    controller_host: '127.0.0.1',
+    listen_port: 58080,
+    socks_port: 58180,
+    controller_port: 58280,
+    secret: 'door-secret',
+    upstream_proxy: {
+      name: 'Public Door',
+      type: 'ss',
+      server: 'public-door.example.com',
+      port: 443,
+      cipher: 'aes-256-gcm',
+      password: 'secret-1'
+    }
+  })
+
+  assert.match(configText, /bind-address: 0\.0\.0\.0/)
+  assert.match(configText, /allow-lan: true/)
+  assert.match(configText, /external-controller: 127\.0\.0\.1:58280/)
 })

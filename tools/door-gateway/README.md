@@ -37,6 +37,8 @@ cp tools/door-gateway/doors.example.json ~/door-gateway.json
   },
   "mihomo_binary": "/Applications/Clash Verge.app/Contents/MacOS/verge-mihomo",
   "worker_base_dir": "/Users/meilinwang/Projects/sub2api/door-workers",
+  "worker_bind_host": "127.0.0.1",
+  "controller_bind_host": "127.0.0.1",
   "worker_port_start": 58080,
   "worker_socks_port_start": 59080,
   "controller_port_start": 60080,
@@ -65,11 +67,19 @@ cp tools/door-gateway/doors.example.json ~/door-gateway.json
   - `enabled`: 可选，默认 `true`
 - `mihomo_binary`: 本机 Mihomo 内核路径
 - `worker_base_dir`: `door-gateway` 自动生成 worker 配置和日志的目录
+- `worker_bind_host`: Mihomo worker 监听地址，默认 `127.0.0.1`
+- `controller_bind_host`: Mihomo controller 监听地址，默认 `127.0.0.1`
 - `worker_port_start`: 门的 `mixed-port` 起始端口
 - `worker_socks_port_start`: 门的 `socks-port` 起始端口
 - `controller_port_start`: 门的管理控制端口起始值
 - `export_protocol`: 导出给 Sub2API 时使用的协议，默认推荐 `http`
 - `sub2api_export_host`: 导出给 Docker 里的 Sub2API 时使用的宿主机地址，默认建议 `host.docker.internal`
+
+监听建议：
+
+- 仅宿主机本地使用时，保持默认 `worker_bind_host=127.0.0.1`
+- 如果 Sub2API 运行在 Docker 中，且 `sub2api_export_host=host.docker.internal`，必须同时设置 `worker_bind_host=0.0.0.0`
+- 出于安全考虑，通常应继续保持 `controller_bind_host=127.0.0.1`
 
 `door-gateway` 会按 `source.name + 节点指纹(type/server/port/name)` 自动生成稳定 `door.key`，所以：
 
