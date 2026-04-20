@@ -36,9 +36,13 @@ export async function loadConfigFromPath(configPath) {
   const workerSocksPortStart = parsed.worker_socks_port_start || workerPortStart + 1000
   const controllerPortStart = parsed.controller_port_start || workerPortStart + 2000
   const exportProtocol = parsed.export_protocol || 'http'
+  const workerBindHost = normalizeBindHost(parsed.worker_bind_host, '127.0.0.1')
+  const controllerBindHost = normalizeBindHost(parsed.controller_bind_host, '127.0.0.1')
   const doors = await resolveDoors(parsed, {
+    controllerBindHost,
     configDir,
     exportProtocol,
+    workerBindHost,
     workerBaseDir,
     workerPortStart,
     workerSocksPortStart,
@@ -159,11 +163,20 @@ function normalizeDoor(door, index, options) {
     throw new Error(`proxy_name not found in source config: ${proxyName}`)
   }
 
+  const listenHost = normalizeBindHost(door.listen_host, options.workerBindHost || '127.0.0.1')
+  const controllerHost = normalizeBindHost(
+    door.controller_host,
+    options.controllerBindHost || '127.0.0.1'
+  )
+  const probeHost = normalizeProbeHost(door.probe_host, listenHost)
+
   return {
     enabled: true,
     protocol: options.exportProtocol,
-    listen_host: '127.0.0.1',
     ...door,
+    listen_host: listenHost,
+    probe_host: probeHost,
+    controller_host: controllerHost,
     proxy_name: proxyName,
     listen_port: door.listen_port || options.workerPortStart + index,
     socks_port: door.socks_port || options.workerSocksPortStart + index,
@@ -256,6 +269,32 @@ function buildProxyFingerprint(proxy) {
   ].join('|')
 
   return crypto.createHash('sha1').update(normalized).digest('hex').slice(0, 12)
+}
+
+function normalizeBindHost(value, fallback) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+  if (normalized) {
+    return normalized
+  }
+  return fallback
+}
+
+function normalizeProbeHost(value, listenHost) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+  if (normalized) {
+    return normalized
+  }
+  if (listenHost === '0.0.0.0') {
+    return '127.0.0.1'
+  }
+  if (listenHost === '::') {
+    return '::1'
+  }
+  return listenHost
 }
 
 function safeProxyName(value) {
