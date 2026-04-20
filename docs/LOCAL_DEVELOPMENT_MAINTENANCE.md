@@ -170,6 +170,7 @@ sudo ./scripts/sub2api-local systemd restart
 - 宿主机重启后，systemd 先执行 `sub2api-stable.service`，再启动 `sub2api-door-gateway.service`
 - Docker 服务恢复后，可执行 `sudo ./scripts/sub2api-local systemd restart` 重新串起 stable 和 `door-gateway`
 - `door-gateway` 进程异常退出后，systemd 会按 `Restart=always` 自动拉起
+- `door-gateway` 内部如果只出现单个 worker 监听口失效，健康轮询会自动重启该 worker
 - 容器本身异常退出后，由 compose 中的 `restart: unless-stopped` 自动恢复
 
 ### 开发自己的功能

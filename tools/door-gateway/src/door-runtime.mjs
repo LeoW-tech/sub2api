@@ -46,6 +46,26 @@ function defaultSpawnImpl(command, args, options) {
   return spawn(command, args, options)
 }
 
+function waitForExit(child, timeoutMs = 3000) {
+  return new Promise((resolve) => {
+    if (!child || child.exitCode !== null) {
+      resolve()
+      return
+    }
+
+    let settled = false
+    const finish = () => {
+      if (!settled) {
+        settled = true
+        resolve()
+      }
+    }
+
+    child.once('exit', finish)
+    setTimeout(finish, timeoutMs).unref()
+  })
+}
+
 export class DoorRuntime {
   constructor(config, dependencies = {}) {
     this.config = config
@@ -110,6 +130,11 @@ export class DoorRuntime {
       }
 
       const result = await this.probePort(door.probe_host || door.listen_host, door.listen_port)
+      if (!result.ok && child && child.exitCode === null && !this.isStopping) {
+        await this.restartWorker(door, result.error || 'probe failed')
+        continue
+      }
+
       this.states.set(door.key, {
         online: result.ok,
         last_checked_at: nowISO(),
@@ -166,6 +191,7 @@ export class DoorRuntime {
     )
 
     child.once('exit', (code, signal) => {
+      const current = this.workers.get(door.key)
       const previous = this.states.get(door.key)
       this.states.set(door.key, {
         online: false,
@@ -173,7 +199,9 @@ export class DoorRuntime {
         last_error: previous?.last_error || `worker exited (${signal || code || 'unknown'})`,
         pid: null
       })
-      this.workers.delete(door.key)
+      if (current === child) {
+        this.workers.delete(door.key)
+      }
     })
 
     this.workers.set(door.key, child)
@@ -241,6 +269,33 @@ export class DoorRuntime {
         online: false,
         last_checked_at: nowISO(),
         last_error: error.message,
+        pid: null
+      })
+    } finally {
+      this.restartLocks.delete(door.key)
+    }
+  }
+
+  async restartWorker(door, probeError = 'probe failed') {
+    if (this.restartLocks.has(door.key)) {
+      return
+    }
+
+    this.restartLocks.add(door.key)
+    try {
+      const current = this.workers.get(door.key)
+      if (current && current.exitCode === null) {
+        current.kill('SIGTERM')
+        await waitForExit(current)
+      }
+
+      this.workers.delete(door.key)
+      await this.startWorker(door)
+    } catch (error) {
+      this.states.set(door.key, {
+        online: false,
+        last_checked_at: nowISO(),
+        last_error: `${probeError}; restart failed: ${error.message}`,
         pid: null
       })
     } finally {
