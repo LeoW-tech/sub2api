@@ -340,6 +340,74 @@ func ProvideScheduledTestRunnerService(
 	return svc
 }
 
+func ProvideAccountInitialProbeService(
+	repo AccountInitialProbeTaskRepository,
+	accountRepo AccountRepository,
+	accountTestSvc *AccountTestService,
+	timingWheel *TimingWheelService,
+) *AccountInitialProbeService {
+	svc := NewAccountInitialProbeService(repo, accountRepo, accountTestSvc, timingWheel)
+	svc.Start()
+	return svc
+}
+
+func ProvideAdminService(
+	userRepo UserRepository,
+	groupRepo GroupRepository,
+	accountRepo AccountRepository,
+	proxyRepo ProxyRepository,
+	apiKeyRepo APIKeyRepository,
+	redeemCodeRepo RedeemCodeRepository,
+	userGroupRateRepo UserGroupRateRepository,
+	billingCacheService *BillingCacheService,
+	proxyProber ProxyExitInfoProber,
+	proxyLatencyCache ProxyLatencyCache,
+	authCacheInvalidator APIKeyAuthCacheInvalidator,
+	entClient *dbent.Client,
+	settingService *SettingService,
+	defaultSubAssigner DefaultSubscriptionAssigner,
+	userSubRepo UserSubscriptionRepository,
+	privacyClientFactory PrivacyClientFactory,
+	initialProbeSvc *AccountInitialProbeService,
+) AdminService {
+	svc := NewAdminService(
+		userRepo,
+		groupRepo,
+		accountRepo,
+		proxyRepo,
+		apiKeyRepo,
+		redeemCodeRepo,
+		userGroupRateRepo,
+		billingCacheService,
+		proxyProber,
+		proxyLatencyCache,
+		authCacheInvalidator,
+		entClient,
+		settingService,
+		defaultSubAssigner,
+		userSubRepo,
+		privacyClientFactory,
+	)
+	if impl, ok := svc.(*adminServiceImpl); ok {
+		impl.SetInitialProbeEnqueuer(initialProbeSvc)
+	}
+	return svc
+}
+
+func ProvideCRSSyncService(
+	accountRepo AccountRepository,
+	proxyRepo ProxyRepository,
+	oauthService *OAuthService,
+	openaiOAuthService *OpenAIOAuthService,
+	geminiOAuthService *GeminiOAuthService,
+	cfg *config.Config,
+	initialProbeSvc *AccountInitialProbeService,
+) *CRSSyncService {
+	svc := NewCRSSyncService(accountRepo, proxyRepo, oauthService, openaiOAuthService, geminiOAuthService, cfg)
+	svc.SetInitialProbeEnqueuer(initialProbeSvc)
+	return svc
+}
+
 // ProvideOpsScheduledReportService creates and starts OpsScheduledReportService.
 func ProvideOpsScheduledReportService(
 	opsService *OpsService,
@@ -405,7 +473,7 @@ var ProviderSet = wire.NewSet(
 	NewBillingService,
 	NewBillingCacheService,
 	NewAnnouncementService,
-	NewAdminService,
+	ProvideAdminService,
 	NewGatewayService,
 	NewOpenAIGatewayService,
 	NewOAuthService,
@@ -445,7 +513,8 @@ var ProviderSet = wire.NewSet(
 	NewUsageRecordWorkerPool,
 	ProvideSchedulerSnapshotService,
 	NewIdentityService,
-	NewCRSSyncService,
+	ProvideCRSSyncService,
+	ProvideAccountInitialProbeService,
 	ProvideUpdateService,
 	ProvideTokenRefreshService,
 	ProvideAccountExpiryService,

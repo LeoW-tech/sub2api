@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,12 +19,13 @@ import (
 )
 
 type CRSSyncService struct {
-	accountRepo        AccountRepository
-	proxyRepo          ProxyRepository
-	oauthService       *OAuthService
-	openaiOAuthService *OpenAIOAuthService
-	geminiOAuthService *GeminiOAuthService
-	cfg                *config.Config
+	accountRepo          AccountRepository
+	proxyRepo            ProxyRepository
+	oauthService         *OAuthService
+	openaiOAuthService   *OpenAIOAuthService
+	geminiOAuthService   *GeminiOAuthService
+	cfg                  *config.Config
+	initialProbeEnqueuer AccountInitialProbeEnqueuer
 }
 
 func NewCRSSyncService(
@@ -42,6 +44,13 @@ func NewCRSSyncService(
 		geminiOAuthService: geminiOAuthService,
 		cfg:                cfg,
 	}
+}
+
+func (s *CRSSyncService) SetInitialProbeEnqueuer(enqueuer AccountInitialProbeEnqueuer) {
+	if s == nil {
+		return
+	}
+	s.initialProbeEnqueuer = enqueuer
 }
 
 type SyncFromCRSInput struct {
@@ -415,6 +424,7 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 					_ = persistAccountCredentials(ctx, s.accountRepo, account, refreshedCreds)
 				}
 			}
+			s.enqueueInitialProbe(ctx, account)
 			item.Action = "created"
 			result.Created++
 			result.Items = append(result.Items, item)
@@ -540,6 +550,7 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 				result.Items = append(result.Items, item)
 				continue
 			}
+			s.enqueueInitialProbe(ctx, account)
 			item.Action = "created"
 			result.Created++
 			result.Items = append(result.Items, item)
@@ -677,6 +688,7 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 			if refreshedCreds := s.refreshOAuthToken(ctx, account); refreshedCreds != nil {
 				_ = persistAccountCredentials(ctx, s.accountRepo, account, refreshedCreds)
 			}
+			s.enqueueInitialProbe(ctx, account)
 			item.Action = "created"
 			result.Created++
 			result.Items = append(result.Items, item)
@@ -802,6 +814,7 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 				result.Items = append(result.Items, item)
 				continue
 			}
+			s.enqueueInitialProbe(ctx, account)
 			item.Action = "created"
 			result.Created++
 			result.Items = append(result.Items, item)
@@ -929,6 +942,7 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 			if refreshedCreds := s.refreshOAuthToken(ctx, account); refreshedCreds != nil {
 				_ = persistAccountCredentials(ctx, s.accountRepo, account, refreshedCreds)
 			}
+			s.enqueueInitialProbe(ctx, account)
 			item.Action = "created"
 			result.Created++
 			result.Items = append(result.Items, item)
@@ -1051,6 +1065,7 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 				result.Items = append(result.Items, item)
 				continue
 			}
+			s.enqueueInitialProbe(ctx, account)
 			item.Action = "created"
 			result.Created++
 			result.Items = append(result.Items, item)
@@ -1618,4 +1633,13 @@ func (s *CRSSyncService) PreviewFromCRS(ctx context.Context, input SyncFromCRSIn
 	}
 
 	return result, nil
+}
+
+func (s *CRSSyncService) enqueueInitialProbe(ctx context.Context, account *Account) {
+	if s == nil || s.initialProbeEnqueuer == nil || account == nil || account.ID <= 0 {
+		return
+	}
+	if err := s.initialProbeEnqueuer.EnqueueAccountInitialProbe(ctx, account.ID, account.Platform, AccountInitialProbeTriggerCRSSync); err != nil {
+		slog.Warn("enqueue_initial_probe_failed", "account_id", account.ID, "platform", account.Platform, "source", AccountInitialProbeTriggerCRSSync, "error", err)
+	}
 }

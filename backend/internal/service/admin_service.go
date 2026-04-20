@@ -445,6 +445,7 @@ type adminServiceImpl struct {
 	defaultSubAssigner   DefaultSubscriptionAssigner
 	userSubRepo          UserSubscriptionRepository
 	privacyClientFactory PrivacyClientFactory
+	initialProbeEnqueuer AccountInitialProbeEnqueuer
 }
 
 type userGroupRateBatchReader interface {
@@ -488,6 +489,13 @@ func NewAdminService(
 		userSubRepo:          userSubRepo,
 		privacyClientFactory: privacyClientFactory,
 	}
+}
+
+func (s *adminServiceImpl) SetInitialProbeEnqueuer(enqueuer AccountInitialProbeEnqueuer) {
+	if s == nil {
+		return
+	}
+	s.initialProbeEnqueuer = enqueuer
 }
 
 // User management implementations
@@ -1569,6 +1577,12 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	if len(groupIDs) > 0 {
 		if err := s.accountRepo.BindGroups(ctx, account.ID, groupIDs); err != nil {
 			return nil, err
+		}
+	}
+
+	if s.initialProbeEnqueuer != nil {
+		if err := s.initialProbeEnqueuer.EnqueueAccountInitialProbe(ctx, account.ID, account.Platform, AccountInitialProbeTriggerAdminCreate); err != nil {
+			slog.Warn("enqueue_initial_probe_failed", "account_id", account.ID, "platform", account.Platform, "error", err)
 		}
 	}
 
