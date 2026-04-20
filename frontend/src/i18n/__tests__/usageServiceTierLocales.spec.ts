@@ -17,4 +17,12 @@ describe('usage service tier locale keys', () => {
     expect(en.usage.serviceTierFlex).toBe('Flex')
     expect(en.usage.serviceTierStandard).toBe('Standard')
   })
+
+  it('contains zh label for disabled account status', () => {
+    expect(zh.admin.accounts.status.disabled).toBe('已禁用')
+  })
+
+  it('contains en label for disabled account status', () => {
+    expect(en.admin.accounts.status.disabled).toBe('Disabled')
+  })
 })

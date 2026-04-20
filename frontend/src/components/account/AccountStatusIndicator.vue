@@ -314,6 +314,7 @@ const statusClass = computed(() => {
     case 'active':
       return 'badge-success'
     case 'inactive':
+    case 'disabled':
       return 'badge-gray'
     case 'error':
       return 'badge-danger'
