@@ -252,7 +252,7 @@ async function readSourceText(source, configDir) {
   return response.text()
 }
 
-function parseSourceConfigText(text, label) {
+export function parseSourceConfigText(text, label) {
   try {
     return YAML.parse(text)
   } catch (error) {

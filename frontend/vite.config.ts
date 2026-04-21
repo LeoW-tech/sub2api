@@ -82,8 +82,13 @@ export default defineConfig(({ mode }) => {
               return 'vendor-vue'
             }
 
+            // 导出库单独分包，避免把大体积依赖拖入常规 UI chunk
+            if (id.includes('/exceljs/')) {
+              return 'vendor-export'
+            }
+
             // UI 工具库（较大，单独分离）
-            if (id.includes('/@vueuse/') || id.includes('/xlsx/')) {
+            if (id.includes('/@vueuse/')) {
               return 'vendor-ui'
             }
 
