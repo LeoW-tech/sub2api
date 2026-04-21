@@ -216,6 +216,7 @@ func (r *accountRepository) GetByIDs(ctx context.Context, ids []int64) ([]*servi
 		// Prefer the preloaded proxy edge when available.
 		if entAcc.Edges.Proxy != nil {
 			out.Proxy = proxyEntityToService(entAcc.Edges.Proxy)
+			out.NetworkStatus = out.Proxy.NetworkStatus
 		}
 
 		if groups, ok := groupsByAccount[entAcc.ID]; ok {
@@ -454,10 +455,10 @@ func (r *accountRepository) Delete(ctx context.Context, id int64) error {
 }
 
 func (r *accountRepository) List(ctx context.Context, params pagination.PaginationParams) ([]service.Account, *pagination.PaginationResult, error) {
-	return r.ListWithFilters(ctx, params, "", "", "", "", 0, "")
+	return r.ListWithFilters(ctx, params, "", "", "", "", 0, "", "")
 }
 
-func (r *accountRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]service.Account, *pagination.PaginationResult, error) {
+func (r *accountRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus string) ([]service.Account, *pagination.PaginationResult, error) {
 	q := r.client.Account.Query()
 
 	if platform != "" {
@@ -548,6 +549,9 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 				s.Where(sqljson.ValueEQ(dbaccount.FieldExtra, privacyMode, path))
 			}
 		}))
+	}
+	if networkStatus != "" {
+		q = q.Where(dbaccount.HasProxyWith(dbproxy.NetworkStatusEQ(networkStatus)))
 	}
 
 	total, err := q.Count(ctx)
@@ -1158,6 +1162,132 @@ func (r *accountRepository) ClearTempUnschedulable(ctx context.Context, id int64
 	return nil
 }
 
+func (r *accountRepository) PauseAccountsByProxyNetwork(ctx context.Context, proxyID int64) ([]int64, error) {
+	ids, err := collectInt64Rows(ctx, r.sql, `
+		SELECT id
+		FROM accounts
+		WHERE proxy_id = $1
+			AND deleted_at IS NULL
+			AND schedulable = TRUE
+	`, proxyID)
+	if err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		return []int64{}, nil
+	}
+
+	if _, err := r.sql.ExecContext(ctx, `
+		UPDATE accounts
+		SET schedulable = FALSE,
+			network_auto_paused = TRUE,
+			updated_at = NOW()
+		WHERE id = ANY($1)
+	`, pq.Array(ids)); err != nil {
+		return nil, err
+	}
+
+	r.enqueueNetworkBulkChanged(ctx, ids)
+	r.syncSchedulerAccountSnapshots(ctx, ids)
+	return ids, nil
+}
+
+func (r *accountRepository) ResumeAccountsByProxyNetwork(ctx context.Context, proxyID int64) ([]int64, error) {
+	ids, err := collectInt64Rows(ctx, r.sql, `
+		SELECT id
+		FROM accounts
+		WHERE proxy_id = $1
+			AND deleted_at IS NULL
+			AND network_auto_paused = TRUE
+	`, proxyID)
+	if err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		return []int64{}, nil
+	}
+
+	if _, err := r.sql.ExecContext(ctx, `
+		UPDATE accounts
+		SET schedulable = TRUE,
+			network_auto_paused = FALSE,
+			updated_at = NOW()
+		WHERE id = ANY($1)
+	`, pq.Array(ids)); err != nil {
+		return nil, err
+	}
+
+	r.enqueueNetworkBulkChanged(ctx, ids)
+	r.syncSchedulerAccountSnapshots(ctx, ids)
+	return ids, nil
+}
+
+func (r *accountRepository) PauseAccountByNetwork(ctx context.Context, accountID int64) (bool, error) {
+	result, err := r.sql.ExecContext(ctx, `
+		UPDATE accounts
+		SET schedulable = FALSE,
+			network_auto_paused = TRUE,
+			updated_at = NOW()
+		WHERE id = $1
+			AND deleted_at IS NULL
+			AND schedulable = TRUE
+	`, accountID)
+	if err != nil {
+		return false, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	if affected > 0 {
+		r.enqueueNetworkBulkChanged(ctx, []int64{accountID})
+		r.syncSchedulerAccountSnapshot(ctx, accountID)
+	}
+	return affected > 0, nil
+}
+
+func (r *accountRepository) RestoreAccountFromNetworkPause(ctx context.Context, accountID int64) (bool, error) {
+	result, err := r.sql.ExecContext(ctx, `
+		UPDATE accounts
+		SET schedulable = TRUE,
+			network_auto_paused = FALSE,
+			updated_at = NOW()
+		WHERE id = $1
+			AND deleted_at IS NULL
+			AND network_auto_paused = TRUE
+	`, accountID)
+	if err != nil {
+		return false, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	if affected > 0 {
+		r.enqueueNetworkBulkChanged(ctx, []int64{accountID})
+		r.syncSchedulerAccountSnapshot(ctx, accountID)
+	}
+	return affected > 0, nil
+}
+
+func (r *accountRepository) ClearNetworkAutoPause(ctx context.Context, accountID int64) error {
+	_, err := r.sql.ExecContext(ctx, `
+		UPDATE accounts
+		SET network_auto_paused = FALSE,
+			updated_at = NOW()
+		WHERE id = $1
+			AND deleted_at IS NULL
+	`, accountID)
+	if err != nil {
+		return err
+	}
+	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &accountID, nil, nil); err != nil {
+		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue clear network auto pause failed: account=%d err=%v", accountID, err)
+	}
+	r.syncSchedulerAccountSnapshot(ctx, accountID)
+	return nil
+}
+
 func (r *accountRepository) ClearRateLimit(ctx context.Context, id int64) error {
 	_, err := r.client.Account.Update().
 		Where(dbaccount.IDEQ(id)).
@@ -1574,6 +1704,7 @@ func (r *accountRepository) accountsToService(ctx context.Context, accounts []*d
 		if acc.ProxyID != nil {
 			if proxy, ok := proxyMap[*acc.ProxyID]; ok {
 				out.Proxy = proxy
+				out.NetworkStatus = proxy.NetworkStatus
 			}
 		}
 		if groups, ok := groupsByAccount[acc.ID]; ok {
@@ -1624,6 +1755,37 @@ func (r *accountRepository) loadProxies(ctx context.Context, proxyIDs []int64) (
 		proxyMap[p.ID] = proxyEntityToService(p)
 	}
 	return proxyMap, nil
+}
+
+func (r *accountRepository) enqueueNetworkBulkChanged(ctx context.Context, accountIDs []int64) {
+	if len(accountIDs) == 0 {
+		return
+	}
+	payload := map[string]any{"account_ids": accountIDs}
+	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountBulkChanged, nil, nil, payload); err != nil {
+		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue network bulk change failed: err=%v", err)
+	}
+}
+
+func collectInt64Rows(ctx context.Context, queryer sqlExecutor, query string, args ...any) ([]int64, error) {
+	rows, err := queryer.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := make([]int64, 0)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (r *accountRepository) loadAccountGroups(ctx context.Context, accountIDs []int64) (map[int64][]*service.Group, map[int64][]int64, map[int64][]service.AccountGroup, error) {
@@ -1739,6 +1901,7 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 		CreatedAt:               m.CreatedAt,
 		UpdatedAt:               m.UpdatedAt,
 		Schedulable:             m.Schedulable,
+		NetworkAutoPaused:       m.NetworkAutoPaused,
 		RateLimitedAt:           m.RateLimitedAt,
 		RateLimitResetAt:        m.RateLimitResetAt,
 		OverloadUntil:           m.OverloadUntil,

@@ -145,6 +145,48 @@ func (_c *ProxyCreate) SetNillableStatus(v *string) *ProxyCreate {
 	return _c
 }
 
+// SetNetworkStatus sets the "network_status" field.
+func (_c *ProxyCreate) SetNetworkStatus(v string) *ProxyCreate {
+	_c.mutation.SetNetworkStatus(v)
+	return _c
+}
+
+// SetNillableNetworkStatus sets the "network_status" field if the given value is not nil.
+func (_c *ProxyCreate) SetNillableNetworkStatus(v *string) *ProxyCreate {
+	if v != nil {
+		_c.SetNetworkStatus(*v)
+	}
+	return _c
+}
+
+// SetNetworkCheckedAt sets the "network_checked_at" field.
+func (_c *ProxyCreate) SetNetworkCheckedAt(v time.Time) *ProxyCreate {
+	_c.mutation.SetNetworkCheckedAt(v)
+	return _c
+}
+
+// SetNillableNetworkCheckedAt sets the "network_checked_at" field if the given value is not nil.
+func (_c *ProxyCreate) SetNillableNetworkCheckedAt(v *time.Time) *ProxyCreate {
+	if v != nil {
+		_c.SetNetworkCheckedAt(*v)
+	}
+	return _c
+}
+
+// SetNetworkErrorMessage sets the "network_error_message" field.
+func (_c *ProxyCreate) SetNetworkErrorMessage(v string) *ProxyCreate {
+	_c.mutation.SetNetworkErrorMessage(v)
+	return _c
+}
+
+// SetNillableNetworkErrorMessage sets the "network_error_message" field if the given value is not nil.
+func (_c *ProxyCreate) SetNillableNetworkErrorMessage(v *string) *ProxyCreate {
+	if v != nil {
+		_c.SetNetworkErrorMessage(*v)
+	}
+	return _c
+}
+
 // SetExitIP sets the "exit_ip" field.
 func (_c *ProxyCreate) SetExitIP(v string) *ProxyCreate {
 	_c.mutation.SetExitIP(v)
@@ -304,6 +346,11 @@ func (_c *ProxyCreate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Proxy.status": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.NetworkStatus(); ok {
+		if err := proxy.NetworkStatusValidator(v); err != nil {
+			return &ValidationError{Name: "network_status", err: fmt.Errorf(`ent: validator failed for field "Proxy.network_status": %w`, err)}
+		}
+	}
 	if v, ok := _c.mutation.ExitIP(); ok {
 		if err := proxy.ExitIPValidator(v); err != nil {
 			return &ValidationError{Name: "exit_ip", err: fmt.Errorf(`ent: validator failed for field "Proxy.exit_ip": %w`, err)}
@@ -379,6 +426,18 @@ func (_c *ProxyCreate) createSpec() (*Proxy, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(proxy.FieldStatus, field.TypeString, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.NetworkStatus(); ok {
+		_spec.SetField(proxy.FieldNetworkStatus, field.TypeString, value)
+		_node.NetworkStatus = &value
+	}
+	if value, ok := _c.mutation.NetworkCheckedAt(); ok {
+		_spec.SetField(proxy.FieldNetworkCheckedAt, field.TypeTime, value)
+		_node.NetworkCheckedAt = &value
+	}
+	if value, ok := _c.mutation.NetworkErrorMessage(); ok {
+		_spec.SetField(proxy.FieldNetworkErrorMessage, field.TypeString, value)
+		_node.NetworkErrorMessage = &value
 	}
 	if value, ok := _c.mutation.ExitIP(); ok {
 		_spec.SetField(proxy.FieldExitIP, field.TypeString, value)
@@ -603,6 +662,60 @@ func (u *ProxyUpsert) SetStatus(v string) *ProxyUpsert {
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *ProxyUpsert) UpdateStatus() *ProxyUpsert {
 	u.SetExcluded(proxy.FieldStatus)
+	return u
+}
+
+// SetNetworkStatus sets the "network_status" field.
+func (u *ProxyUpsert) SetNetworkStatus(v string) *ProxyUpsert {
+	u.Set(proxy.FieldNetworkStatus, v)
+	return u
+}
+
+// UpdateNetworkStatus sets the "network_status" field to the value that was provided on create.
+func (u *ProxyUpsert) UpdateNetworkStatus() *ProxyUpsert {
+	u.SetExcluded(proxy.FieldNetworkStatus)
+	return u
+}
+
+// ClearNetworkStatus clears the value of the "network_status" field.
+func (u *ProxyUpsert) ClearNetworkStatus() *ProxyUpsert {
+	u.SetNull(proxy.FieldNetworkStatus)
+	return u
+}
+
+// SetNetworkCheckedAt sets the "network_checked_at" field.
+func (u *ProxyUpsert) SetNetworkCheckedAt(v time.Time) *ProxyUpsert {
+	u.Set(proxy.FieldNetworkCheckedAt, v)
+	return u
+}
+
+// UpdateNetworkCheckedAt sets the "network_checked_at" field to the value that was provided on create.
+func (u *ProxyUpsert) UpdateNetworkCheckedAt() *ProxyUpsert {
+	u.SetExcluded(proxy.FieldNetworkCheckedAt)
+	return u
+}
+
+// ClearNetworkCheckedAt clears the value of the "network_checked_at" field.
+func (u *ProxyUpsert) ClearNetworkCheckedAt() *ProxyUpsert {
+	u.SetNull(proxy.FieldNetworkCheckedAt)
+	return u
+}
+
+// SetNetworkErrorMessage sets the "network_error_message" field.
+func (u *ProxyUpsert) SetNetworkErrorMessage(v string) *ProxyUpsert {
+	u.Set(proxy.FieldNetworkErrorMessage, v)
+	return u
+}
+
+// UpdateNetworkErrorMessage sets the "network_error_message" field to the value that was provided on create.
+func (u *ProxyUpsert) UpdateNetworkErrorMessage() *ProxyUpsert {
+	u.SetExcluded(proxy.FieldNetworkErrorMessage)
+	return u
+}
+
+// ClearNetworkErrorMessage clears the value of the "network_error_message" field.
+func (u *ProxyUpsert) ClearNetworkErrorMessage() *ProxyUpsert {
+	u.SetNull(proxy.FieldNetworkErrorMessage)
 	return u
 }
 
@@ -859,6 +972,69 @@ func (u *ProxyUpsertOne) SetStatus(v string) *ProxyUpsertOne {
 func (u *ProxyUpsertOne) UpdateStatus() *ProxyUpsertOne {
 	return u.Update(func(s *ProxyUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetNetworkStatus sets the "network_status" field.
+func (u *ProxyUpsertOne) SetNetworkStatus(v string) *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetNetworkStatus(v)
+	})
+}
+
+// UpdateNetworkStatus sets the "network_status" field to the value that was provided on create.
+func (u *ProxyUpsertOne) UpdateNetworkStatus() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateNetworkStatus()
+	})
+}
+
+// ClearNetworkStatus clears the value of the "network_status" field.
+func (u *ProxyUpsertOne) ClearNetworkStatus() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.ClearNetworkStatus()
+	})
+}
+
+// SetNetworkCheckedAt sets the "network_checked_at" field.
+func (u *ProxyUpsertOne) SetNetworkCheckedAt(v time.Time) *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetNetworkCheckedAt(v)
+	})
+}
+
+// UpdateNetworkCheckedAt sets the "network_checked_at" field to the value that was provided on create.
+func (u *ProxyUpsertOne) UpdateNetworkCheckedAt() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateNetworkCheckedAt()
+	})
+}
+
+// ClearNetworkCheckedAt clears the value of the "network_checked_at" field.
+func (u *ProxyUpsertOne) ClearNetworkCheckedAt() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.ClearNetworkCheckedAt()
+	})
+}
+
+// SetNetworkErrorMessage sets the "network_error_message" field.
+func (u *ProxyUpsertOne) SetNetworkErrorMessage(v string) *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetNetworkErrorMessage(v)
+	})
+}
+
+// UpdateNetworkErrorMessage sets the "network_error_message" field to the value that was provided on create.
+func (u *ProxyUpsertOne) UpdateNetworkErrorMessage() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateNetworkErrorMessage()
+	})
+}
+
+// ClearNetworkErrorMessage clears the value of the "network_error_message" field.
+func (u *ProxyUpsertOne) ClearNetworkErrorMessage() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.ClearNetworkErrorMessage()
 	})
 }
 
@@ -1287,6 +1463,69 @@ func (u *ProxyUpsertBulk) SetStatus(v string) *ProxyUpsertBulk {
 func (u *ProxyUpsertBulk) UpdateStatus() *ProxyUpsertBulk {
 	return u.Update(func(s *ProxyUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetNetworkStatus sets the "network_status" field.
+func (u *ProxyUpsertBulk) SetNetworkStatus(v string) *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetNetworkStatus(v)
+	})
+}
+
+// UpdateNetworkStatus sets the "network_status" field to the value that was provided on create.
+func (u *ProxyUpsertBulk) UpdateNetworkStatus() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateNetworkStatus()
+	})
+}
+
+// ClearNetworkStatus clears the value of the "network_status" field.
+func (u *ProxyUpsertBulk) ClearNetworkStatus() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.ClearNetworkStatus()
+	})
+}
+
+// SetNetworkCheckedAt sets the "network_checked_at" field.
+func (u *ProxyUpsertBulk) SetNetworkCheckedAt(v time.Time) *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetNetworkCheckedAt(v)
+	})
+}
+
+// UpdateNetworkCheckedAt sets the "network_checked_at" field to the value that was provided on create.
+func (u *ProxyUpsertBulk) UpdateNetworkCheckedAt() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateNetworkCheckedAt()
+	})
+}
+
+// ClearNetworkCheckedAt clears the value of the "network_checked_at" field.
+func (u *ProxyUpsertBulk) ClearNetworkCheckedAt() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.ClearNetworkCheckedAt()
+	})
+}
+
+// SetNetworkErrorMessage sets the "network_error_message" field.
+func (u *ProxyUpsertBulk) SetNetworkErrorMessage(v string) *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetNetworkErrorMessage(v)
+	})
+}
+
+// UpdateNetworkErrorMessage sets the "network_error_message" field to the value that was provided on create.
+func (u *ProxyUpsertBulk) UpdateNetworkErrorMessage() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateNetworkErrorMessage()
+	})
+}
+
+// ClearNetworkErrorMessage clears the value of the "network_error_message" field.
+func (u *ProxyUpsertBulk) ClearNetworkErrorMessage() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.ClearNetworkErrorMessage()
 	})
 }
 

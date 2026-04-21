@@ -2176,6 +2176,7 @@ export default {
       allPlatforms: '全部平台',
       allTypes: '全部类型',
       allStatus: '全部状态',
+      allNetworkStatus: '全部网络状态',
       allGroups: '全部分组',
       ungroupedGroup: '未分配分组',
       oauthType: 'OAuth',
@@ -2201,10 +2202,15 @@ export default {
         todayStats: '今日统计',
         groups: '分组',
         usageWindows: '用量窗口',
+        networkStatus: '网络状态',
         proxy: '代理',
         lastUsed: '最近使用',
         expiresAt: '过期时间',
         actions: '操作'
+      },
+      networkStatus: {
+        online: '网络正常',
+        offline: '没有网络'
       },
       allPrivacyModes: '全部Privacy状态',
       privacyUnset: '未设置',

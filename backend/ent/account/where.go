@@ -145,6 +145,11 @@ func Schedulable(v bool) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldSchedulable, v))
 }
 
+// NetworkAutoPaused applies equality check predicate on the "network_auto_paused" field. It's identical to NetworkAutoPausedEQ.
+func NetworkAutoPaused(v bool) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldNetworkAutoPaused, v))
+}
+
 // RateLimitedAt applies equality check predicate on the "rate_limited_at" field. It's identical to RateLimitedAtEQ.
 func RateLimitedAt(v time.Time) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldRateLimitedAt, v))
@@ -1043,6 +1048,16 @@ func SchedulableEQ(v bool) predicate.Account {
 // SchedulableNEQ applies the NEQ predicate on the "schedulable" field.
 func SchedulableNEQ(v bool) predicate.Account {
 	return predicate.Account(sql.FieldNEQ(FieldSchedulable, v))
+}
+
+// NetworkAutoPausedEQ applies the EQ predicate on the "network_auto_paused" field.
+func NetworkAutoPausedEQ(v bool) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldNetworkAutoPaused, v))
+}
+
+// NetworkAutoPausedNEQ applies the NEQ predicate on the "network_auto_paused" field.
+func NetworkAutoPausedNEQ(v bool) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldNetworkAutoPaused, v))
 }
 
 // RateLimitedAtEQ applies the EQ predicate on the "rate_limited_at" field.

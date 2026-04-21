@@ -39,7 +39,9 @@ type Account struct {
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 
-	Schedulable bool
+	Schedulable       bool
+	NetworkAutoPaused bool
+	NetworkStatus     string
 
 	RateLimitedAt    *time.Time
 	RateLimitResetAt *time.Time

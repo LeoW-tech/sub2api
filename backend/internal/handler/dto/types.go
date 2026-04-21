@@ -158,7 +158,8 @@ type Account struct {
 	CreatedAt          time.Time      `json:"created_at"`
 	UpdatedAt          time.Time      `json:"updated_at"`
 
-	Schedulable bool `json:"schedulable"`
+	Schedulable   bool   `json:"schedulable"`
+	NetworkStatus string `json:"network_status,omitempty"`
 
 	RateLimitedAt    *time.Time `json:"rate_limited_at"`
 	RateLimitResetAt *time.Time `json:"rate_limit_reset_at"`
@@ -251,19 +252,22 @@ type AccountGroup struct {
 }
 
 type Proxy struct {
-	ID              int64      `json:"id"`
-	Name            string     `json:"name"`
-	ExternalKey     string     `json:"external_key,omitempty"`
-	Protocol        string     `json:"protocol"`
-	Host            string     `json:"host"`
-	Port            int        `json:"port"`
-	Username        string     `json:"username"`
-	Password        string     `json:"-"`
-	Status          string     `json:"status"`
-	ExitIP          string     `json:"exit_ip,omitempty"`
-	ExitIPCheckedAt *time.Time `json:"exit_ip_checked_at,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID                  int64      `json:"id"`
+	Name                string     `json:"name"`
+	ExternalKey         string     `json:"external_key,omitempty"`
+	Protocol            string     `json:"protocol"`
+	Host                string     `json:"host"`
+	Port                int        `json:"port"`
+	Username            string     `json:"username"`
+	Password            string     `json:"-"`
+	Status              string     `json:"status"`
+	NetworkStatus       string     `json:"network_status,omitempty"`
+	NetworkCheckedAt    *time.Time `json:"network_checked_at,omitempty"`
+	NetworkErrorMessage string     `json:"network_error_message,omitempty"`
+	ExitIP              string     `json:"exit_ip,omitempty"`
+	ExitIPCheckedAt     *time.Time `json:"exit_ip_checked_at,omitempty"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 type ProxyWithAccountCount struct {

@@ -2282,6 +2282,7 @@ type AccountMutation struct {
 	expires_at                *time.Time
 	auto_pause_on_expired     *bool
 	schedulable               *bool
+	network_auto_paused       *bool
 	rate_limited_at           *time.Time
 	rate_limit_reset_at       *time.Time
 	overload_until            *time.Time
@@ -3294,6 +3295,42 @@ func (m *AccountMutation) ResetSchedulable() {
 	m.schedulable = nil
 }
 
+// SetNetworkAutoPaused sets the "network_auto_paused" field.
+func (m *AccountMutation) SetNetworkAutoPaused(b bool) {
+	m.network_auto_paused = &b
+}
+
+// NetworkAutoPaused returns the value of the "network_auto_paused" field in the mutation.
+func (m *AccountMutation) NetworkAutoPaused() (r bool, exists bool) {
+	v := m.network_auto_paused
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNetworkAutoPaused returns the old "network_auto_paused" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldNetworkAutoPaused(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNetworkAutoPaused is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNetworkAutoPaused requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNetworkAutoPaused: %w", err)
+	}
+	return oldValue.NetworkAutoPaused, nil
+}
+
+// ResetNetworkAutoPaused resets all changes to the "network_auto_paused" field.
+func (m *AccountMutation) ResetNetworkAutoPaused() {
+	m.network_auto_paused = nil
+}
+
 // SetRateLimitedAt sets the "rate_limited_at" field.
 func (m *AccountMutation) SetRateLimitedAt(t time.Time) {
 	m.rate_limited_at = &t
@@ -3855,7 +3892,7 @@ func (m *AccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountMutation) Fields() []string {
-	fields := make([]string, 0, 28)
+	fields := make([]string, 0, 29)
 	if m.created_at != nil {
 		fields = append(fields, account.FieldCreatedAt)
 	}
@@ -3915,6 +3952,9 @@ func (m *AccountMutation) Fields() []string {
 	}
 	if m.schedulable != nil {
 		fields = append(fields, account.FieldSchedulable)
+	}
+	if m.network_auto_paused != nil {
+		fields = append(fields, account.FieldNetworkAutoPaused)
 	}
 	if m.rate_limited_at != nil {
 		fields = append(fields, account.FieldRateLimitedAt)
@@ -3988,6 +4028,8 @@ func (m *AccountMutation) Field(name string) (ent.Value, bool) {
 		return m.AutoPauseOnExpired()
 	case account.FieldSchedulable:
 		return m.Schedulable()
+	case account.FieldNetworkAutoPaused:
+		return m.NetworkAutoPaused()
 	case account.FieldRateLimitedAt:
 		return m.RateLimitedAt()
 	case account.FieldRateLimitResetAt:
@@ -4053,6 +4095,8 @@ func (m *AccountMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldAutoPauseOnExpired(ctx)
 	case account.FieldSchedulable:
 		return m.OldSchedulable(ctx)
+	case account.FieldNetworkAutoPaused:
+		return m.OldNetworkAutoPaused(ctx)
 	case account.FieldRateLimitedAt:
 		return m.OldRateLimitedAt(ctx)
 	case account.FieldRateLimitResetAt:
@@ -4217,6 +4261,13 @@ func (m *AccountMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetSchedulable(v)
+		return nil
+	case account.FieldNetworkAutoPaused:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNetworkAutoPaused(v)
 		return nil
 	case account.FieldRateLimitedAt:
 		v, ok := value.(time.Time)
@@ -4526,6 +4577,9 @@ func (m *AccountMutation) ResetField(name string) error {
 		return nil
 	case account.FieldSchedulable:
 		m.ResetSchedulable()
+		return nil
+	case account.FieldNetworkAutoPaused:
+		m.ResetNetworkAutoPaused()
 		return nil
 	case account.FieldRateLimitedAt:
 		m.ResetRateLimitedAt()
@@ -18216,30 +18270,33 @@ func (m *PromoCodeUsageMutation) ResetEdge(name string) error {
 // ProxyMutation represents an operation that mutates the Proxy nodes in the graph.
 type ProxyMutation struct {
 	config
-	op                 Op
-	typ                string
-	id                 *int64
-	created_at         *time.Time
-	updated_at         *time.Time
-	deleted_at         *time.Time
-	name               *string
-	external_key       *string
-	protocol           *string
-	host               *string
-	port               *int
-	addport            *int
-	username           *string
-	password           *string
-	status             *string
-	exit_ip            *string
-	exit_ip_checked_at *time.Time
-	clearedFields      map[string]struct{}
-	accounts           map[int64]struct{}
-	removedaccounts    map[int64]struct{}
-	clearedaccounts    bool
-	done               bool
-	oldValue           func(context.Context) (*Proxy, error)
-	predicates         []predicate.Proxy
+	op                    Op
+	typ                   string
+	id                    *int64
+	created_at            *time.Time
+	updated_at            *time.Time
+	deleted_at            *time.Time
+	name                  *string
+	external_key          *string
+	protocol              *string
+	host                  *string
+	port                  *int
+	addport               *int
+	username              *string
+	password              *string
+	status                *string
+	network_status        *string
+	network_checked_at    *time.Time
+	network_error_message *string
+	exit_ip               *string
+	exit_ip_checked_at    *time.Time
+	clearedFields         map[string]struct{}
+	accounts              map[int64]struct{}
+	removedaccounts       map[int64]struct{}
+	clearedaccounts       bool
+	done                  bool
+	oldValue              func(context.Context) (*Proxy, error)
+	predicates            []predicate.Proxy
 }
 
 var _ ent.Mutation = (*ProxyMutation)(nil)
@@ -18808,6 +18865,153 @@ func (m *ProxyMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetNetworkStatus sets the "network_status" field.
+func (m *ProxyMutation) SetNetworkStatus(s string) {
+	m.network_status = &s
+}
+
+// NetworkStatus returns the value of the "network_status" field in the mutation.
+func (m *ProxyMutation) NetworkStatus() (r string, exists bool) {
+	v := m.network_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNetworkStatus returns the old "network_status" field's value of the Proxy entity.
+// If the Proxy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxyMutation) OldNetworkStatus(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNetworkStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNetworkStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNetworkStatus: %w", err)
+	}
+	return oldValue.NetworkStatus, nil
+}
+
+// ClearNetworkStatus clears the value of the "network_status" field.
+func (m *ProxyMutation) ClearNetworkStatus() {
+	m.network_status = nil
+	m.clearedFields[proxy.FieldNetworkStatus] = struct{}{}
+}
+
+// NetworkStatusCleared returns if the "network_status" field was cleared in this mutation.
+func (m *ProxyMutation) NetworkStatusCleared() bool {
+	_, ok := m.clearedFields[proxy.FieldNetworkStatus]
+	return ok
+}
+
+// ResetNetworkStatus resets all changes to the "network_status" field.
+func (m *ProxyMutation) ResetNetworkStatus() {
+	m.network_status = nil
+	delete(m.clearedFields, proxy.FieldNetworkStatus)
+}
+
+// SetNetworkCheckedAt sets the "network_checked_at" field.
+func (m *ProxyMutation) SetNetworkCheckedAt(t time.Time) {
+	m.network_checked_at = &t
+}
+
+// NetworkCheckedAt returns the value of the "network_checked_at" field in the mutation.
+func (m *ProxyMutation) NetworkCheckedAt() (r time.Time, exists bool) {
+	v := m.network_checked_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNetworkCheckedAt returns the old "network_checked_at" field's value of the Proxy entity.
+// If the Proxy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxyMutation) OldNetworkCheckedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNetworkCheckedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNetworkCheckedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNetworkCheckedAt: %w", err)
+	}
+	return oldValue.NetworkCheckedAt, nil
+}
+
+// ClearNetworkCheckedAt clears the value of the "network_checked_at" field.
+func (m *ProxyMutation) ClearNetworkCheckedAt() {
+	m.network_checked_at = nil
+	m.clearedFields[proxy.FieldNetworkCheckedAt] = struct{}{}
+}
+
+// NetworkCheckedAtCleared returns if the "network_checked_at" field was cleared in this mutation.
+func (m *ProxyMutation) NetworkCheckedAtCleared() bool {
+	_, ok := m.clearedFields[proxy.FieldNetworkCheckedAt]
+	return ok
+}
+
+// ResetNetworkCheckedAt resets all changes to the "network_checked_at" field.
+func (m *ProxyMutation) ResetNetworkCheckedAt() {
+	m.network_checked_at = nil
+	delete(m.clearedFields, proxy.FieldNetworkCheckedAt)
+}
+
+// SetNetworkErrorMessage sets the "network_error_message" field.
+func (m *ProxyMutation) SetNetworkErrorMessage(s string) {
+	m.network_error_message = &s
+}
+
+// NetworkErrorMessage returns the value of the "network_error_message" field in the mutation.
+func (m *ProxyMutation) NetworkErrorMessage() (r string, exists bool) {
+	v := m.network_error_message
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNetworkErrorMessage returns the old "network_error_message" field's value of the Proxy entity.
+// If the Proxy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxyMutation) OldNetworkErrorMessage(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNetworkErrorMessage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNetworkErrorMessage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNetworkErrorMessage: %w", err)
+	}
+	return oldValue.NetworkErrorMessage, nil
+}
+
+// ClearNetworkErrorMessage clears the value of the "network_error_message" field.
+func (m *ProxyMutation) ClearNetworkErrorMessage() {
+	m.network_error_message = nil
+	m.clearedFields[proxy.FieldNetworkErrorMessage] = struct{}{}
+}
+
+// NetworkErrorMessageCleared returns if the "network_error_message" field was cleared in this mutation.
+func (m *ProxyMutation) NetworkErrorMessageCleared() bool {
+	_, ok := m.clearedFields[proxy.FieldNetworkErrorMessage]
+	return ok
+}
+
+// ResetNetworkErrorMessage resets all changes to the "network_error_message" field.
+func (m *ProxyMutation) ResetNetworkErrorMessage() {
+	m.network_error_message = nil
+	delete(m.clearedFields, proxy.FieldNetworkErrorMessage)
+}
+
 // SetExitIP sets the "exit_ip" field.
 func (m *ProxyMutation) SetExitIP(s string) {
 	m.exit_ip = &s
@@ -18994,7 +19198,7 @@ func (m *ProxyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ProxyMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 16)
 	if m.created_at != nil {
 		fields = append(fields, proxy.FieldCreatedAt)
 	}
@@ -19027,6 +19231,15 @@ func (m *ProxyMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, proxy.FieldStatus)
+	}
+	if m.network_status != nil {
+		fields = append(fields, proxy.FieldNetworkStatus)
+	}
+	if m.network_checked_at != nil {
+		fields = append(fields, proxy.FieldNetworkCheckedAt)
+	}
+	if m.network_error_message != nil {
+		fields = append(fields, proxy.FieldNetworkErrorMessage)
 	}
 	if m.exit_ip != nil {
 		fields = append(fields, proxy.FieldExitIP)
@@ -19064,6 +19277,12 @@ func (m *ProxyMutation) Field(name string) (ent.Value, bool) {
 		return m.Password()
 	case proxy.FieldStatus:
 		return m.Status()
+	case proxy.FieldNetworkStatus:
+		return m.NetworkStatus()
+	case proxy.FieldNetworkCheckedAt:
+		return m.NetworkCheckedAt()
+	case proxy.FieldNetworkErrorMessage:
+		return m.NetworkErrorMessage()
 	case proxy.FieldExitIP:
 		return m.ExitIP()
 	case proxy.FieldExitIPCheckedAt:
@@ -19099,6 +19318,12 @@ func (m *ProxyMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldPassword(ctx)
 	case proxy.FieldStatus:
 		return m.OldStatus(ctx)
+	case proxy.FieldNetworkStatus:
+		return m.OldNetworkStatus(ctx)
+	case proxy.FieldNetworkCheckedAt:
+		return m.OldNetworkCheckedAt(ctx)
+	case proxy.FieldNetworkErrorMessage:
+		return m.OldNetworkErrorMessage(ctx)
 	case proxy.FieldExitIP:
 		return m.OldExitIP(ctx)
 	case proxy.FieldExitIPCheckedAt:
@@ -19189,6 +19414,27 @@ func (m *ProxyMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetStatus(v)
 		return nil
+	case proxy.FieldNetworkStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNetworkStatus(v)
+		return nil
+	case proxy.FieldNetworkCheckedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNetworkCheckedAt(v)
+		return nil
+	case proxy.FieldNetworkErrorMessage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNetworkErrorMessage(v)
+		return nil
 	case proxy.FieldExitIP:
 		v, ok := value.(string)
 		if !ok {
@@ -19260,6 +19506,15 @@ func (m *ProxyMutation) ClearedFields() []string {
 	if m.FieldCleared(proxy.FieldPassword) {
 		fields = append(fields, proxy.FieldPassword)
 	}
+	if m.FieldCleared(proxy.FieldNetworkStatus) {
+		fields = append(fields, proxy.FieldNetworkStatus)
+	}
+	if m.FieldCleared(proxy.FieldNetworkCheckedAt) {
+		fields = append(fields, proxy.FieldNetworkCheckedAt)
+	}
+	if m.FieldCleared(proxy.FieldNetworkErrorMessage) {
+		fields = append(fields, proxy.FieldNetworkErrorMessage)
+	}
 	if m.FieldCleared(proxy.FieldExitIP) {
 		fields = append(fields, proxy.FieldExitIP)
 	}
@@ -19291,6 +19546,15 @@ func (m *ProxyMutation) ClearField(name string) error {
 		return nil
 	case proxy.FieldPassword:
 		m.ClearPassword()
+		return nil
+	case proxy.FieldNetworkStatus:
+		m.ClearNetworkStatus()
+		return nil
+	case proxy.FieldNetworkCheckedAt:
+		m.ClearNetworkCheckedAt()
+		return nil
+	case proxy.FieldNetworkErrorMessage:
+		m.ClearNetworkErrorMessage()
 		return nil
 	case proxy.FieldExitIP:
 		m.ClearExitIP()
@@ -19338,6 +19602,15 @@ func (m *ProxyMutation) ResetField(name string) error {
 		return nil
 	case proxy.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case proxy.FieldNetworkStatus:
+		m.ResetNetworkStatus()
+		return nil
+	case proxy.FieldNetworkCheckedAt:
+		m.ResetNetworkCheckedAt()
+		return nil
+	case proxy.FieldNetworkErrorMessage:
+		m.ResetNetworkErrorMessage()
 		return nil
 	case proxy.FieldExitIP:
 		m.ResetExitIP()

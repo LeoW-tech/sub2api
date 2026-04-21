@@ -37,6 +37,12 @@ const (
 	FieldPassword = "password"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldNetworkStatus holds the string denoting the network_status field in the database.
+	FieldNetworkStatus = "network_status"
+	// FieldNetworkCheckedAt holds the string denoting the network_checked_at field in the database.
+	FieldNetworkCheckedAt = "network_checked_at"
+	// FieldNetworkErrorMessage holds the string denoting the network_error_message field in the database.
+	FieldNetworkErrorMessage = "network_error_message"
 	// FieldExitIP holds the string denoting the exit_ip field in the database.
 	FieldExitIP = "exit_ip"
 	// FieldExitIPCheckedAt holds the string denoting the exit_ip_checked_at field in the database.
@@ -68,6 +74,9 @@ var Columns = []string{
 	FieldUsername,
 	FieldPassword,
 	FieldStatus,
+	FieldNetworkStatus,
+	FieldNetworkCheckedAt,
+	FieldNetworkErrorMessage,
 	FieldExitIP,
 	FieldExitIPCheckedAt,
 }
@@ -112,6 +121,8 @@ var (
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	StatusValidator func(string) error
+	// NetworkStatusValidator is a validator for the "network_status" field. It is called by the builders before save.
+	NetworkStatusValidator func(string) error
 	// ExitIPValidator is a validator for the "exit_ip" field. It is called by the builders before save.
 	ExitIPValidator func(string) error
 )
@@ -177,6 +188,21 @@ func ByPassword(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByNetworkStatus orders the results by the network_status field.
+func ByNetworkStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNetworkStatus, opts...).ToFunc()
+}
+
+// ByNetworkCheckedAt orders the results by the network_checked_at field.
+func ByNetworkCheckedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNetworkCheckedAt, opts...).ToFunc()
+}
+
+// ByNetworkErrorMessage orders the results by the network_error_message field.
+func ByNetworkErrorMessage(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNetworkErrorMessage, opts...).ToFunc()
 }
 
 // ByExitIP orders the results by the exit_ip field.

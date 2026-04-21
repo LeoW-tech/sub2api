@@ -56,6 +56,18 @@ func (Proxy) Fields() []ent.Field {
 		field.String("status").
 			MaxLen(20).
 			Default("active"),
+		field.String("network_status").
+			MaxLen(20).
+			Optional().
+			Nillable(),
+		field.Time("network_checked_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{"postgres": "timestamptz"}),
+		field.String("network_error_message").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{"postgres": "text"}),
 		field.String("exit_ip").
 			MaxLen(64).
 			Optional().
@@ -81,6 +93,7 @@ func (Proxy) Indexes() []ent.Index {
 		index.Fields("external_key").
 			Unique(),
 		index.Fields("status"),
+		index.Fields("network_status"),
 		index.Fields("deleted_at"),
 	}
 }

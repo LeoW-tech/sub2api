@@ -115,6 +115,7 @@ var (
 		{Name: "expires_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "auto_pause_on_expired", Type: field.TypeBool, Default: true},
 		{Name: "schedulable", Type: field.TypeBool, Default: true},
+		{Name: "network_auto_paused", Type: field.TypeBool, Default: false},
 		{Name: "rate_limited_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "rate_limit_reset_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "overload_until", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
@@ -133,7 +134,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "accounts_proxies_proxy",
-				Columns:    []*schema.Column{AccountsColumns[28]},
+				Columns:    []*schema.Column{AccountsColumns[29]},
 				RefColumns: []*schema.Column{ProxiesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -157,7 +158,7 @@ var (
 			{
 				Name:    "account_proxy_id",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[28]},
+				Columns: []*schema.Column{AccountsColumns[29]},
 			},
 			{
 				Name:    "account_priority",
@@ -175,19 +176,24 @@ var (
 				Columns: []*schema.Column{AccountsColumns[19]},
 			},
 			{
-				Name:    "account_rate_limited_at",
+				Name:    "account_network_auto_paused",
 				Unique:  false,
 				Columns: []*schema.Column{AccountsColumns[20]},
 			},
 			{
-				Name:    "account_rate_limit_reset_at",
+				Name:    "account_rate_limited_at",
 				Unique:  false,
 				Columns: []*schema.Column{AccountsColumns[21]},
 			},
 			{
-				Name:    "account_overload_until",
+				Name:    "account_rate_limit_reset_at",
 				Unique:  false,
 				Columns: []*schema.Column{AccountsColumns[22]},
+			},
+			{
+				Name:    "account_overload_until",
+				Unique:  false,
+				Columns: []*schema.Column{AccountsColumns[23]},
 			},
 			{
 				Name:    "account_platform_priority",
@@ -728,6 +734,9 @@ var (
 		{Name: "username", Type: field.TypeString, Nullable: true, Size: 100},
 		{Name: "password", Type: field.TypeString, Nullable: true, Size: 100},
 		{Name: "status", Type: field.TypeString, Size: 20, Default: "active"},
+		{Name: "network_status", Type: field.TypeString, Nullable: true, Size: 20},
+		{Name: "network_checked_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "network_error_message", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "exit_ip", Type: field.TypeString, Nullable: true, Size: 64},
 		{Name: "exit_ip_checked_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 	}
@@ -746,6 +755,11 @@ var (
 				Name:    "proxy_status",
 				Unique:  false,
 				Columns: []*schema.Column{ProxiesColumns[11]},
+			},
+			{
+				Name:    "proxy_network_status",
+				Unique:  false,
+				Columns: []*schema.Column{ProxiesColumns[12]},
 			},
 			{
 				Name:    "proxy_deleted_at",

@@ -54,6 +54,21 @@ func (m *sessionWindowMockRepo) ClearModelRateLimits(_ context.Context, _ int64)
 func (m *sessionWindowMockRepo) ClearTempUnschedulable(_ context.Context, _ int64) error {
 	return nil
 }
+func (m *sessionWindowMockRepo) PauseAccountsByProxyNetwork(context.Context, int64) ([]int64, error) {
+	panic("unexpected")
+}
+func (m *sessionWindowMockRepo) ResumeAccountsByProxyNetwork(context.Context, int64) ([]int64, error) {
+	panic("unexpected")
+}
+func (m *sessionWindowMockRepo) PauseAccountByNetwork(context.Context, int64) (bool, error) {
+	panic("unexpected")
+}
+func (m *sessionWindowMockRepo) RestoreAccountFromNetworkPause(context.Context, int64) (bool, error) {
+	panic("unexpected")
+}
+func (m *sessionWindowMockRepo) ClearNetworkAutoPause(context.Context, int64) error {
+	panic("unexpected")
+}
 
 // --- Unused interface methods (panic on unexpected call) ---
 
@@ -81,7 +96,7 @@ func (m *sessionWindowMockRepo) Delete(context.Context, int64) error    { panic(
 func (m *sessionWindowMockRepo) List(context.Context, pagination.PaginationParams) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string, string, int64, string) ([]Account, *pagination.PaginationResult, error) {
+func (m *sessionWindowMockRepo) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string, string, int64, string, string) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected")
 }
 func (m *sessionWindowMockRepo) ListByGroup(context.Context, int64) ([]Account, error) {

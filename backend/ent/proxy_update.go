@@ -192,6 +192,66 @@ func (_u *ProxyUpdate) SetNillableStatus(v *string) *ProxyUpdate {
 	return _u
 }
 
+// SetNetworkStatus sets the "network_status" field.
+func (_u *ProxyUpdate) SetNetworkStatus(v string) *ProxyUpdate {
+	_u.mutation.SetNetworkStatus(v)
+	return _u
+}
+
+// SetNillableNetworkStatus sets the "network_status" field if the given value is not nil.
+func (_u *ProxyUpdate) SetNillableNetworkStatus(v *string) *ProxyUpdate {
+	if v != nil {
+		_u.SetNetworkStatus(*v)
+	}
+	return _u
+}
+
+// ClearNetworkStatus clears the value of the "network_status" field.
+func (_u *ProxyUpdate) ClearNetworkStatus() *ProxyUpdate {
+	_u.mutation.ClearNetworkStatus()
+	return _u
+}
+
+// SetNetworkCheckedAt sets the "network_checked_at" field.
+func (_u *ProxyUpdate) SetNetworkCheckedAt(v time.Time) *ProxyUpdate {
+	_u.mutation.SetNetworkCheckedAt(v)
+	return _u
+}
+
+// SetNillableNetworkCheckedAt sets the "network_checked_at" field if the given value is not nil.
+func (_u *ProxyUpdate) SetNillableNetworkCheckedAt(v *time.Time) *ProxyUpdate {
+	if v != nil {
+		_u.SetNetworkCheckedAt(*v)
+	}
+	return _u
+}
+
+// ClearNetworkCheckedAt clears the value of the "network_checked_at" field.
+func (_u *ProxyUpdate) ClearNetworkCheckedAt() *ProxyUpdate {
+	_u.mutation.ClearNetworkCheckedAt()
+	return _u
+}
+
+// SetNetworkErrorMessage sets the "network_error_message" field.
+func (_u *ProxyUpdate) SetNetworkErrorMessage(v string) *ProxyUpdate {
+	_u.mutation.SetNetworkErrorMessage(v)
+	return _u
+}
+
+// SetNillableNetworkErrorMessage sets the "network_error_message" field if the given value is not nil.
+func (_u *ProxyUpdate) SetNillableNetworkErrorMessage(v *string) *ProxyUpdate {
+	if v != nil {
+		_u.SetNetworkErrorMessage(*v)
+	}
+	return _u
+}
+
+// ClearNetworkErrorMessage clears the value of the "network_error_message" field.
+func (_u *ProxyUpdate) ClearNetworkErrorMessage() *ProxyUpdate {
+	_u.mutation.ClearNetworkErrorMessage()
+	return _u
+}
+
 // SetExitIP sets the "exit_ip" field.
 func (_u *ProxyUpdate) SetExitIP(v string) *ProxyUpdate {
 	_u.mutation.SetExitIP(v)
@@ -352,6 +412,11 @@ func (_u *ProxyUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Proxy.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.NetworkStatus(); ok {
+		if err := proxy.NetworkStatusValidator(v); err != nil {
+			return &ValidationError{Name: "network_status", err: fmt.Errorf(`ent: validator failed for field "Proxy.network_status": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ExitIP(); ok {
 		if err := proxy.ExitIPValidator(v); err != nil {
 			return &ValidationError{Name: "exit_ip", err: fmt.Errorf(`ent: validator failed for field "Proxy.exit_ip": %w`, err)}
@@ -416,6 +481,24 @@ func (_u *ProxyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(proxy.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.NetworkStatus(); ok {
+		_spec.SetField(proxy.FieldNetworkStatus, field.TypeString, value)
+	}
+	if _u.mutation.NetworkStatusCleared() {
+		_spec.ClearField(proxy.FieldNetworkStatus, field.TypeString)
+	}
+	if value, ok := _u.mutation.NetworkCheckedAt(); ok {
+		_spec.SetField(proxy.FieldNetworkCheckedAt, field.TypeTime, value)
+	}
+	if _u.mutation.NetworkCheckedAtCleared() {
+		_spec.ClearField(proxy.FieldNetworkCheckedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.NetworkErrorMessage(); ok {
+		_spec.SetField(proxy.FieldNetworkErrorMessage, field.TypeString, value)
+	}
+	if _u.mutation.NetworkErrorMessageCleared() {
+		_spec.ClearField(proxy.FieldNetworkErrorMessage, field.TypeString)
 	}
 	if value, ok := _u.mutation.ExitIP(); ok {
 		_spec.SetField(proxy.FieldExitIP, field.TypeString, value)
@@ -657,6 +740,66 @@ func (_u *ProxyUpdateOne) SetNillableStatus(v *string) *ProxyUpdateOne {
 	return _u
 }
 
+// SetNetworkStatus sets the "network_status" field.
+func (_u *ProxyUpdateOne) SetNetworkStatus(v string) *ProxyUpdateOne {
+	_u.mutation.SetNetworkStatus(v)
+	return _u
+}
+
+// SetNillableNetworkStatus sets the "network_status" field if the given value is not nil.
+func (_u *ProxyUpdateOne) SetNillableNetworkStatus(v *string) *ProxyUpdateOne {
+	if v != nil {
+		_u.SetNetworkStatus(*v)
+	}
+	return _u
+}
+
+// ClearNetworkStatus clears the value of the "network_status" field.
+func (_u *ProxyUpdateOne) ClearNetworkStatus() *ProxyUpdateOne {
+	_u.mutation.ClearNetworkStatus()
+	return _u
+}
+
+// SetNetworkCheckedAt sets the "network_checked_at" field.
+func (_u *ProxyUpdateOne) SetNetworkCheckedAt(v time.Time) *ProxyUpdateOne {
+	_u.mutation.SetNetworkCheckedAt(v)
+	return _u
+}
+
+// SetNillableNetworkCheckedAt sets the "network_checked_at" field if the given value is not nil.
+func (_u *ProxyUpdateOne) SetNillableNetworkCheckedAt(v *time.Time) *ProxyUpdateOne {
+	if v != nil {
+		_u.SetNetworkCheckedAt(*v)
+	}
+	return _u
+}
+
+// ClearNetworkCheckedAt clears the value of the "network_checked_at" field.
+func (_u *ProxyUpdateOne) ClearNetworkCheckedAt() *ProxyUpdateOne {
+	_u.mutation.ClearNetworkCheckedAt()
+	return _u
+}
+
+// SetNetworkErrorMessage sets the "network_error_message" field.
+func (_u *ProxyUpdateOne) SetNetworkErrorMessage(v string) *ProxyUpdateOne {
+	_u.mutation.SetNetworkErrorMessage(v)
+	return _u
+}
+
+// SetNillableNetworkErrorMessage sets the "network_error_message" field if the given value is not nil.
+func (_u *ProxyUpdateOne) SetNillableNetworkErrorMessage(v *string) *ProxyUpdateOne {
+	if v != nil {
+		_u.SetNetworkErrorMessage(*v)
+	}
+	return _u
+}
+
+// ClearNetworkErrorMessage clears the value of the "network_error_message" field.
+func (_u *ProxyUpdateOne) ClearNetworkErrorMessage() *ProxyUpdateOne {
+	_u.mutation.ClearNetworkErrorMessage()
+	return _u
+}
+
 // SetExitIP sets the "exit_ip" field.
 func (_u *ProxyUpdateOne) SetExitIP(v string) *ProxyUpdateOne {
 	_u.mutation.SetExitIP(v)
@@ -830,6 +973,11 @@ func (_u *ProxyUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Proxy.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.NetworkStatus(); ok {
+		if err := proxy.NetworkStatusValidator(v); err != nil {
+			return &ValidationError{Name: "network_status", err: fmt.Errorf(`ent: validator failed for field "Proxy.network_status": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ExitIP(); ok {
 		if err := proxy.ExitIPValidator(v); err != nil {
 			return &ValidationError{Name: "exit_ip", err: fmt.Errorf(`ent: validator failed for field "Proxy.exit_ip": %w`, err)}
@@ -911,6 +1059,24 @@ func (_u *ProxyUpdateOne) sqlSave(ctx context.Context) (_node *Proxy, err error)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(proxy.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.NetworkStatus(); ok {
+		_spec.SetField(proxy.FieldNetworkStatus, field.TypeString, value)
+	}
+	if _u.mutation.NetworkStatusCleared() {
+		_spec.ClearField(proxy.FieldNetworkStatus, field.TypeString)
+	}
+	if value, ok := _u.mutation.NetworkCheckedAt(); ok {
+		_spec.SetField(proxy.FieldNetworkCheckedAt, field.TypeTime, value)
+	}
+	if _u.mutation.NetworkCheckedAtCleared() {
+		_spec.ClearField(proxy.FieldNetworkCheckedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.NetworkErrorMessage(); ok {
+		_spec.SetField(proxy.FieldNetworkErrorMessage, field.TypeString, value)
+	}
+	if _u.mutation.NetworkErrorMessageCleared() {
+		_spec.ClearField(proxy.FieldNetworkErrorMessage, field.TypeString)
 	}
 	if value, ok := _u.mutation.ExitIP(); ok {
 		_spec.SetField(proxy.FieldExitIP, field.TypeString, value)

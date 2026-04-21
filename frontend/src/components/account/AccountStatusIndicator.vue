@@ -1,5 +1,12 @@
 <template>
   <div class="flex items-center gap-2">
+    <span
+      v-if="networkStatusText"
+      :class="['badge text-xs', props.account.network_status === 'online' ? 'badge-success' : 'badge-danger']"
+    >
+      {{ networkStatusText }}
+    </span>
+
     <!-- Rate Limit Display (429) - Two-line layout -->
     <div v-if="isRateLimited" class="flex flex-col items-center gap-1">
       <span class="badge text-xs badge-warning">{{ t('admin.accounts.status.rateLimited') }}</span>
@@ -297,6 +304,16 @@ const rateLimitResumeText = computed(() => {
 // Computed: countdown text for overload (529)
 const overloadCountdown = computed(() => {
   return formatCountdownWithSuffix(props.account.overload_until)
+})
+
+const networkStatusText = computed(() => {
+  if (props.account.network_status === 'online') {
+    return t('admin.accounts.networkStatus.online')
+  }
+  if (props.account.network_status === 'offline') {
+    return t('admin.accounts.networkStatus.offline')
+  }
+  return ''
 })
 
 // Computed: status badge class

@@ -70,7 +70,7 @@ func (r *crsSyncTestAccountRepo) Delete(context.Context, int64) error { panic("u
 func (r *crsSyncTestAccountRepo) List(context.Context, pagination.PaginationParams) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected")
 }
-func (r *crsSyncTestAccountRepo) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string, string, int64, string) ([]Account, *pagination.PaginationResult, error) {
+func (r *crsSyncTestAccountRepo) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string, string, int64, string, string) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected")
 }
 func (r *crsSyncTestAccountRepo) ListByGroup(context.Context, int64) ([]Account, error) {
@@ -134,6 +134,21 @@ func (r *crsSyncTestAccountRepo) SetTempUnschedulable(context.Context, int64, ti
 	panic("unexpected")
 }
 func (r *crsSyncTestAccountRepo) ClearTempUnschedulable(context.Context, int64) error {
+	panic("unexpected")
+}
+func (r *crsSyncTestAccountRepo) PauseAccountsByProxyNetwork(context.Context, int64) ([]int64, error) {
+	panic("unexpected")
+}
+func (r *crsSyncTestAccountRepo) ResumeAccountsByProxyNetwork(context.Context, int64) ([]int64, error) {
+	panic("unexpected")
+}
+func (r *crsSyncTestAccountRepo) PauseAccountByNetwork(context.Context, int64) (bool, error) {
+	panic("unexpected")
+}
+func (r *crsSyncTestAccountRepo) RestoreAccountFromNetworkPause(context.Context, int64) (bool, error) {
+	panic("unexpected")
+}
+func (r *crsSyncTestAccountRepo) ClearNetworkAutoPause(context.Context, int64) error {
 	panic("unexpected")
 }
 func (r *crsSyncTestAccountRepo) ClearRateLimit(context.Context, int64) error {

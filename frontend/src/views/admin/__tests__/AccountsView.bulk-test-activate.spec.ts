@@ -46,6 +46,7 @@ const tableParams = reactive({
   type: '',
   status: '',
   privacy_mode: '',
+  network_status: '',
   group: '',
   search: '',
   sort_by: 'name',

@@ -1067,7 +1067,7 @@ func (s *stubAccountRepo) List(ctx context.Context, params pagination.Pagination
 	return nil, nil, errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]service.Account, *pagination.PaginationResult, error) {
+func (s *stubAccountRepo) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus string) ([]service.Account, *pagination.PaginationResult, error) {
 	return nil, nil, errors.New("not implemented")
 }
 
@@ -1160,6 +1160,26 @@ func (s *stubAccountRepo) SetTempUnschedulable(ctx context.Context, id int64, un
 }
 
 func (s *stubAccountRepo) ClearTempUnschedulable(ctx context.Context, id int64) error {
+	return errors.New("not implemented")
+}
+
+func (s *stubAccountRepo) PauseAccountsByProxyNetwork(ctx context.Context, proxyID int64) ([]int64, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (s *stubAccountRepo) ResumeAccountsByProxyNetwork(ctx context.Context, proxyID int64) ([]int64, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (s *stubAccountRepo) PauseAccountByNetwork(ctx context.Context, accountID int64) (bool, error) {
+	return false, errors.New("not implemented")
+}
+
+func (s *stubAccountRepo) RestoreAccountFromNetworkPause(ctx context.Context, accountID int64) (bool, error) {
+	return false, errors.New("not implemented")
+}
+
+func (s *stubAccountRepo) ClearNetworkAutoPause(ctx context.Context, accountID int64) error {
 	return errors.New("not implemented")
 }
 

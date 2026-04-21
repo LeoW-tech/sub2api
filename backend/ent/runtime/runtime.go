@@ -239,8 +239,12 @@ func init() {
 	accountDescSchedulable := accountFields[16].Descriptor()
 	// account.DefaultSchedulable holds the default value on creation for the schedulable field.
 	account.DefaultSchedulable = accountDescSchedulable.Default.(bool)
+	// accountDescNetworkAutoPaused is the schema descriptor for network_auto_paused field.
+	accountDescNetworkAutoPaused := accountFields[17].Descriptor()
+	// account.DefaultNetworkAutoPaused holds the default value on creation for the network_auto_paused field.
+	account.DefaultNetworkAutoPaused = accountDescNetworkAutoPaused.Default.(bool)
 	// accountDescSessionWindowStatus is the schema descriptor for session_window_status field.
-	accountDescSessionWindowStatus := accountFields[24].Descriptor()
+	accountDescSessionWindowStatus := accountFields[25].Descriptor()
 	// account.SessionWindowStatusValidator is a validator for the "session_window_status" field. It is called by the builders before save.
 	account.SessionWindowStatusValidator = accountDescSessionWindowStatus.Validators[0].(func(string) error)
 	accountgroupFields := schema.AccountGroup{}.Fields()
@@ -827,8 +831,12 @@ func init() {
 	proxy.DefaultStatus = proxyDescStatus.Default.(string)
 	// proxy.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	proxy.StatusValidator = proxyDescStatus.Validators[0].(func(string) error)
+	// proxyDescNetworkStatus is the schema descriptor for network_status field.
+	proxyDescNetworkStatus := proxyFields[8].Descriptor()
+	// proxy.NetworkStatusValidator is a validator for the "network_status" field. It is called by the builders before save.
+	proxy.NetworkStatusValidator = proxyDescNetworkStatus.Validators[0].(func(string) error)
 	// proxyDescExitIP is the schema descriptor for exit_ip field.
-	proxyDescExitIP := proxyFields[8].Descriptor()
+	proxyDescExitIP := proxyFields[11].Descriptor()
 	// proxy.ExitIPValidator is a validator for the "exit_ip" field. It is called by the builders before save.
 	proxy.ExitIPValidator = proxyDescExitIP.Validators[0].(func(string) error)
 	redeemcodeFields := schema.RedeemCode{}.Fields()

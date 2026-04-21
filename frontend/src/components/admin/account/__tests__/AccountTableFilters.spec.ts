@@ -52,6 +52,7 @@ describe('AccountTableFilters', () => {
           type: '',
           status: '',
           privacy_mode: '',
+          network_status: '',
           group: ''
         },
         groups: []
@@ -83,6 +84,7 @@ describe('AccountTableFilters', () => {
           type: '',
           status: '',
           privacy_mode: '',
+          network_status: '',
           group: ''
         },
         groups: []
@@ -108,10 +110,44 @@ describe('AccountTableFilters', () => {
           type: '',
           status: 'disabled',
           privacy_mode: '',
+          network_status: '',
           group: ''
         }
       ]
     ])
     expect(wrapper.emitted('change')).toHaveLength(1)
+  })
+
+  it('网络状态筛选项包含 online/offline', () => {
+    const wrapper = mount(AccountTableFilters, {
+      props: {
+        searchQuery: '',
+        filters: {
+          platform: '',
+          type: '',
+          status: '',
+          privacy_mode: '',
+          network_status: '',
+          group: ''
+        },
+        groups: []
+      },
+      global: {
+        stubs: {
+          Select: SelectStub,
+          SearchInput: SearchInputStub
+        }
+      }
+    })
+
+    const selects = wrapper.findAllComponents(SelectStub)
+    const networkOptions = selects[4]?.props('options') as Array<{ value: string; label: string }>
+
+    expect(networkOptions).toEqual(
+      expect.arrayContaining([
+        { value: 'online', label: 'admin.accounts.networkStatus.online' },
+        { value: 'offline', label: 'admin.accounts.networkStatus.offline' }
+      ])
+    )
   })
 })

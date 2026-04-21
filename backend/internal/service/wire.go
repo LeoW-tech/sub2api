@@ -340,6 +340,12 @@ func ProvideScheduledTestRunnerService(
 	return svc
 }
 
+func ProvideProxyNetworkMonitorService(adminService AdminService, proxyRepo ProxyRepository) *ProxyNetworkMonitorService {
+	svc := NewProxyNetworkMonitorService(adminService, proxyRepo)
+	svc.Start()
+	return svc
+}
+
 func ProvideAccountInitialProbeService(
 	repo AccountInitialProbeTaskRepository,
 	accountRepo AccountRepository,
@@ -535,6 +541,7 @@ var ProviderSet = wire.NewSet(
 	ProvideIdempotencyCleanupService,
 	ProvideScheduledTestService,
 	ProvideScheduledTestRunnerService,
+	ProvideProxyNetworkMonitorService,
 	NewGroupCapacityService,
 	NewChannelService,
 	NewModelPricingResolver,

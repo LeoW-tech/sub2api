@@ -40,6 +40,9 @@ func (r *proxyRepository) Create(ctx context.Context, proxyIn *service.Proxy) er
 		SetHost(proxyIn.Host).
 		SetPort(proxyIn.Port).
 		SetStatus(proxyIn.Status).
+		SetNillableNetworkStatus(nullableString(proxyIn.NetworkStatus)).
+		SetNillableNetworkCheckedAt(proxyIn.NetworkCheckedAt).
+		SetNillableNetworkErrorMessage(nullableString(proxyIn.NetworkErrorMessage)).
 		SetNillableExitIP(nullableString(proxyIn.ExitIP)).
 		SetNillableExitIPCheckedAt(proxyIn.ExitIPCheckedAt)
 	if proxyIn.Username != "" {
@@ -94,6 +97,9 @@ func (r *proxyRepository) Update(ctx context.Context, proxyIn *service.Proxy) er
 		SetHost(proxyIn.Host).
 		SetPort(proxyIn.Port).
 		SetStatus(proxyIn.Status).
+		SetNillableNetworkStatus(nullableString(proxyIn.NetworkStatus)).
+		SetNillableNetworkCheckedAt(proxyIn.NetworkCheckedAt).
+		SetNillableNetworkErrorMessage(nullableString(proxyIn.NetworkErrorMessage)).
 		SetNillableExitIP(nullableString(proxyIn.ExitIP)).
 		SetNillableExitIPCheckedAt(proxyIn.ExitIPCheckedAt)
 	if proxyIn.Username != "" {
@@ -423,15 +429,16 @@ func proxyEntityToService(m *dbent.Proxy) *service.Proxy {
 		return nil
 	}
 	out := &service.Proxy{
-		ID:              m.ID,
-		Name:            m.Name,
-		Protocol:        m.Protocol,
-		Host:            m.Host,
-		Port:            m.Port,
-		Status:          m.Status,
-		CreatedAt:       m.CreatedAt,
-		UpdatedAt:       m.UpdatedAt,
-		ExitIPCheckedAt: m.ExitIPCheckedAt,
+		ID:               m.ID,
+		Name:             m.Name,
+		Protocol:         m.Protocol,
+		Host:             m.Host,
+		Port:             m.Port,
+		Status:           m.Status,
+		NetworkCheckedAt: m.NetworkCheckedAt,
+		CreatedAt:        m.CreatedAt,
+		UpdatedAt:        m.UpdatedAt,
+		ExitIPCheckedAt:  m.ExitIPCheckedAt,
 	}
 	if m.ExternalKey != nil {
 		out.ExternalKey = *m.ExternalKey
@@ -445,6 +452,12 @@ func proxyEntityToService(m *dbent.Proxy) *service.Proxy {
 	if m.ExitIP != nil {
 		out.ExitIP = *m.ExitIP
 	}
+	if m.NetworkStatus != nil {
+		out.NetworkStatus = *m.NetworkStatus
+	}
+	if m.NetworkErrorMessage != nil {
+		out.NetworkErrorMessage = *m.NetworkErrorMessage
+	}
 	return out
 }
 
@@ -455,7 +468,18 @@ func applyProxyEntityToService(dst *service.Proxy, src *dbent.Proxy) {
 	dst.ID = src.ID
 	dst.CreatedAt = src.CreatedAt
 	dst.UpdatedAt = src.UpdatedAt
+	dst.NetworkCheckedAt = src.NetworkCheckedAt
 	dst.ExitIPCheckedAt = src.ExitIPCheckedAt
+	if src.NetworkStatus != nil {
+		dst.NetworkStatus = *src.NetworkStatus
+	} else {
+		dst.NetworkStatus = ""
+	}
+	if src.NetworkErrorMessage != nil {
+		dst.NetworkErrorMessage = *src.NetworkErrorMessage
+	} else {
+		dst.NetworkErrorMessage = ""
+	}
 }
 
 func nullableString(v string) *string {

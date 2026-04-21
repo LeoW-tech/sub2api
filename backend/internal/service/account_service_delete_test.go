@@ -79,7 +79,7 @@ func (s *accountRepoStub) List(ctx context.Context, params pagination.Pagination
 	panic("unexpected List call")
 }
 
-func (s *accountRepoStub) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]Account, *pagination.PaginationResult, error) {
+func (s *accountRepoStub) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus string) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected ListWithFilters call")
 }
 
@@ -173,6 +173,26 @@ func (s *accountRepoStub) SetTempUnschedulable(ctx context.Context, id int64, un
 
 func (s *accountRepoStub) ClearTempUnschedulable(ctx context.Context, id int64) error {
 	panic("unexpected ClearTempUnschedulable call")
+}
+
+func (s *accountRepoStub) PauseAccountsByProxyNetwork(ctx context.Context, proxyID int64) ([]int64, error) {
+	panic("unexpected PauseAccountsByProxyNetwork call")
+}
+
+func (s *accountRepoStub) ResumeAccountsByProxyNetwork(ctx context.Context, proxyID int64) ([]int64, error) {
+	panic("unexpected ResumeAccountsByProxyNetwork call")
+}
+
+func (s *accountRepoStub) PauseAccountByNetwork(ctx context.Context, accountID int64) (bool, error) {
+	panic("unexpected PauseAccountByNetwork call")
+}
+
+func (s *accountRepoStub) RestoreAccountFromNetworkPause(ctx context.Context, accountID int64) (bool, error) {
+	panic("unexpected RestoreAccountFromNetworkPause call")
+}
+
+func (s *accountRepoStub) ClearNetworkAutoPause(ctx context.Context, accountID int64) error {
+	panic("unexpected ClearNetworkAutoPause call")
 }
 
 func (s *accountRepoStub) ClearRateLimit(ctx context.Context, id int64) error {

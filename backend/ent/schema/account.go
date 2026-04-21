@@ -145,6 +145,11 @@ func (Account) Fields() []ent.Field {
 		field.Bool("schedulable").
 			Default(true),
 
+		// network_auto_paused: 是否因代理网络异常被系统自动暂停调度
+		// 用于区分用户手动关闭调度与系统因“没有网络”自动关闭调度
+		field.Bool("network_auto_paused").
+			Default(false),
+
 		// rate_limited_at: 触发速率限制的时间
 		// 当收到 429 错误时记录
 		field.Time("rate_limited_at").
@@ -225,6 +230,7 @@ func (Account) Indexes() []ent.Index {
 		index.Fields("priority"),            // 按优先级排序
 		index.Fields("last_used_at"),        // 按最后使用时间排序
 		index.Fields("schedulable"),         // 筛选可调度账户
+		index.Fields("network_auto_paused"), // 筛选网络自动暂停账户
 		index.Fields("rate_limited_at"),     // 筛选速率限制账户
 		index.Fields("rate_limit_reset_at"), // 筛选速率限制解除时间
 		index.Fields("overload_until"),      // 筛选过载账户

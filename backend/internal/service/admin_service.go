@@ -55,7 +55,7 @@ type AdminService interface {
 	ReplaceUserGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (*ReplaceUserGroupResult, error)
 
 	// Account management
-	ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode string, sortBy, sortOrder string) ([]Account, int64, error)
+	ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus string, sortBy, sortOrder string) ([]Account, int64, error)
 	GetAccount(ctx context.Context, id int64) (*Account, error)
 	GetAccountsByIDs(ctx context.Context, ids []int64) ([]*Account, error)
 	CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error)
@@ -1478,9 +1478,9 @@ func (s *adminServiceImpl) ReplaceUserGroup(ctx context.Context, userID, oldGrou
 }
 
 // Account management implementations
-func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode string, sortBy, sortOrder string) ([]Account, int64, error) {
+func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
-	accounts, result, err := s.accountRepo.ListWithFilters(ctx, params, platform, accountType, status, search, groupID, privacyMode)
+	accounts, result, err := s.accountRepo.ListWithFilters(ctx, params, platform, accountType, status, search, groupID, privacyMode, networkStatus)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -1620,6 +1620,7 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		return nil, err
 	}
 	wasOveragesEnabled := account.IsOveragesEnabled()
+	previousProxyID := account.ProxyID
 
 	if input.Name != "" {
 		account.Name = input.Name
@@ -1737,6 +1738,15 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	if err != nil {
 		return nil, err
 	}
+	if input.ProxyID != nil {
+		if err := s.reconcileAccountProxyNetwork(ctx, updated, previousProxyID); err != nil {
+			return nil, err
+		}
+		updated, err = s.accountRepo.GetByID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return updated, nil
 }
 
@@ -1853,6 +1863,18 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 		result.Success++
 		result.SuccessIDs = append(result.SuccessIDs, accountID)
 		result.Results = append(result.Results, entry)
+	}
+
+	if input.ProxyID != nil {
+		for _, accountID := range input.AccountIDs {
+			account, err := s.accountRepo.GetByID(ctx, accountID)
+			if err != nil {
+				return nil, err
+			}
+			if err := s.reconcileAccountProxyNetwork(ctx, account, nil); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	return result, nil
@@ -2174,6 +2196,9 @@ func (s *adminServiceImpl) TestProxy(ctx context.Context, id int64) (*ProxyTestR
 			Message:   err.Error(),
 			UpdatedAt: time.Now(),
 		})
+		if updateErr := s.applyProxyNetworkResult(ctx, proxy, nil, err); updateErr != nil {
+			return nil, updateErr
+		}
 		return &ProxyTestResult{
 			Success: false,
 			Message: err.Error(),
@@ -2192,6 +2217,9 @@ func (s *adminServiceImpl) TestProxy(ctx context.Context, id int64) (*ProxyTestR
 		City:        exitInfo.City,
 		UpdatedAt:   time.Now(),
 	})
+	if err := s.applyProxyNetworkResult(ctx, proxy, exitInfo, nil); err != nil {
+		return nil, err
+	}
 	return &ProxyTestResult{
 		Success:     true,
 		Message:     "Proxy is accessible",
@@ -2202,6 +2230,73 @@ func (s *adminServiceImpl) TestProxy(ctx context.Context, id int64) (*ProxyTestR
 		Country:     exitInfo.Country,
 		CountryCode: exitInfo.CountryCode,
 	}, nil
+}
+
+func (s *adminServiceImpl) applyProxyNetworkResult(ctx context.Context, proxy *Proxy, exitInfo *ProxyExitInfo, probeErr error) error {
+	if proxy == nil {
+		return nil
+	}
+
+	now := time.Now().UTC()
+	if probeErr != nil {
+		proxy.NetworkStatus = ProxyNetworkStatusOffline
+		proxy.NetworkCheckedAt = &now
+		proxy.NetworkErrorMessage = probeErr.Error()
+		if err := s.proxyRepo.Update(ctx, proxy); err != nil {
+			return err
+		}
+		_, err := s.accountRepo.PauseAccountsByProxyNetwork(ctx, proxy.ID)
+		return err
+	}
+
+	proxy.NetworkStatus = ProxyNetworkStatusOnline
+	proxy.NetworkCheckedAt = &now
+	proxy.NetworkErrorMessage = ""
+	if exitInfo != nil {
+		proxy.ExitIP = exitInfo.IP
+		proxy.ExitIPCheckedAt = &now
+	}
+	if err := s.proxyRepo.Update(ctx, proxy); err != nil {
+		return err
+	}
+	_, err := s.accountRepo.ResumeAccountsByProxyNetwork(ctx, proxy.ID)
+	return err
+}
+
+func (s *adminServiceImpl) reconcileAccountProxyNetwork(ctx context.Context, account *Account, _ *int64) error {
+	if account == nil {
+		return nil
+	}
+
+	if account.ProxyID == nil {
+		return s.reconcileAccountWithoutProxy(ctx, account)
+	}
+
+	proxy, err := s.proxyRepo.GetByID(ctx, *account.ProxyID)
+	if err != nil {
+		return err
+	}
+	if proxy.NetworkStatus == ProxyNetworkStatusOffline {
+		_, err := s.accountRepo.PauseAccountByNetwork(ctx, account.ID)
+		return err
+	}
+
+	if account.NetworkAutoPaused {
+		_, err := s.accountRepo.RestoreAccountFromNetworkPause(ctx, account.ID)
+		return err
+	}
+	return s.accountRepo.ClearNetworkAutoPause(ctx, account.ID)
+}
+
+func (s *adminServiceImpl) reconcileAccountWithoutProxy(ctx context.Context, account *Account) error {
+	if account == nil {
+		return nil
+	}
+	if account.NetworkAutoPaused {
+		_, err := s.accountRepo.RestoreAccountFromNetworkPause(ctx, account.ID)
+		return err
+	}
+	return s.accountRepo.ClearNetworkAutoPause(ctx, account.ID)
 }
 
 func (s *adminServiceImpl) CheckProxyQuality(ctx context.Context, id int64) (*ProxyQualityCheckResult, error) {

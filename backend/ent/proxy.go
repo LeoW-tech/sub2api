@@ -39,6 +39,12 @@ type Proxy struct {
 	Password *string `json:"password,omitempty"`
 	// Status holds the value of the "status" field.
 	Status string `json:"status,omitempty"`
+	// NetworkStatus holds the value of the "network_status" field.
+	NetworkStatus *string `json:"network_status,omitempty"`
+	// NetworkCheckedAt holds the value of the "network_checked_at" field.
+	NetworkCheckedAt *time.Time `json:"network_checked_at,omitempty"`
+	// NetworkErrorMessage holds the value of the "network_error_message" field.
+	NetworkErrorMessage *string `json:"network_error_message,omitempty"`
 	// ExitIP holds the value of the "exit_ip" field.
 	ExitIP *string `json:"exit_ip,omitempty"`
 	// ExitIPCheckedAt holds the value of the "exit_ip_checked_at" field.
@@ -74,9 +80,9 @@ func (*Proxy) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case proxy.FieldID, proxy.FieldPort:
 			values[i] = new(sql.NullInt64)
-		case proxy.FieldName, proxy.FieldExternalKey, proxy.FieldProtocol, proxy.FieldHost, proxy.FieldUsername, proxy.FieldPassword, proxy.FieldStatus, proxy.FieldExitIP:
+		case proxy.FieldName, proxy.FieldExternalKey, proxy.FieldProtocol, proxy.FieldHost, proxy.FieldUsername, proxy.FieldPassword, proxy.FieldStatus, proxy.FieldNetworkStatus, proxy.FieldNetworkErrorMessage, proxy.FieldExitIP:
 			values[i] = new(sql.NullString)
-		case proxy.FieldCreatedAt, proxy.FieldUpdatedAt, proxy.FieldDeletedAt, proxy.FieldExitIPCheckedAt:
+		case proxy.FieldCreatedAt, proxy.FieldUpdatedAt, proxy.FieldDeletedAt, proxy.FieldNetworkCheckedAt, proxy.FieldExitIPCheckedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -168,6 +174,27 @@ func (_m *Proxy) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = value.String
+			}
+		case proxy.FieldNetworkStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field network_status", values[i])
+			} else if value.Valid {
+				_m.NetworkStatus = new(string)
+				*_m.NetworkStatus = value.String
+			}
+		case proxy.FieldNetworkCheckedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field network_checked_at", values[i])
+			} else if value.Valid {
+				_m.NetworkCheckedAt = new(time.Time)
+				*_m.NetworkCheckedAt = value.Time
+			}
+		case proxy.FieldNetworkErrorMessage:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field network_error_message", values[i])
+			} else if value.Valid {
+				_m.NetworkErrorMessage = new(string)
+				*_m.NetworkErrorMessage = value.String
 			}
 		case proxy.FieldExitIP:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -264,6 +291,21 @@ func (_m *Proxy) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
+	builder.WriteString(", ")
+	if v := _m.NetworkStatus; v != nil {
+		builder.WriteString("network_status=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.NetworkCheckedAt; v != nil {
+		builder.WriteString("network_checked_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.NetworkErrorMessage; v != nil {
+		builder.WriteString("network_error_message=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	if v := _m.ExitIP; v != nil {
 		builder.WriteString("exit_ip=")

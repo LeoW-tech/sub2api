@@ -212,6 +212,7 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 		CreatedAt:               a.CreatedAt,
 		UpdatedAt:               a.UpdatedAt,
 		Schedulable:             a.Schedulable,
+		NetworkStatus:           a.NetworkStatus,
 		RateLimitedAt:           a.RateLimitedAt,
 		RateLimitResetAt:        a.RateLimitResetAt,
 		OverloadUntil:           a.OverloadUntil,
@@ -401,18 +402,21 @@ func ProxyFromService(p *service.Proxy) *Proxy {
 		return nil
 	}
 	return &Proxy{
-		ID:              p.ID,
-		Name:            p.Name,
-		ExternalKey:     p.ExternalKey,
-		Protocol:        p.Protocol,
-		Host:            p.Host,
-		Port:            p.Port,
-		Username:        p.Username,
-		Status:          p.Status,
-		ExitIP:          p.ExitIP,
-		ExitIPCheckedAt: p.ExitIPCheckedAt,
-		CreatedAt:       p.CreatedAt,
-		UpdatedAt:       p.UpdatedAt,
+		ID:                  p.ID,
+		Name:                p.Name,
+		ExternalKey:         p.ExternalKey,
+		Protocol:            p.Protocol,
+		Host:                p.Host,
+		Port:                p.Port,
+		Username:            p.Username,
+		Status:              p.Status,
+		NetworkStatus:       p.NetworkStatus,
+		NetworkCheckedAt:    p.NetworkCheckedAt,
+		NetworkErrorMessage: p.NetworkErrorMessage,
+		ExitIP:              p.ExitIP,
+		ExitIPCheckedAt:     p.ExitIPCheckedAt,
+		CreatedAt:           p.CreatedAt,
+		UpdatedAt:           p.UpdatedAt,
 	}
 }
 

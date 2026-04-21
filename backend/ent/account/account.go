@@ -55,6 +55,8 @@ const (
 	FieldAutoPauseOnExpired = "auto_pause_on_expired"
 	// FieldSchedulable holds the string denoting the schedulable field in the database.
 	FieldSchedulable = "schedulable"
+	// FieldNetworkAutoPaused holds the string denoting the network_auto_paused field in the database.
+	FieldNetworkAutoPaused = "network_auto_paused"
 	// FieldRateLimitedAt holds the string denoting the rate_limited_at field in the database.
 	FieldRateLimitedAt = "rate_limited_at"
 	// FieldRateLimitResetAt holds the string denoting the rate_limit_reset_at field in the database.
@@ -132,6 +134,7 @@ var Columns = []string{
 	FieldExpiresAt,
 	FieldAutoPauseOnExpired,
 	FieldSchedulable,
+	FieldNetworkAutoPaused,
 	FieldRateLimitedAt,
 	FieldRateLimitResetAt,
 	FieldOverloadUntil,
@@ -196,6 +199,8 @@ var (
 	DefaultAutoPauseOnExpired bool
 	// DefaultSchedulable holds the default value on creation for the "schedulable" field.
 	DefaultSchedulable bool
+	// DefaultNetworkAutoPaused holds the default value on creation for the "network_auto_paused" field.
+	DefaultNetworkAutoPaused bool
 	// SessionWindowStatusValidator is a validator for the "session_window_status" field. It is called by the builders before save.
 	SessionWindowStatusValidator func(string) error
 )
@@ -296,6 +301,11 @@ func ByAutoPauseOnExpired(opts ...sql.OrderTermOption) OrderOption {
 // BySchedulable orders the results by the schedulable field.
 func BySchedulable(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSchedulable, opts...).ToFunc()
+}
+
+// ByNetworkAutoPaused orders the results by the network_auto_paused field.
+func ByNetworkAutoPaused(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNetworkAutoPaused, opts...).ToFunc()
 }
 
 // ByRateLimitedAt orders the results by the rate_limited_at field.

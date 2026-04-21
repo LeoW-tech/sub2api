@@ -231,6 +231,19 @@
               :manual-refresh-token="usageManualRefreshToken"
             />
           </template>
+          <template #cell-network_status="{ row }">
+            <span
+              v-if="row.network_status"
+              :class="['badge text-xs', row.network_status === 'online' ? 'badge-success' : 'badge-danger']"
+            >
+              {{
+                row.network_status === 'online'
+                  ? t('admin.accounts.networkStatus.online')
+                  : t('admin.accounts.networkStatus.offline')
+              }}
+            </span>
+            <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
+          </template>
           <template #cell-proxy="{ row }">
             <div v-if="row.proxy" class="flex items-center gap-2">
               <span class="text-sm text-gray-700 dark:text-gray-300">{{ row.proxy.name }}</span>
@@ -644,6 +657,7 @@ const {
     type: '',
     status: '',
     privacy_mode: '',
+    network_status: '',
     group: '',
     search: '',
     sort_by: sortState.sort_by,
@@ -964,6 +978,7 @@ const allColumns = computed(() => {
   }
   c.push(
     { key: 'usage', label: t('admin.accounts.columns.usageWindows'), sortable: false },
+    { key: 'network_status', label: t('admin.accounts.columns.networkStatus'), sortable: false },
     { key: 'proxy', label: t('admin.accounts.columns.proxy'), sortable: false },
     { key: 'priority', label: t('admin.accounts.columns.priority'), sortable: true },
     { key: 'rate_multiplier', label: t('admin.accounts.columns.billingRateMultiplier'), sortable: true },
@@ -1329,6 +1344,7 @@ const buildAccountQueryFilters = () => ({
   status: params.status || '',
   group: params.group || '',
   privacy_mode: params.privacy_mode || '',
+  network_status: params.network_status || '',
   search: params.search || '',
   sort_by: sortState.sort_by,
   sort_order: sortState.sort_order
@@ -1371,6 +1387,9 @@ const accountMatchesCurrentFilters = (account: Account) => {
     } else if (privacyMode !== filters.privacy_mode) {
       return false
     }
+  }
+  if (filters.network_status) {
+    if (account.network_status !== filters.network_status) return false
   }
   const search = String(filters.search || '').trim().toLowerCase()
   if (search && !account.name.toLowerCase().includes(search)) return false

@@ -577,6 +577,9 @@ export interface Proxy {
   username: string | null
   password?: string | null
   status: 'active' | 'inactive'
+  network_status?: 'online' | 'offline' | null
+  network_checked_at?: string | null
+  network_error_message?: string | null
   exit_ip?: string | null
   exit_ip_checked_at?: string | null
   account_count?: number // Number of accounts using this proxy
@@ -705,6 +708,7 @@ export interface Account {
   auto_pause_on_expired: boolean
   created_at: string
   updated_at: string
+  network_status?: 'online' | 'offline' | null
   proxy?: Proxy
   group_ids?: number[] // Groups this account belongs to
   groups?: Group[] // Preloaded group objects

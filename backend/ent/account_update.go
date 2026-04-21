@@ -343,6 +343,20 @@ func (_u *AccountUpdate) SetNillableSchedulable(v *bool) *AccountUpdate {
 	return _u
 }
 
+// SetNetworkAutoPaused sets the "network_auto_paused" field.
+func (_u *AccountUpdate) SetNetworkAutoPaused(v bool) *AccountUpdate {
+	_u.mutation.SetNetworkAutoPaused(v)
+	return _u
+}
+
+// SetNillableNetworkAutoPaused sets the "network_auto_paused" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableNetworkAutoPaused(v *bool) *AccountUpdate {
+	if v != nil {
+		_u.SetNetworkAutoPaused(*v)
+	}
+	return _u
+}
+
 // SetRateLimitedAt sets the "rate_limited_at" field.
 func (_u *AccountUpdate) SetRateLimitedAt(v time.Time) *AccountUpdate {
 	_u.mutation.SetRateLimitedAt(v)
@@ -758,6 +772,9 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Schedulable(); ok {
 		_spec.SetField(account.FieldSchedulable, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.NetworkAutoPaused(); ok {
+		_spec.SetField(account.FieldNetworkAutoPaused, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.RateLimitedAt(); ok {
 		_spec.SetField(account.FieldRateLimitedAt, field.TypeTime, value)
@@ -1270,6 +1287,20 @@ func (_u *AccountUpdateOne) SetNillableSchedulable(v *bool) *AccountUpdateOne {
 	return _u
 }
 
+// SetNetworkAutoPaused sets the "network_auto_paused" field.
+func (_u *AccountUpdateOne) SetNetworkAutoPaused(v bool) *AccountUpdateOne {
+	_u.mutation.SetNetworkAutoPaused(v)
+	return _u
+}
+
+// SetNillableNetworkAutoPaused sets the "network_auto_paused" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableNetworkAutoPaused(v *bool) *AccountUpdateOne {
+	if v != nil {
+		_u.SetNetworkAutoPaused(*v)
+	}
+	return _u
+}
+
 // SetRateLimitedAt sets the "rate_limited_at" field.
 func (_u *AccountUpdateOne) SetRateLimitedAt(v time.Time) *AccountUpdateOne {
 	_u.mutation.SetRateLimitedAt(v)
@@ -1715,6 +1746,9 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 	}
 	if value, ok := _u.mutation.Schedulable(); ok {
 		_spec.SetField(account.FieldSchedulable, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.NetworkAutoPaused(); ok {
+		_spec.SetField(account.FieldNetworkAutoPaused, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.RateLimitedAt(); ok {
 		_spec.SetField(account.FieldRateLimitedAt, field.TypeTime, value)

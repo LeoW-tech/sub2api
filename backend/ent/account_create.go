@@ -265,6 +265,20 @@ func (_c *AccountCreate) SetNillableSchedulable(v *bool) *AccountCreate {
 	return _c
 }
 
+// SetNetworkAutoPaused sets the "network_auto_paused" field.
+func (_c *AccountCreate) SetNetworkAutoPaused(v bool) *AccountCreate {
+	_c.mutation.SetNetworkAutoPaused(v)
+	return _c
+}
+
+// SetNillableNetworkAutoPaused sets the "network_auto_paused" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableNetworkAutoPaused(v *bool) *AccountCreate {
+	if v != nil {
+		_c.SetNetworkAutoPaused(*v)
+	}
+	return _c
+}
+
 // SetRateLimitedAt sets the "rate_limited_at" field.
 func (_c *AccountCreate) SetRateLimitedAt(v time.Time) *AccountCreate {
 	_c.mutation.SetRateLimitedAt(v)
@@ -501,6 +515,10 @@ func (_c *AccountCreate) defaults() error {
 		v := account.DefaultSchedulable
 		_c.mutation.SetSchedulable(v)
 	}
+	if _, ok := _c.mutation.NetworkAutoPaused(); !ok {
+		v := account.DefaultNetworkAutoPaused
+		_c.mutation.SetNetworkAutoPaused(v)
+	}
 	return nil
 }
 
@@ -564,6 +582,9 @@ func (_c *AccountCreate) check() error {
 	}
 	if _, ok := _c.mutation.Schedulable(); !ok {
 		return &ValidationError{Name: "schedulable", err: errors.New(`ent: missing required field "Account.schedulable"`)}
+	}
+	if _, ok := _c.mutation.NetworkAutoPaused(); !ok {
+		return &ValidationError{Name: "network_auto_paused", err: errors.New(`ent: missing required field "Account.network_auto_paused"`)}
 	}
 	if v, ok := _c.mutation.SessionWindowStatus(); ok {
 		if err := account.SessionWindowStatusValidator(v); err != nil {
@@ -672,6 +693,10 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Schedulable(); ok {
 		_spec.SetField(account.FieldSchedulable, field.TypeBool, value)
 		_node.Schedulable = value
+	}
+	if value, ok := _c.mutation.NetworkAutoPaused(); ok {
+		_spec.SetField(account.FieldNetworkAutoPaused, field.TypeBool, value)
+		_node.NetworkAutoPaused = value
 	}
 	if value, ok := _c.mutation.RateLimitedAt(); ok {
 		_spec.SetField(account.FieldRateLimitedAt, field.TypeTime, value)
@@ -1101,6 +1126,18 @@ func (u *AccountUpsert) SetSchedulable(v bool) *AccountUpsert {
 // UpdateSchedulable sets the "schedulable" field to the value that was provided on create.
 func (u *AccountUpsert) UpdateSchedulable() *AccountUpsert {
 	u.SetExcluded(account.FieldSchedulable)
+	return u
+}
+
+// SetNetworkAutoPaused sets the "network_auto_paused" field.
+func (u *AccountUpsert) SetNetworkAutoPaused(v bool) *AccountUpsert {
+	u.Set(account.FieldNetworkAutoPaused, v)
+	return u
+}
+
+// UpdateNetworkAutoPaused sets the "network_auto_paused" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateNetworkAutoPaused() *AccountUpsert {
+	u.SetExcluded(account.FieldNetworkAutoPaused)
 	return u
 }
 
@@ -1633,6 +1670,20 @@ func (u *AccountUpsertOne) SetSchedulable(v bool) *AccountUpsertOne {
 func (u *AccountUpsertOne) UpdateSchedulable() *AccountUpsertOne {
 	return u.Update(func(s *AccountUpsert) {
 		s.UpdateSchedulable()
+	})
+}
+
+// SetNetworkAutoPaused sets the "network_auto_paused" field.
+func (u *AccountUpsertOne) SetNetworkAutoPaused(v bool) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetNetworkAutoPaused(v)
+	})
+}
+
+// UpdateNetworkAutoPaused sets the "network_auto_paused" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateNetworkAutoPaused() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateNetworkAutoPaused()
 	})
 }
 
@@ -2355,6 +2406,20 @@ func (u *AccountUpsertBulk) SetSchedulable(v bool) *AccountUpsertBulk {
 func (u *AccountUpsertBulk) UpdateSchedulable() *AccountUpsertBulk {
 	return u.Update(func(s *AccountUpsert) {
 		s.UpdateSchedulable()
+	})
+}
+
+// SetNetworkAutoPaused sets the "network_auto_paused" field.
+func (u *AccountUpsertBulk) SetNetworkAutoPaused(v bool) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetNetworkAutoPaused(v)
+	})
+}
+
+// UpdateNetworkAutoPaused sets the "network_auto_paused" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateNetworkAutoPaused() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateNetworkAutoPaused()
 	})
 }
 

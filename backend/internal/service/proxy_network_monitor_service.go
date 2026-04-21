@@ -1,0 +1,205 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+)
+
+const (
+	proxyNetworkMonitorInterval    = time.Hour
+	proxyNetworkMonitorPageSize    = 200
+	proxyNetworkMonitorConcurrency = 5
+)
+
+var ErrProxyNetworkScanRunning = errors.New("proxy network scan already running")
+
+type ProxyNetworkScanSummary struct {
+	StartedAt  time.Time
+	FinishedAt time.Time
+	Total      int
+	Online     int
+	Offline    int
+	Errors     int
+}
+
+type ProxyNetworkMonitorService struct {
+	adminService AdminService
+	proxyRepo    ProxyRepository
+
+	stopCh   chan struct{}
+	stopOnce sync.Once
+	wg       sync.WaitGroup
+
+	scanRunning atomic.Bool
+	lastSummary atomic.Pointer[ProxyNetworkScanSummary]
+}
+
+func NewProxyNetworkMonitorService(adminService AdminService, proxyRepo ProxyRepository) *ProxyNetworkMonitorService {
+	return &ProxyNetworkMonitorService{
+		adminService: adminService,
+		proxyRepo:    proxyRepo,
+		stopCh:       make(chan struct{}),
+	}
+}
+
+func (s *ProxyNetworkMonitorService) Start() {
+	if s == nil || s.adminService == nil || s.proxyRepo == nil {
+		return
+	}
+
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		s.runLoop()
+	}()
+}
+
+func (s *ProxyNetworkMonitorService) Stop() {
+	if s == nil {
+		return
+	}
+	s.stopOnce.Do(func() {
+		close(s.stopCh)
+	})
+	s.wg.Wait()
+}
+
+func (s *ProxyNetworkMonitorService) LastSummary() *ProxyNetworkScanSummary {
+	if s == nil {
+		return nil
+	}
+	return s.lastSummary.Load()
+}
+
+func (s *ProxyNetworkMonitorService) RunFullScan(ctx context.Context) (*ProxyNetworkScanSummary, error) {
+	if s == nil || s.adminService == nil || s.proxyRepo == nil {
+		return nil, nil
+	}
+	if !s.scanRunning.CompareAndSwap(false, true) {
+		return nil, ErrProxyNetworkScanRunning
+	}
+	defer s.scanRunning.Store(false)
+
+	summary := &ProxyNetworkScanSummary{
+		StartedAt: time.Now().UTC(),
+	}
+
+	proxies, err := s.listAllProxies(ctx)
+	if err != nil {
+		return nil, err
+	}
+	summary.Total = len(proxies)
+
+	var (
+		mu sync.Mutex
+		wg sync.WaitGroup
+	)
+	sem := make(chan struct{}, proxyNetworkMonitorConcurrency)
+
+	for _, proxy := range proxies {
+		proxyID := proxy.ID
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				mu.Lock()
+				summary.Errors++
+				mu.Unlock()
+				return
+			}
+			defer func() { <-sem }()
+
+			result, testErr := s.adminService.TestProxy(ctx, proxyID)
+
+			mu.Lock()
+			defer mu.Unlock()
+			if testErr != nil {
+				summary.Errors++
+				return
+			}
+			if result != nil && result.Success {
+				summary.Online++
+				return
+			}
+			summary.Offline++
+		}()
+	}
+
+	wg.Wait()
+
+	summary.FinishedAt = time.Now().UTC()
+	s.lastSummary.Store(summary)
+	slog.Info(
+		"proxy_network_monitor.full_scan_completed",
+		"started_at", summary.StartedAt,
+		"finished_at", summary.FinishedAt,
+		"total", summary.Total,
+		"online", summary.Online,
+		"offline", summary.Offline,
+		"errors", summary.Errors,
+	)
+	return summary, nil
+}
+
+func (s *ProxyNetworkMonitorService) runLoop() {
+	run := func(trigger string) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+		if _, err := s.RunFullScan(ctx); err != nil && !errors.Is(err, ErrProxyNetworkScanRunning) {
+			slog.Warn("proxy_network_monitor.full_scan_failed", "trigger", trigger, "error", err)
+		}
+	}
+
+	run("startup")
+
+	ticker := time.NewTicker(proxyNetworkMonitorInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			run("interval")
+		case <-s.stopCh:
+			return
+		}
+	}
+}
+
+func (s *ProxyNetworkMonitorService) listAllProxies(ctx context.Context) ([]Proxy, error) {
+	page := 1
+	out := make([]Proxy, 0, proxyNetworkMonitorPageSize)
+
+	for {
+		items, pageInfo, err := s.proxyRepo.List(ctx, pagination.PaginationParams{
+			Page:     page,
+			PageSize: proxyNetworkMonitorPageSize,
+			SortBy:   "id",
+			SortOrder: "desc",
+		})
+		if err != nil {
+			return nil, err
+		}
+		if len(items) == 0 {
+			break
+		}
+		out = append(out, items...)
+		if pageInfo != nil && int64(len(out)) >= pageInfo.Total {
+			break
+		}
+		if len(items) < proxyNetworkMonitorPageSize {
+			break
+		}
+		page++
+	}
+
+	return out, nil
+}

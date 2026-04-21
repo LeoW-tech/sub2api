@@ -110,6 +110,21 @@ func Status(v string) predicate.Proxy {
 	return predicate.Proxy(sql.FieldEQ(FieldStatus, v))
 }
 
+// NetworkStatus applies equality check predicate on the "network_status" field. It's identical to NetworkStatusEQ.
+func NetworkStatus(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldNetworkStatus, v))
+}
+
+// NetworkCheckedAt applies equality check predicate on the "network_checked_at" field. It's identical to NetworkCheckedAtEQ.
+func NetworkCheckedAt(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldNetworkCheckedAt, v))
+}
+
+// NetworkErrorMessage applies equality check predicate on the "network_error_message" field. It's identical to NetworkErrorMessageEQ.
+func NetworkErrorMessage(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldNetworkErrorMessage, v))
+}
+
 // ExitIP applies equality check predicate on the "exit_ip" field. It's identical to ExitIPEQ.
 func ExitIP(v string) predicate.Proxy {
 	return predicate.Proxy(sql.FieldEQ(FieldExitIP, v))
@@ -773,6 +788,206 @@ func StatusEqualFold(v string) predicate.Proxy {
 // StatusContainsFold applies the ContainsFold predicate on the "status" field.
 func StatusContainsFold(v string) predicate.Proxy {
 	return predicate.Proxy(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// NetworkStatusEQ applies the EQ predicate on the "network_status" field.
+func NetworkStatusEQ(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldNetworkStatus, v))
+}
+
+// NetworkStatusNEQ applies the NEQ predicate on the "network_status" field.
+func NetworkStatusNEQ(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNEQ(FieldNetworkStatus, v))
+}
+
+// NetworkStatusIn applies the In predicate on the "network_status" field.
+func NetworkStatusIn(vs ...string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldIn(FieldNetworkStatus, vs...))
+}
+
+// NetworkStatusNotIn applies the NotIn predicate on the "network_status" field.
+func NetworkStatusNotIn(vs ...string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotIn(FieldNetworkStatus, vs...))
+}
+
+// NetworkStatusGT applies the GT predicate on the "network_status" field.
+func NetworkStatusGT(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGT(FieldNetworkStatus, v))
+}
+
+// NetworkStatusGTE applies the GTE predicate on the "network_status" field.
+func NetworkStatusGTE(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGTE(FieldNetworkStatus, v))
+}
+
+// NetworkStatusLT applies the LT predicate on the "network_status" field.
+func NetworkStatusLT(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLT(FieldNetworkStatus, v))
+}
+
+// NetworkStatusLTE applies the LTE predicate on the "network_status" field.
+func NetworkStatusLTE(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLTE(FieldNetworkStatus, v))
+}
+
+// NetworkStatusContains applies the Contains predicate on the "network_status" field.
+func NetworkStatusContains(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldContains(FieldNetworkStatus, v))
+}
+
+// NetworkStatusHasPrefix applies the HasPrefix predicate on the "network_status" field.
+func NetworkStatusHasPrefix(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldHasPrefix(FieldNetworkStatus, v))
+}
+
+// NetworkStatusHasSuffix applies the HasSuffix predicate on the "network_status" field.
+func NetworkStatusHasSuffix(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldHasSuffix(FieldNetworkStatus, v))
+}
+
+// NetworkStatusIsNil applies the IsNil predicate on the "network_status" field.
+func NetworkStatusIsNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldIsNull(FieldNetworkStatus))
+}
+
+// NetworkStatusNotNil applies the NotNil predicate on the "network_status" field.
+func NetworkStatusNotNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotNull(FieldNetworkStatus))
+}
+
+// NetworkStatusEqualFold applies the EqualFold predicate on the "network_status" field.
+func NetworkStatusEqualFold(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEqualFold(FieldNetworkStatus, v))
+}
+
+// NetworkStatusContainsFold applies the ContainsFold predicate on the "network_status" field.
+func NetworkStatusContainsFold(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldContainsFold(FieldNetworkStatus, v))
+}
+
+// NetworkCheckedAtEQ applies the EQ predicate on the "network_checked_at" field.
+func NetworkCheckedAtEQ(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldNetworkCheckedAt, v))
+}
+
+// NetworkCheckedAtNEQ applies the NEQ predicate on the "network_checked_at" field.
+func NetworkCheckedAtNEQ(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNEQ(FieldNetworkCheckedAt, v))
+}
+
+// NetworkCheckedAtIn applies the In predicate on the "network_checked_at" field.
+func NetworkCheckedAtIn(vs ...time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldIn(FieldNetworkCheckedAt, vs...))
+}
+
+// NetworkCheckedAtNotIn applies the NotIn predicate on the "network_checked_at" field.
+func NetworkCheckedAtNotIn(vs ...time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotIn(FieldNetworkCheckedAt, vs...))
+}
+
+// NetworkCheckedAtGT applies the GT predicate on the "network_checked_at" field.
+func NetworkCheckedAtGT(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGT(FieldNetworkCheckedAt, v))
+}
+
+// NetworkCheckedAtGTE applies the GTE predicate on the "network_checked_at" field.
+func NetworkCheckedAtGTE(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGTE(FieldNetworkCheckedAt, v))
+}
+
+// NetworkCheckedAtLT applies the LT predicate on the "network_checked_at" field.
+func NetworkCheckedAtLT(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLT(FieldNetworkCheckedAt, v))
+}
+
+// NetworkCheckedAtLTE applies the LTE predicate on the "network_checked_at" field.
+func NetworkCheckedAtLTE(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLTE(FieldNetworkCheckedAt, v))
+}
+
+// NetworkCheckedAtIsNil applies the IsNil predicate on the "network_checked_at" field.
+func NetworkCheckedAtIsNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldIsNull(FieldNetworkCheckedAt))
+}
+
+// NetworkCheckedAtNotNil applies the NotNil predicate on the "network_checked_at" field.
+func NetworkCheckedAtNotNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotNull(FieldNetworkCheckedAt))
+}
+
+// NetworkErrorMessageEQ applies the EQ predicate on the "network_error_message" field.
+func NetworkErrorMessageEQ(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldNetworkErrorMessage, v))
+}
+
+// NetworkErrorMessageNEQ applies the NEQ predicate on the "network_error_message" field.
+func NetworkErrorMessageNEQ(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNEQ(FieldNetworkErrorMessage, v))
+}
+
+// NetworkErrorMessageIn applies the In predicate on the "network_error_message" field.
+func NetworkErrorMessageIn(vs ...string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldIn(FieldNetworkErrorMessage, vs...))
+}
+
+// NetworkErrorMessageNotIn applies the NotIn predicate on the "network_error_message" field.
+func NetworkErrorMessageNotIn(vs ...string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotIn(FieldNetworkErrorMessage, vs...))
+}
+
+// NetworkErrorMessageGT applies the GT predicate on the "network_error_message" field.
+func NetworkErrorMessageGT(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGT(FieldNetworkErrorMessage, v))
+}
+
+// NetworkErrorMessageGTE applies the GTE predicate on the "network_error_message" field.
+func NetworkErrorMessageGTE(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGTE(FieldNetworkErrorMessage, v))
+}
+
+// NetworkErrorMessageLT applies the LT predicate on the "network_error_message" field.
+func NetworkErrorMessageLT(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLT(FieldNetworkErrorMessage, v))
+}
+
+// NetworkErrorMessageLTE applies the LTE predicate on the "network_error_message" field.
+func NetworkErrorMessageLTE(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLTE(FieldNetworkErrorMessage, v))
+}
+
+// NetworkErrorMessageContains applies the Contains predicate on the "network_error_message" field.
+func NetworkErrorMessageContains(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldContains(FieldNetworkErrorMessage, v))
+}
+
+// NetworkErrorMessageHasPrefix applies the HasPrefix predicate on the "network_error_message" field.
+func NetworkErrorMessageHasPrefix(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldHasPrefix(FieldNetworkErrorMessage, v))
+}
+
+// NetworkErrorMessageHasSuffix applies the HasSuffix predicate on the "network_error_message" field.
+func NetworkErrorMessageHasSuffix(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldHasSuffix(FieldNetworkErrorMessage, v))
+}
+
+// NetworkErrorMessageIsNil applies the IsNil predicate on the "network_error_message" field.
+func NetworkErrorMessageIsNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldIsNull(FieldNetworkErrorMessage))
+}
+
+// NetworkErrorMessageNotNil applies the NotNil predicate on the "network_error_message" field.
+func NetworkErrorMessageNotNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotNull(FieldNetworkErrorMessage))
+}
+
+// NetworkErrorMessageEqualFold applies the EqualFold predicate on the "network_error_message" field.
+func NetworkErrorMessageEqualFold(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEqualFold(FieldNetworkErrorMessage, v))
+}
+
+// NetworkErrorMessageContainsFold applies the ContainsFold predicate on the "network_error_message" field.
+func NetworkErrorMessageContainsFold(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldContainsFold(FieldNetworkErrorMessage, v))
 }
 
 // ExitIPEQ applies the EQ predicate on the "exit_ip" field.
