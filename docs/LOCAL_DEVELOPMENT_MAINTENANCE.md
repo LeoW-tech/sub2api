@@ -1,13 +1,28 @@
 # 本地开发维护说明
 
+这份文档是对根目录 [`常用命令.md`](../常用命令.md) 的展开说明，重点解释双机运行、守护方式和同步流程，不重复列出所有命令变体。
+
+## 主机角色与路径矩阵
+
+- Linux：主运行面
+  - 当前仓库根目录：`/srv/sub2api/repo`
+  - 当前 runtime 根目录：`/srv/sub2api/runtime`
+  - 主要职责：稳定环境运行、systemd 托管、主同步提交
+- Mac：辅助运行面
+  - 仓库根目录：`/Users/meilinwang/Projects/sub2api`
+  - 主要职责：从 GitHub 拉取更新、开发验证、必要时本机运行、launchd 自动恢复
+
 ## 目录约定
 
-- macOS 默认仓库根目录为 `/Users/meilinwang/Projects/sub2api`
-- Linux 本地 runtime 默认仓库根目录为 `/srv/sub2api/repo`
-- 运行时数据全部收敛到 `runtime/`
+- 脚本会优先探测仓库内 `runtime/`
+- 如果仓库内没有有效 runtime，则自动退回仓库同级 `../runtime/`
+- 当前 Linux 实机现状：
+  - 仓库根目录：`/srv/sub2api/repo`
+  - runtime 根目录：`/srv/sub2api/runtime`
+- 运行时数据全部收敛到 runtime 根目录
 - `runtime/stable` 对应稳定环境，默认端口 `8080`
 - `runtime/dev` 对应开发环境，端口 `127.0.0.1:8081`
-- 默认运行时备份目录为 `runtime/backups/`，也可通过 `SUB2API_BACKUP_ROOT` 临时覆盖
+- 默认运行时备份目录为 `<runtime-root>/backups/`，也可通过 `SUB2API_BACKUP_ROOT` 临时覆盖
 
 默认访问约定：
 
@@ -58,7 +73,7 @@
 ./scripts/sub2api-local backup runtime
 ```
 
-`./scripts/sub2api-local backup runtime` 默认会把备份写到 `runtime/backups/<时间戳>/`，并同时备份当前用户目录下的 `com.sub2api.autostart.plist` 与 `com.sub2api.door-gateway.plist`（如果存在）。
+`./scripts/sub2api-local backup runtime` 默认会把备份写到当前 runtime 根目录下的 `backups/<时间戳>/`。在 Mac 上如果检测到 `LaunchAgents` 文件，也会一并备份 `com.sub2api.autostart.plist` 与 `com.sub2api.door-gateway.plist`。
 
 ## 日常重启命令
 
@@ -89,7 +104,54 @@
 
 ## 工作流
 
-### 设置登录后自动恢复
+### Linux 主运行面：systemd 托管
+
+如果你希望 Linux 在开机后自动恢复 `stable + door-gateway`，并让 `door-gateway` 在异常退出后自动拉起，使用：
+
+```bash
+sudo ./scripts/sub2api-local systemd install
+```
+
+安装动作会：
+
+- 渲染并安装 `/etc/systemd/system/sub2api-stable.service`
+- 渲染并安装 `/etc/systemd/system/sub2api-door-gateway.service`
+- 让 stable 栈统一通过仓库内 `scripts/sub2api-runtime-compose` 启动
+- 把当前 runtime 根目录显式写入 systemd 环境，避免仓库内外 runtime 路径漂移
+- 在 Linux 自动追加 `deploy/local/docker-compose.runtime.linux.yml`
+- 为 `sub2api` 容器注入 `host.docker.internal:host-gateway`
+- 先恢复 stable 栈，再按顺序拉起 `door-gateway`
+
+查看 Linux 守护状态：
+
+```bash
+./scripts/sub2api-local systemd status
+./scripts/sub2api-local stable status
+```
+
+重启 Linux 守护链路：
+
+```bash
+sudo ./scripts/sub2api-local systemd restart
+```
+
+`stable status` 会同时输出：
+
+- 当前平台使用的 compose 文件
+- `sub2api/postgres/redis` 容器状态
+- `sub2api` 与 `door-gateway` 的 health 结果
+- 容器内 `host.docker.internal` 的解析结果
+- Linux 上的 `sub2api-stable.service` / `sub2api-door-gateway.service` 状态
+
+预期恢复链路：
+
+- 宿主机重启后，systemd 先执行 `sub2api-stable.service`，再启动 `sub2api-door-gateway.service`
+- Docker 服务恢复后，可执行 `sudo ./scripts/sub2api-local systemd restart` 重新串起 stable 和 `door-gateway`
+- `door-gateway` 进程异常退出后，systemd 会按 `Restart=always` 自动拉起
+- `door-gateway` 内部如果只出现单个 worker 监听口失效，健康轮询会自动重启该 worker
+- 容器本身异常退出后，由 compose 中的 `restart: unless-stopped` 自动恢复
+
+### Mac 辅助运行面：autostart / launchd 自动恢复
 
 如果你希望 macOS 在登录后自动恢复 `stable + door-gateway`，使用：
 
@@ -126,53 +188,6 @@
 ./scripts/sub2api-local autostart uninstall
 ```
 
-### Linux 本地 runtime 的 systemd 托管
-
-如果你希望 Linux 在开机后自动恢复 `stable + door-gateway`，并让 `door-gateway` 在异常退出后自动拉起，使用：
-
-```bash
-sudo ./scripts/sub2api-local systemd install
-```
-
-安装动作会：
-
-- 渲染并安装 `/etc/systemd/system/sub2api-stable.service`
-- 渲染并安装 `/etc/systemd/system/sub2api-door-gateway.service`
-- 让 stable 栈统一通过仓库内 `scripts/sub2api-runtime-compose` 启动
-- 把当前 runtime 根目录显式写入 launchd / systemd 环境，避免仓库内外 runtime 路径漂移
-- 在 Linux 自动追加 `deploy/local/docker-compose.runtime.linux.yml`
-- 为 `sub2api` 容器注入 `host.docker.internal:host-gateway`
-- 先恢复 stable 栈，再按顺序拉起 `door-gateway`
-
-查看 Linux 守护状态：
-
-```bash
-./scripts/sub2api-local systemd status
-./scripts/sub2api-local stable status
-```
-
-重启 Linux 守护链路：
-
-```bash
-sudo ./scripts/sub2api-local systemd restart
-```
-
-`stable status` 会同时输出：
-
-- 当前平台使用的 compose 文件
-- `sub2api/postgres/redis` 容器状态
-- `sub2api` 与 `door-gateway` 的 health 结果
-- 容器内 `host.docker.internal` 的解析结果
-- Linux 上的 `sub2api-stable.service` / `sub2api-door-gateway.service` 状态
-
-预期恢复链路：
-
-- 宿主机重启后，systemd 先执行 `sub2api-stable.service`，再启动 `sub2api-door-gateway.service`
-- Docker 服务恢复后，可执行 `sudo ./scripts/sub2api-local systemd restart` 重新串起 stable 和 `door-gateway`
-- `door-gateway` 进程异常退出后，systemd 会按 `Restart=always` 自动拉起
-- `door-gateway` 内部如果只出现单个 worker 监听口失效，健康轮询会自动重启该 worker
-- 容器本身异常退出后，由 compose 中的 `restart: unless-stopped` 自动恢复
-
 ### 开发自己的功能
 
 ```bash
@@ -191,6 +206,38 @@ git commit -m "feat: <topic>"
 git push -u origin feature/<topic>
 ```
 
+### 双机同步到 GitHub
+
+日常同步建议遵循这个方向：
+
+1. Linux 主运行面完成改动并提交。
+2. 需要共享给另一台机器时，由 Linux 推送到 `origin`。
+3. Mac 辅助运行面从 `origin` 拉取更新，再做验证或本机重启。
+
+Linux 提交并按需推送：
+
+```bash
+git add .
+git commit -m "<type>: <topic>"
+git push origin <branch>
+```
+
+Mac 拉取同步：
+
+```bash
+git fetch origin --prune
+git checkout main
+git pull --ff-only origin main
+```
+
+Mac 拉取后常见验证：
+
+```bash
+./scripts/sub2api-local stable status
+./scripts/sub2api-local autostart status
+./scripts/sub2api-local door status
+```
+
 ### 同步原仓库更新
 
 ```bash
@@ -206,6 +253,8 @@ git checkout main
 ./scripts/sub2api-local stable up
 ```
 
+如果这次更新还要同步到 Mac，就继续执行上面的 GitHub 中转流程。
+
 ## 运行时资产
 
 - 稳定环境历史数据：`runtime/stable/data`
@@ -216,6 +265,6 @@ git checkout main
 - `door-gateway` worker 目录：`runtime/stable/door-workers`
 - 运行时备份目录：`runtime/backups`
 - Linux systemd 模板：`deploy/local/systemd/*.service.template`
-- 当前用户 `LaunchAgent`：`~/Library/LaunchAgents/com.sub2api.autostart.plist`、`~/Library/LaunchAgents/com.sub2api.door-gateway.plist`
+- Mac 当前用户 `LaunchAgent`：`~/Library/LaunchAgents/com.sub2api.autostart.plist`、`~/Library/LaunchAgents/com.sub2api.door-gateway.plist`
 
 这些目录全部不进 git。
