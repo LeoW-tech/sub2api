@@ -11,7 +11,7 @@ ARG GOLANG_IMAGE=golang:1.26.2-alpine
 ARG ALPINE_IMAGE=alpine:3.20
 ARG GOPROXY=https://goproxy.cn,direct
 ARG GOSUMDB=sum.golang.google.cn
-ARG NPM_REGISTRY=https://registry.npmjs.org/
+ARG NPM_REGISTRY=https://registry.npmjs.org
 
 # -----------------------------------------------------------------------------
 # Stage 1: Frontend Builder
@@ -23,9 +23,10 @@ WORKDIR /app/frontend
 ARG NPM_REGISTRY
 
 # Install pnpm
-RUN corepack enable && \
+RUN export COREPACK_NPM_REGISTRY="${NPM_REGISTRY%/}" && \
+    corepack enable && \
     corepack prepare pnpm@latest --activate && \
-    pnpm config set registry "${NPM_REGISTRY}" && \
+    pnpm config set registry "${COREPACK_NPM_REGISTRY}" && \
     pnpm config set fetch-retries 5 && \
     pnpm config set fetch-retry-maxtimeout 120000
 

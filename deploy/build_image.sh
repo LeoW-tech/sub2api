@@ -5,7 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org/}"
+NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org}"
 
 docker build -t sub2api:latest \
     --build-arg GOPROXY=https://goproxy.cn,direct \

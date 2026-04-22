@@ -99,7 +99,7 @@
 ./scripts/sub2api-local stable rebuild
 
 # 如果重建时 npm 官方源超时，可临时切换镜像源
-NPM_REGISTRY=https://registry.npmmirror.com/ ./scripts/sub2api-local stable rebuild
+NPM_REGISTRY=https://registry.npmmirror.com ./scripts/sub2api-local stable rebuild
 
 # 如果改了源码并需要重建开发环境
 ./scripts/sub2api-local dev rebuild
