@@ -1,4 +1,6 @@
 services:
   sub2api:
+    build:
+      network: host
     extra_hosts:
       - "host.docker.internal:host-gateway"
