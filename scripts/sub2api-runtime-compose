@@ -28,17 +28,22 @@ RUNTIME_ROOT="${SUB2API_RUNTIME_ROOT:-$(default_runtime_root)}"
 
 maybe_reexec_with_sudo() {
   local stable_env="$RUNTIME_ROOT/stable/.env"
+  local -a sudo_env_args=(
+    "SUB2API_REPO_ROOT=$REPO_ROOT"
+    "SUB2API_RUNTIME_ROOT=$RUNTIME_ROOT"
+  )
 
   if [[ "$(uname -s)" != "Linux" || "$(id -u)" -eq 0 ]]; then
     return 0
   fi
 
+  if [[ -n "${NPM_REGISTRY:-}" ]]; then
+    sudo_env_args+=("NPM_REGISTRY=$NPM_REGISTRY")
+  fi
+
   if [[ -e "$stable_env" && ! -r "$stable_env" ]]; then
     if command -v sudo >/dev/null 2>&1 && sudo -n test -r "$stable_env" >/dev/null 2>&1; then
-      exec sudo -n env \
-        "SUB2API_REPO_ROOT=$REPO_ROOT" \
-        "SUB2API_RUNTIME_ROOT=$RUNTIME_ROOT" \
-        "$0" "$@"
+      exec sudo -n env "${sudo_env_args[@]}" "$0" "$@"
     fi
   fi
 }
