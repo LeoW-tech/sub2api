@@ -10,6 +10,7 @@
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
     "lint:check": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts",
     "typecheck": "vue-tsc --noEmit",
+    "audit": "corepack pnpm audit --prod --audit-level=high",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage"

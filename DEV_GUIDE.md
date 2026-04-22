@@ -70,6 +70,9 @@ cd backend && golangci-lint run ./...
 
 # 前端依赖安装（必须用 pnpm）
 cd frontend && pnpm install
+
+# 前端安全审计（不要直接运行 npm audit）
+cd frontend && npm run audit
 ```
 
 ## 四、常见坑点 & 解决方案
@@ -103,7 +106,25 @@ pnpm install
 
 ---
 
-### 坑 3：PowerShell 中 bcrypt hash 的 `$` 被转义
+### 坑 3：前端没有 `package-lock.json`，`npm audit` 会直接报 `ENOLOCK`
+
+**问题**：在 `frontend/` 目录直接运行 `npm audit`，提示缺少 `package-lock.json`。
+
+**原因**：前端依赖管理器是 `pnpm`，锁文件是 `pnpm-lock.yaml`，不是 `package-lock.json`。
+
+**解决**：
+```bash
+cd frontend
+npm run audit
+# 或
+corepack pnpm audit --prod --audit-level=high
+```
+
+不要为了跑审计临时生成 `package-lock.json`，否则会把 pnpm 项目变成双锁文件状态。
+
+---
+
+### 坑 4：PowerShell 中 bcrypt hash 的 `$` 被转义
 
 **问题**：bcrypt hash 格式如 `$2a$10$xxx...`，PowerShell 把 `$2a` 当变量解析，导致数据丢失。
 
@@ -119,7 +140,7 @@ psql -U sub2api -h 127.0.0.1 -d sub2api -f temp.sql
 
 ---
 
-### 坑 4：psql 不支持中文路径
+### 坑 5：psql 不支持中文路径
 
 **问题**：`psql -f "D:\中文路径\file.sql"` 报错找不到文件。
 
