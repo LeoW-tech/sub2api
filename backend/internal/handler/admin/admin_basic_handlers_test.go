@@ -41,6 +41,7 @@ func setupAdminRouter() (*gin.Engine, *stubAdminService) {
 
 	router.GET("/api/v1/admin/proxies", proxyHandler.List)
 	router.GET("/api/v1/admin/proxies/all", proxyHandler.GetAll)
+	router.GET("/api/v1/admin/proxies/ip-options", proxyHandler.GetIPOptions)
 	router.GET("/api/v1/admin/proxies/:id", proxyHandler.GetByID)
 	router.POST("/api/v1/admin/proxies", proxyHandler.Create)
 	router.PUT("/api/v1/admin/proxies/:id", proxyHandler.Update)
@@ -171,6 +172,11 @@ func TestProxyHandlerEndpoints(t *testing.T) {
 
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/all", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/ip-options", nil)
 	router.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 

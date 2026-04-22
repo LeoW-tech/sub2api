@@ -66,6 +66,9 @@ func (m *mockProxyRepoForOAuth) GetByID(ctx context.Context, id int64) (*Proxy, 
 func (m *mockProxyRepoForOAuth) ListByIDs(ctx context.Context, ids []int64) ([]Proxy, error) {
 	panic("ListByIDs not implemented")
 }
+func (m *mockProxyRepoForOAuth) ListIPOptions(ctx context.Context) ([]ProxyIPOption, error) {
+	panic("ListIPOptions not implemented")
+}
 func (m *mockProxyRepoForOAuth) Update(ctx context.Context, proxy *Proxy) error {
 	panic("Update not implemented")
 }

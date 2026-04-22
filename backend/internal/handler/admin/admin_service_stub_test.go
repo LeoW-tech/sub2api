@@ -39,6 +39,7 @@ type stubAdminService struct {
 		groupID       int64
 		privacyMode   string
 		networkStatus string
+		exitIP        string
 		sortBy        string
 		sortOrder     string
 		calls         int
@@ -215,7 +216,7 @@ func (s *stubAdminService) BatchSetGroupRateMultipliers(_ context.Context, _ int
 	return nil
 }
 
-func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus string, sortBy, sortOrder string) ([]service.Account, int64, error) {
+func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP string, sortBy, sortOrder string) ([]service.Account, int64, error) {
 	s.lastListAccounts.platform = platform
 	s.lastListAccounts.accountType = accountType
 	s.lastListAccounts.status = status
@@ -223,6 +224,7 @@ func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int,
 	s.lastListAccounts.groupID = groupID
 	s.lastListAccounts.privacyMode = privacyMode
 	s.lastListAccounts.networkStatus = networkStatus
+	s.lastListAccounts.exitIP = exitIP
 	s.lastListAccounts.sortBy = sortBy
 	s.lastListAccounts.sortOrder = sortOrder
 	s.lastListAccounts.calls++
@@ -337,6 +339,21 @@ func (s *stubAdminService) GetAllProxies(ctx context.Context) ([]service.Proxy, 
 
 func (s *stubAdminService) GetAllProxiesWithAccountCount(ctx context.Context) ([]service.ProxyWithAccountCount, error) {
 	return s.proxyCounts, nil
+}
+
+func (s *stubAdminService) GetProxyIPOptions(ctx context.Context) ([]service.ProxyIPOption, error) {
+	options := make([]service.ProxyIPOption, 0, len(s.proxies))
+	for _, proxy := range s.proxies {
+		if strings.TrimSpace(proxy.ExitIP) == "" {
+			continue
+		}
+		options = append(options, service.ProxyIPOption{
+			IP:         proxy.ExitIP,
+			ProxyNames: []string{proxy.Name},
+			ProxyCount: 1,
+		})
+	}
+	return options, nil
 }
 
 func (s *stubAdminService) GetProxy(ctx context.Context, id int64) (*service.Proxy, error) {

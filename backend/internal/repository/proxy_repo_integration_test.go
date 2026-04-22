@@ -134,6 +134,23 @@ func (s *ProxyRepoSuite) TestListWithFilters_Search() {
 	s.Require().Contains(proxies[0].Name, "production")
 }
 
+func (s *ProxyRepoSuite) TestListIPOptions() {
+	s.mustCreateProxy(&service.Proxy{Name: "alpha", Protocol: "http", Host: "127.0.0.1", Port: 8080, Status: service.StatusActive, ExitIP: "203.0.113.10"})
+	s.mustCreateProxy(&service.Proxy{Name: "beta", Protocol: "http", Host: "127.0.0.1", Port: 8081, Status: service.StatusDisabled, ExitIP: "203.0.113.10"})
+	s.mustCreateProxy(&service.Proxy{Name: "gamma", Protocol: "http", Host: "127.0.0.1", Port: 8082, Status: service.StatusActive, ExitIP: "203.0.113.11"})
+	s.mustCreateProxy(&service.Proxy{Name: "empty", Protocol: "http", Host: "127.0.0.1", Port: 8083, Status: service.StatusActive})
+
+	options, err := s.repo.ListIPOptions(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Len(options, 2)
+	s.Require().Equal("203.0.113.10", options[0].IP)
+	s.Require().Equal([]string{"alpha", "beta"}, options[0].ProxyNames)
+	s.Require().Equal(2, options[0].ProxyCount)
+	s.Require().Equal("203.0.113.11", options[1].IP)
+	s.Require().Equal([]string{"gamma"}, options[1].ProxyNames)
+	s.Require().Equal(1, options[1].ProxyCount)
+}
+
 // --- ListActive ---
 
 func (s *ProxyRepoSuite) TestListActive() {

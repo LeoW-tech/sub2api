@@ -501,6 +501,17 @@ func ProxyAccountSummaryFromService(a *service.ProxyAccountSummary) *ProxyAccoun
 	}
 }
 
+func ProxyIPOptionFromService(option *service.ProxyIPOption) *ProxyIPOption {
+	if option == nil {
+		return nil
+	}
+	return &ProxyIPOption{
+		IP:         option.IP,
+		ProxyNames: append([]string(nil), option.ProxyNames...),
+		ProxyCount: option.ProxyCount,
+	}
+}
+
 func RedeemCodeFromService(rc *service.RedeemCode) *RedeemCode {
 	if rc == nil {
 		return nil

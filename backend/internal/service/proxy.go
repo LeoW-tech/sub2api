@@ -71,3 +71,9 @@ type ProxyAccountSummary struct {
 	Type     string
 	Notes    *string
 }
+
+type ProxyIPOption struct {
+	IP         string
+	ProxyNames []string
+	ProxyCount int
+}

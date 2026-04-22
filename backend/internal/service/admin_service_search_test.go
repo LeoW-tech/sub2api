@@ -20,12 +20,13 @@ type accountRepoStubForAdminList struct {
 	listWithFiltersStatus   string
 	listWithFiltersSearch   string
 	listWithFiltersPrivacy  string
+	listWithFiltersIP       string
 	listWithFiltersAccounts []Account
 	listWithFiltersResult   *pagination.PaginationResult
 	listWithFiltersErr      error
 }
 
-func (s *accountRepoStubForAdminList) ListWithFilters(_ context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus string) ([]Account, *pagination.PaginationResult, error) {
+func (s *accountRepoStubForAdminList) ListWithFilters(_ context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP string) ([]Account, *pagination.PaginationResult, error) {
 	s.listWithFiltersCalls++
 	s.listWithFiltersParams = params
 	s.listWithFiltersPlatform = platform
@@ -33,6 +34,7 @@ func (s *accountRepoStubForAdminList) ListWithFilters(_ context.Context, params 
 	s.listWithFiltersStatus = status
 	s.listWithFiltersSearch = search
 	s.listWithFiltersPrivacy = privacyMode
+	s.listWithFiltersIP = exitIP
 	_ = networkStatus
 
 	if s.listWithFiltersErr != nil {
@@ -171,7 +173,7 @@ func TestAdminService_ListAccounts_WithSearch(t *testing.T) {
 		}
 		svc := &adminServiceImpl{accountRepo: repo}
 
-		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformGemini, AccountTypeOAuth, StatusActive, "acc", 0, "", "", "name", "ASC")
+		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformGemini, AccountTypeOAuth, StatusActive, "acc", 0, "", "", "", "name", "ASC")
 		require.NoError(t, err)
 		require.Equal(t, int64(10), total)
 		require.Equal(t, []Account{{ID: 1, Name: "acc"}}, accounts)
@@ -193,11 +195,27 @@ func TestAdminService_ListAccounts_WithPrivacyMode(t *testing.T) {
 		}
 		svc := &adminServiceImpl{accountRepo: repo}
 
-		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusActive, "acc2", 0, PrivacyModeCFBlocked, "", "", "")
+		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusActive, "acc2", 0, PrivacyModeCFBlocked, "", "", "", "")
 		require.NoError(t, err)
 		require.Equal(t, int64(1), total)
 		require.Equal(t, []Account{{ID: 2, Name: "acc2"}}, accounts)
 		require.Equal(t, PrivacyModeCFBlocked, repo.listWithFiltersPrivacy)
+	})
+}
+
+func TestAdminService_ListAccounts_WithIP(t *testing.T) {
+	t.Run("ip 参数正常传递到 repository 层", func(t *testing.T) {
+		repo := &accountRepoStubForAdminList{
+			listWithFiltersAccounts: []Account{{ID: 3, Name: "acc3"}},
+			listWithFiltersResult:   &pagination.PaginationResult{Total: 1},
+		}
+		svc := &adminServiceImpl{accountRepo: repo}
+
+		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusActive, "acc3", 0, "", "", "203.0.113.10", "name", "ASC")
+		require.NoError(t, err)
+		require.Equal(t, int64(1), total)
+		require.Equal(t, []Account{{ID: 3, Name: "acc3"}}, accounts)
+		require.Equal(t, "203.0.113.10", repo.listWithFiltersIP)
 	})
 }
 

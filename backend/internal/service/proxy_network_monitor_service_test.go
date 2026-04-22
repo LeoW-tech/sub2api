@@ -36,6 +36,10 @@ func (s *proxyNetworkMonitorProxyRepoStub) ListByIDs(ctx context.Context, ids []
 	panic("unexpected ListByIDs call")
 }
 
+func (s *proxyNetworkMonitorProxyRepoStub) ListIPOptions(ctx context.Context) ([]ProxyIPOption, error) {
+	panic("unexpected ListIPOptions call")
+}
+
 func (s *proxyNetworkMonitorProxyRepoStub) Update(ctx context.Context, proxy *Proxy) error {
 	if err, ok := s.updateFailIDs[proxy.ID]; ok {
 		return err

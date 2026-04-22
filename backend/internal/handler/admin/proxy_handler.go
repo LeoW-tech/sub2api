@@ -110,6 +110,26 @@ func (h *ProxyHandler) GetAll(c *gin.Context) {
 	response.Success(c, out)
 }
 
+// GetIPOptions handles getting deduplicated proxy IP options for account filters.
+// GET /api/v1/admin/proxies/ip-options
+func (h *ProxyHandler) GetIPOptions(c *gin.Context) {
+	options, err := h.adminService.GetProxyIPOptions(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	out := make([]dto.ProxyIPOption, 0, len(options))
+	for i := range options {
+		mapped := dto.ProxyIPOptionFromService(&options[i])
+		if mapped == nil {
+			continue
+		}
+		out = append(out, *mapped)
+	}
+	response.Success(c, out)
+}
+
 // GetByID handles getting a proxy by ID
 // GET /api/v1/admin/proxies/:id
 func (h *ProxyHandler) GetByID(c *gin.Context) {

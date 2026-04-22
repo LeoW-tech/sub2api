@@ -89,6 +89,64 @@ func (r *proxyRepository) ListByIDs(ctx context.Context, ids []int64) ([]service
 	return out, nil
 }
 
+func (r *proxyRepository) ListIPOptions(ctx context.Context) ([]service.ProxyIPOption, error) {
+	rows, err := r.sql.QueryContext(ctx, `
+		SELECT exit_ip, name
+		FROM proxies
+		WHERE exit_ip IS NOT NULL
+			AND BTRIM(exit_ip) <> ''
+			AND deleted_at IS NULL
+		ORDER BY exit_ip ASC, name ASC, id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	byIP := make(map[string]*service.ProxyIPOption)
+	orderedIPs := make([]string, 0)
+	for rows.Next() {
+		var (
+			exitIP string
+			name   string
+		)
+		if err := rows.Scan(&exitIP, &name); err != nil {
+			return nil, err
+		}
+		exitIP = strings.TrimSpace(exitIP)
+		if exitIP == "" {
+			continue
+		}
+		name = strings.TrimSpace(name)
+		item, ok := byIP[exitIP]
+		if !ok {
+			item = &service.ProxyIPOption{
+				IP:         exitIP,
+				ProxyNames: make([]string, 0, 1),
+			}
+			byIP[exitIP] = item
+			orderedIPs = append(orderedIPs, exitIP)
+		}
+		item.ProxyCount++
+		if name != "" {
+			item.ProxyNames = append(item.ProxyNames, name)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	options := make([]service.ProxyIPOption, 0, len(orderedIPs))
+	for _, exitIP := range orderedIPs {
+		item := byIP[exitIP]
+		if item == nil {
+			continue
+		}
+		options = append(options, *item)
+	}
+	return options, nil
+}
+
 func (r *proxyRepository) Update(ctx context.Context, proxyIn *service.Proxy) error {
 	builder := r.client.Proxy.UpdateOneID(proxyIn.ID).
 		SetName(proxyIn.Name).

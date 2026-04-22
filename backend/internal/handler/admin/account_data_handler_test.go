@@ -77,6 +77,7 @@ func setupAccountDataRouter() (*gin.Engine, *stubAdminService) {
 
 	router.GET("/api/v1/admin/accounts/data", h.ExportData)
 	router.POST("/api/v1/admin/accounts/data", h.ImportData)
+	router.GET("/api/v1/admin/accounts", h.List)
 	return router, adminSvc
 }
 
@@ -203,7 +204,7 @@ func TestExportDataPassesAccountFiltersAndSort(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(
 		http.MethodGet,
-		"/api/v1/admin/accounts/data?platform=openai&type=oauth&status=active&group=12&privacy_mode=blocked&network_status=offline&search=keyword&sort_by=priority&sort_order=desc",
+		"/api/v1/admin/accounts/data?platform=openai&type=oauth&status=active&group=12&privacy_mode=blocked&network_status=offline&ip=203.0.113.10&search=keyword&sort_by=priority&sort_order=desc",
 		nil,
 	)
 	router.ServeHTTP(rec, req)
@@ -216,9 +217,27 @@ func TestExportDataPassesAccountFiltersAndSort(t *testing.T) {
 	require.Equal(t, int64(12), adminSvc.lastListAccounts.groupID)
 	require.Equal(t, "blocked", adminSvc.lastListAccounts.privacyMode)
 	require.Equal(t, "offline", adminSvc.lastListAccounts.networkStatus)
+	require.Equal(t, "203.0.113.10", adminSvc.lastListAccounts.exitIP)
 	require.Equal(t, "keyword", adminSvc.lastListAccounts.search)
 	require.Equal(t, "priority", adminSvc.lastListAccounts.sortBy)
 	require.Equal(t, "desc", adminSvc.lastListAccounts.sortOrder)
+}
+
+func TestAccountListPassesIPFilter(t *testing.T) {
+	router, adminSvc := setupAccountDataRouter()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/admin/accounts?ip=203.0.113.10&search=keyword",
+		nil,
+	)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	require.Equal(t, 1, adminSvc.lastListAccounts.calls)
+	require.Equal(t, "203.0.113.10", adminSvc.lastListAccounts.exitIP)
+	require.Equal(t, "keyword", adminSvc.lastListAccounts.search)
 }
 
 func TestExportDataSelectedIDsOverrideFilters(t *testing.T) {

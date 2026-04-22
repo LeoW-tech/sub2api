@@ -322,6 +322,12 @@ type ProxyAccountSummary struct {
 	Notes    *string `json:"notes,omitempty"`
 }
 
+type ProxyIPOption struct {
+	IP         string   `json:"ip"`
+	ProxyNames []string `json:"proxy_names"`
+	ProxyCount int      `json:"proxy_count"`
+}
+
 type RedeemCode struct {
 	ID        int64      `json:"id"`
 	Code      string     `json:"code"`
