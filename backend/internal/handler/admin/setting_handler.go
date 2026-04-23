@@ -124,6 +124,10 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		SMTPFrom:                               settings.SMTPFrom,
 		SMTPFromName:                           settings.SMTPFromName,
 		SMTPUseTLS:                             settings.SMTPUseTLS,
+		TelegramEnabled:                        settings.TelegramEnabled,
+		TelegramBotTokenConfigured:             settings.TelegramBotTokenConfigured,
+		TelegramChatIDs:                        settings.TelegramChatIDs,
+		TelegramProxyURLs:                      settings.TelegramProxyURLs,
 		TurnstileEnabled:                       settings.TurnstileEnabled,
 		TurnstileSiteKey:                       settings.TurnstileSiteKey,
 		TurnstileSecretKeyConfigured:           settings.TurnstileSecretKeyConfigured,
@@ -252,13 +256,17 @@ type UpdateSettingsRequest struct {
 	TotpEnabled                      bool     `json:"totp_enabled"` // TOTP 双因素认证
 
 	// 邮件服务设置
-	SMTPHost     string `json:"smtp_host"`
-	SMTPPort     int    `json:"smtp_port"`
-	SMTPUsername string `json:"smtp_username"`
-	SMTPPassword string `json:"smtp_password"`
-	SMTPFrom     string `json:"smtp_from_email"`
-	SMTPFromName string `json:"smtp_from_name"`
-	SMTPUseTLS   bool   `json:"smtp_use_tls"`
+	SMTPHost          string `json:"smtp_host"`
+	SMTPPort          int    `json:"smtp_port"`
+	SMTPUsername      string `json:"smtp_username"`
+	SMTPPassword      string `json:"smtp_password"`
+	SMTPFrom          string `json:"smtp_from_email"`
+	SMTPFromName      string `json:"smtp_from_name"`
+	SMTPUseTLS        bool   `json:"smtp_use_tls"`
+	TelegramEnabled   bool   `json:"telegram_enabled"`
+	TelegramBotToken  string `json:"telegram_bot_token"`
+	TelegramChatIDs   string `json:"telegram_chat_ids"`
+	TelegramProxyURLs string `json:"telegram_proxy_urls"`
 
 	// Cloudflare Turnstile 设置
 	TurnstileEnabled   bool   `json:"turnstile_enabled"`
@@ -466,6 +474,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	req.SMTPPassword = strings.TrimSpace(req.SMTPPassword)
 	req.SMTPFrom = strings.TrimSpace(req.SMTPFrom)
 	req.SMTPFromName = strings.TrimSpace(req.SMTPFromName)
+	req.TelegramBotToken = strings.TrimSpace(req.TelegramBotToken)
+	req.TelegramChatIDs = strings.TrimSpace(req.TelegramChatIDs)
+	req.TelegramProxyURLs = strings.TrimSpace(req.TelegramProxyURLs)
 	if req.SMTPPort <= 0 {
 		req.SMTPPort = 587
 	}
@@ -1044,6 +1055,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		SMTPFrom:                         req.SMTPFrom,
 		SMTPFromName:                     req.SMTPFromName,
 		SMTPUseTLS:                       req.SMTPUseTLS,
+		TelegramEnabled:                  req.TelegramEnabled,
+		TelegramBotToken:                 req.TelegramBotToken,
+		TelegramChatIDs:                  req.TelegramChatIDs,
+		TelegramProxyURLs:                req.TelegramProxyURLs,
 		TurnstileEnabled:                 req.TurnstileEnabled,
 		TurnstileSiteKey:                 req.TurnstileSiteKey,
 		TurnstileSecretKey:               req.TurnstileSecretKey,
@@ -1339,6 +1354,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		SMTPFrom:                               updatedSettings.SMTPFrom,
 		SMTPFromName:                           updatedSettings.SMTPFromName,
 		SMTPUseTLS:                             updatedSettings.SMTPUseTLS,
+		TelegramEnabled:                        updatedSettings.TelegramEnabled,
+		TelegramBotTokenConfigured:             updatedSettings.TelegramBotTokenConfigured,
+		TelegramChatIDs:                        updatedSettings.TelegramChatIDs,
+		TelegramProxyURLs:                      updatedSettings.TelegramProxyURLs,
 		TurnstileEnabled:                       updatedSettings.TurnstileEnabled,
 		TurnstileSiteKey:                       updatedSettings.TurnstileSiteKey,
 		TurnstileSecretKeyConfigured:           updatedSettings.TurnstileSecretKeyConfigured,
@@ -1533,6 +1552,18 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.SMTPUseTLS != after.SMTPUseTLS {
 		changed = append(changed, "smtp_use_tls")
+	}
+	if before.TelegramEnabled != after.TelegramEnabled {
+		changed = append(changed, "telegram_enabled")
+	}
+	if req.TelegramBotToken != "" {
+		changed = append(changed, "telegram_bot_token")
+	}
+	if before.TelegramChatIDs != after.TelegramChatIDs {
+		changed = append(changed, "telegram_chat_ids")
+	}
+	if before.TelegramProxyURLs != after.TelegramProxyURLs {
+		changed = append(changed, "telegram_proxy_urls")
 	}
 	if before.TurnstileEnabled != after.TurnstileEnabled {
 		changed = append(changed, "turnstile_enabled")

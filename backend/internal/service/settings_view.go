@@ -21,14 +21,19 @@ type SystemSettings struct {
 	InvitationCodeEnabled            bool
 	TotpEnabled                      bool // TOTP 双因素认证
 
-	SMTPHost               string
-	SMTPPort               int
-	SMTPUsername           string
-	SMTPPassword           string
-	SMTPPasswordConfigured bool
-	SMTPFrom               string
-	SMTPFromName           string
-	SMTPUseTLS             bool
+	SMTPHost                   string
+	SMTPPort                   int
+	SMTPUsername               string
+	SMTPPassword               string
+	SMTPPasswordConfigured     bool
+	SMTPFrom                   string
+	SMTPFromName               string
+	SMTPUseTLS                 bool
+	TelegramEnabled            bool
+	TelegramBotToken           string
+	TelegramBotTokenConfigured bool
+	TelegramChatIDs            string
+	TelegramProxyURLs          string
 
 	TurnstileEnabled             bool
 	TurnstileSiteKey             string

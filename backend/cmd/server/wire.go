@@ -79,6 +79,7 @@ func provideCleanup(
 	opsScheduledReport *service.OpsScheduledReportService,
 	opsSystemLogSink *service.OpsSystemLogSink,
 	schedulerSnapshot *service.SchedulerSnapshotService,
+	accountBulkTestActivate *service.AccountBulkTestActivateService,
 	proxyNetworkMonitor *service.ProxyNetworkMonitorService,
 	tokenRefresh *service.TokenRefreshService,
 	accountExpiry *service.AccountExpiryService,
@@ -150,6 +151,12 @@ func provideCleanup(
 			{"SchedulerSnapshotService", func() error {
 				if schedulerSnapshot != nil {
 					schedulerSnapshot.Stop()
+				}
+				return nil
+			}},
+			{"AccountBulkTestActivateService", func() error {
+				if accountBulkTestActivate != nil {
+					accountBulkTestActivate.Stop()
 				}
 				return nil
 			}},

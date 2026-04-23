@@ -965,6 +965,12 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeySMTPFrom] = settings.SMTPFrom
 	updates[SettingKeySMTPFromName] = settings.SMTPFromName
 	updates[SettingKeySMTPUseTLS] = strconv.FormatBool(settings.SMTPUseTLS)
+	updates[SettingKeyTelegramEnabled] = strconv.FormatBool(settings.TelegramEnabled)
+	if settings.TelegramBotToken != "" {
+		updates[SettingKeyTelegramBotToken] = settings.TelegramBotToken
+	}
+	updates[SettingKeyTelegramChatIDs] = settings.TelegramChatIDs
+	updates[SettingKeyTelegramProxyURLs] = settings.TelegramProxyURLs
 
 	// Cloudflare Turnstile 设置（只有非空才更新密钥）
 	updates[SettingKeyTurnstileEnabled] = strconv.FormatBool(settings.TurnstileEnabled)
@@ -1614,6 +1620,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyForceEmailOnThirdPartySignup:             "false",
 		SettingKeySMTPPort:                                 "587",
 		SettingKeySMTPUseTLS:                               "false",
+		SettingKeyTelegramEnabled:                          "false",
+		SettingKeyTelegramChatIDs:                          "",
+		SettingKeyTelegramProxyURLs:                        "",
 		// Model fallback defaults
 		SettingKeyEnableModelFallback:      "false",
 		SettingKeyFallbackModelAnthropic:   "claude-3-5-sonnet-20241022",
@@ -1664,6 +1673,10 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		SMTPFromName:                     settings[SettingKeySMTPFromName],
 		SMTPUseTLS:                       settings[SettingKeySMTPUseTLS] == "true",
 		SMTPPasswordConfigured:           settings[SettingKeySMTPPassword] != "",
+		TelegramEnabled:                  settings[SettingKeyTelegramEnabled] == "true",
+		TelegramBotTokenConfigured:       settings[SettingKeyTelegramBotToken] != "",
+		TelegramChatIDs:                  settings[SettingKeyTelegramChatIDs],
+		TelegramProxyURLs:                settings[SettingKeyTelegramProxyURLs],
 		TurnstileEnabled:                 settings[SettingKeyTurnstileEnabled] == "true",
 		TurnstileSiteKey:                 settings[SettingKeyTurnstileSiteKey],
 		TurnstileSecretKeyConfigured:     settings[SettingKeyTurnstileSecretKey] != "",
@@ -1709,6 +1722,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// 敏感信息直接返回，方便测试连接时使用
 	result.SMTPPassword = settings[SettingKeySMTPPassword]
+	result.TelegramBotToken = settings[SettingKeyTelegramBotToken]
 	result.TurnstileSecretKey = settings[SettingKeyTurnstileSecretKey]
 
 	// LinuxDo Connect 设置：

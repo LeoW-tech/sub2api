@@ -446,6 +446,32 @@ export async function bulkUpdate(
   return data;
 }
 
+export interface BulkTestActivateResult {
+  trigger: string;
+  model_id: string;
+  total: number;
+  success: number;
+  failed: number;
+  activated: number;
+  deactivated: number;
+  success_ids: number[];
+  failed_ids: number[];
+  activated_ids: number[];
+  deactivated_ids: number[];
+}
+
+export async function bulkTestActivate(
+  accountIds: number[],
+): Promise<BulkTestActivateResult> {
+  const { data } = await apiClient.post<BulkTestActivateResult>(
+    "/admin/accounts/bulk-test-activate",
+    {
+      account_ids: accountIds,
+    },
+  );
+  return data;
+}
+
 /**
  * Get account today statistics
  * @param id - Account ID
@@ -782,6 +808,7 @@ export const accountsAPI = {
   batchCreate,
   batchUpdateCredentials,
   bulkUpdate,
+  bulkTestActivate,
   previewFromCrs,
   syncFromCrs,
   exportData,

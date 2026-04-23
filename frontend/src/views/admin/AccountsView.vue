@@ -645,7 +645,6 @@ import PlatformTypeBadge from "@/components/common/PlatformTypeBadge.vue";
 import Icon from "@/components/icons/Icon.vue";
 import ErrorPassthroughRulesModal from "@/components/admin/ErrorPassthroughRulesModal.vue";
 import TLSFingerprintProfilesModal from "@/components/admin/TLSFingerprintProfilesModal.vue";
-import { runAccountTestStream } from "@/api/admin/accountTestStream";
 import { buildOpenAIUsageRefreshKey } from "@/utils/accountUsageRefresh";
 import { formatDateTime, formatRelativeTime } from "@/utils/format";
 import type {
@@ -1617,41 +1616,6 @@ const normalizeBulkUpdateResult = (
     hasCounts: hasExplicitCounts,
   };
 };
-const BULK_TEST_ACTIVATE_MODEL_ID = "gpt-5.4";
-const BULK_TEST_ACTIVATE_CONCURRENCY = 10;
-
-const runWithConcurrency = async <T,>(
-  accountIds: number[],
-  concurrency: number,
-  workerFn: (accountId: number) => Promise<T>,
-) => {
-  const results = new Map<number, T>();
-  const errors = new Map<number, unknown>();
-  let index = 0;
-
-  const worker = async () => {
-    while (index < accountIds.length) {
-      const current = accountIds[index];
-      index += 1;
-      try {
-        results.set(current, await workerFn(current));
-      } catch (error) {
-        errors.set(current, error);
-      }
-    }
-  };
-
-  const workers = Array.from(
-    { length: Math.min(concurrency, accountIds.length) },
-    () => worker(),
-  );
-  await Promise.all(workers);
-
-  return { results, errors };
-};
-
-const dedupeAccountIDs = (accountIds: number[]) => [...new Set(accountIds)];
-
 const handleBulkTestActivate = async () => {
   const accountIds = [...selIds.value];
   if (accountIds.length === 0) return;
@@ -1668,91 +1632,28 @@ const handleBulkTestActivate = async () => {
   bulkTestingActivate.value = true;
 
   try {
-    const testExecution = await runWithConcurrency(
-      accountIds,
-      BULK_TEST_ACTIVATE_CONCURRENCY,
-      async (accountId) =>
-        runAccountTestStream(accountId, {
-          modelId: BULK_TEST_ACTIVATE_MODEL_ID,
-        }),
-    );
+    const result = await adminAPI.accounts.bulkTestActivate(accountIds);
 
-    const testSuccessIds = accountIds.filter((accountId) => {
-      const result = testExecution.results.get(accountId);
-      return result?.success === true;
-    });
-    const testFailedIds = accountIds.filter((accountId) => {
-      const result = testExecution.results.get(accountId);
-      return testExecution.errors.has(accountId) || result?.success !== true;
-    });
-
-    const statusLookup = await runWithConcurrency(
-      testSuccessIds,
-      BULK_TEST_ACTIVATE_CONCURRENCY,
-      async (accountId) => adminAPI.accounts.getById(accountId),
-    );
-
-    const statusLookupFailedIds = testSuccessIds.filter((accountId) =>
-      statusLookup.errors.has(accountId),
-    );
-    const testedAccounts = testSuccessIds
-      .map((accountId) => statusLookup.results.get(accountId))
-      .filter((account): account is Account => Boolean(account));
-    if (testedAccounts.length > 0) {
-      testedAccounts.forEach((account) => {
-        patchAccountInList(account);
-      });
+    if (result.activated_ids.length > 0) {
+      updateStatusInList(result.activated_ids, "active");
+    }
+    if (result.deactivated_ids.length > 0) {
+      updateStatusInList(result.deactivated_ids, "inactive");
+    }
+    if (result.activated_ids.length > 0 || result.deactivated_ids.length > 0) {
       enterAutoRefreshSilentWindow();
     }
-    const activateIds = testSuccessIds.filter((accountId) => {
-      const account = statusLookup.results.get(accountId);
-      return account?.status !== "active";
-    });
-
-    let activatedCount = 0;
-    let activationFailedIds: number[] = [];
-
-    if (activateIds.length > 0) {
-      const activationResult = await adminAPI.accounts.bulkUpdate(activateIds, {
-        status: "active",
-      });
-      const normalized = normalizeBulkUpdateResult(
-        activationResult,
-        activateIds,
-      );
-
-      if (!normalized.hasIds && !normalized.hasCounts) {
-        activationFailedIds = activateIds;
-      } else {
-        activatedCount = normalized.successCount;
-        activationFailedIds =
-          normalized.failedIds.length > 0
-            ? normalized.failedIds
-            : normalized.failedCount > 0
-              ? activateIds
-              : [];
-        if (normalized.successIds.length > 0) {
-          updateStatusInList(normalized.successIds, "active");
-          enterAutoRefreshSilentWindow();
-        }
-      }
-    }
-
-    const failedIds = dedupeAccountIDs([
-      ...testFailedIds,
-      ...statusLookupFailedIds,
-      ...activationFailedIds,
-    ]);
 
     const message = t("admin.accounts.bulkTestActivateSummary", {
-      success: testSuccessIds.length,
-      failed: failedIds.length,
-      activated: activatedCount,
+      success: result.success,
+      failed: result.failed,
+      activated: result.activated,
+      deactivated: result.deactivated,
     });
 
-    if (failedIds.length > 0) {
+    if (result.failed_ids.length > 0) {
       appStore.showError(message);
-      setSelectedIds(failedIds);
+      setSelectedIds(result.failed_ids);
     } else {
       appStore.showSuccess(message);
       clearSelection();

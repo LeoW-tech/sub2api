@@ -1407,7 +1407,9 @@
                         <h3 class="font-medium text-gray-900 dark:text-white">
                           {{ localText("PC 应用", "PC App") }}
                         </h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        <p
+                          class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+                        >
                           {{
                             localText(
                               "桌面浏览器通过微信开放平台扫码登录。可与公众号或移动应用同时存在。",
@@ -1480,7 +1482,9 @@
                         <h3 class="font-medium text-gray-900 dark:text-white">
                           {{ localText("公众号", "Official Account") }}
                         </h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        <p
+                          class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+                        >
                           {{
                             localText(
                               "仅在微信内浏览器可用；非微信环境下会显示不可用。",
@@ -1503,7 +1507,9 @@
                         <label
                           class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
                         >
-                          {{ localText("公众号 AppID", "Official Account App ID") }}
+                          {{
+                            localText("公众号 AppID", "Official Account App ID")
+                          }}
                         </label>
                         <input
                           v-model="form.wechat_connect_mp_app_id"
@@ -1511,10 +1517,7 @@
                           type="text"
                           class="input font-mono text-sm"
                           :placeholder="
-                            localText(
-                              '公众号 AppID',
-                              'Official Account App ID',
-                            )
+                            localText('公众号 AppID', 'Official Account App ID')
                           "
                         />
                       </div>
@@ -1558,7 +1561,9 @@
                         <h3 class="font-medium text-gray-900 dark:text-white">
                           {{ localText("移动应用", "Mobile App") }}
                         </h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        <p
+                          class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+                        >
                           {{
                             localText(
                               "原生移动端通过微信 SDK 唤起授权，网页端不会直接发起该流程。",
@@ -1589,10 +1594,7 @@
                           type="text"
                           class="input font-mono text-sm"
                           :placeholder="
-                            localText(
-                              '移动应用 AppID',
-                              'Mobile App ID',
-                            )
+                            localText('移动应用 AppID', 'Mobile App ID')
                           "
                         />
                       </div>
@@ -1600,7 +1602,9 @@
                         <label
                           class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
                         >
-                          {{ localText("移动应用 AppSecret", "Mobile App Secret") }}
+                          {{
+                            localText("移动应用 AppSecret", "Mobile App Secret")
+                          }}
                         </label>
                         <input
                           v-model="form.wechat_connect_mobile_app_secret"
@@ -1645,19 +1649,16 @@
                     <label
                       class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
                     >
-                      {{
-                        localText(
-                          "浏览器回调地址",
-                          "Browser Redirect URL",
-                        )
-                      }}
+                      {{ localText("浏览器回调地址", "Browser Redirect URL") }}
                     </label>
                     <input
                       data-testid="wechat-connect-redirect-url"
                       v-model="form.wechat_connect_redirect_url"
                       type="url"
                       class="input font-mono text-sm"
-                      :placeholder="t('admin.settings.wechatConnect.redirectUrlPlaceholder')"
+                      :placeholder="
+                        t('admin.settings.wechatConnect.redirectUrlPlaceholder')
+                      "
                     />
                     <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                       {{
@@ -1691,17 +1692,25 @@
                   <label
                     class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
                   >
-                    {{ t("admin.settings.wechatConnect.frontendRedirectUrlLabel") }}
+                    {{
+                      t("admin.settings.wechatConnect.frontendRedirectUrlLabel")
+                    }}
                   </label>
                   <input
                     data-testid="wechat-connect-frontend-redirect-url"
                     v-model="form.wechat_connect_frontend_redirect_url"
                     type="text"
                     class="input font-mono text-sm"
-                    :placeholder="t('admin.settings.wechatConnect.frontendRedirectUrlPlaceholder')"
+                    :placeholder="
+                      t(
+                        'admin.settings.wechatConnect.frontendRedirectUrlPlaceholder',
+                      )
+                    "
                   />
                   <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    {{ t("admin.settings.wechatConnect.frontendRedirectUrlHint") }}
+                    {{
+                      t("admin.settings.wechatConnect.frontendRedirectUrlHint")
+                    }}
                   </p>
                 </div>
               </div>
@@ -2329,10 +2338,14 @@
               >
                 <div>
                   <label class="font-medium text-gray-900 dark:text-white">
-                    {{ t("admin.settings.authSourceDefaults.requireEmailLabel") }}
+                    {{
+                      t("admin.settings.authSourceDefaults.requireEmailLabel")
+                    }}
                   </label>
                   <p class="text-sm text-gray-500 dark:text-gray-400">
-                    {{ t("admin.settings.authSourceDefaults.requireEmailHint") }}
+                    {{
+                      t("admin.settings.authSourceDefaults.requireEmailHint")
+                    }}
                   </p>
                 </div>
                 <Toggle v-model="form.force_email_on_third_party_signup" />
@@ -2413,12 +2426,20 @@
                         <label
                           class="font-medium text-gray-900 dark:text-white"
                         >
-                          {{ t("admin.settings.authSourceDefaults.grantOnFirstBindLabel") }}
+                          {{
+                            t(
+                              "admin.settings.authSourceDefaults.grantOnFirstBindLabel",
+                            )
+                          }}
                         </label>
                         <p
                           class="mt-0.5 text-xs text-gray-500 dark:text-gray-400"
                         >
-                          {{ t("admin.settings.authSourceDefaults.grantOnFirstBindHint") }}
+                          {{
+                            t(
+                              "admin.settings.authSourceDefaults.grantOnFirstBindHint",
+                            )
+                          }}
                         </p>
                       </div>
                       <Toggle
@@ -2434,10 +2455,18 @@
                         <label
                           class="font-medium text-gray-900 dark:text-white"
                         >
-                          {{ t("admin.settings.authSourceDefaults.defaultSubscriptionsLabel") }}
+                          {{
+                            t(
+                              "admin.settings.authSourceDefaults.defaultSubscriptionsLabel",
+                            )
+                          }}
                         </label>
                         <p class="text-sm text-gray-500 dark:text-gray-400">
-                          {{ t("admin.settings.authSourceDefaults.defaultSubscriptionsHint") }}
+                          {{
+                            t(
+                              "admin.settings.authSourceDefaults.defaultSubscriptionsHint",
+                            )
+                          }}
                         </p>
                       </div>
                       <button
@@ -2461,7 +2490,11 @@
                       "
                       class="rounded border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 dark:border-dark-600 dark:text-gray-400"
                     >
-                      {{ t("admin.settings.authSourceDefaults.noSourceSubscriptions") }}
+                      {{
+                        t(
+                          "admin.settings.authSourceDefaults.noSourceSubscriptions",
+                        )
+                      }}
                     </div>
 
                     <div v-else class="space-y-3">
@@ -2680,7 +2713,9 @@
                   </label>
                   <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                     {{
-                      t("admin.settings.openaiExperimentalScheduler.description")
+                      t(
+                        "admin.settings.openaiExperimentalScheduler.description",
+                      )
                     }}
                   </p>
                 </div>
@@ -4395,6 +4430,104 @@
             </div>
           </div>
 
+          <div class="card">
+            <div
+              class="border-b border-gray-100 px-6 py-4 dark:border-dark-700"
+            >
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ t("admin.settings.telegram.title") }}
+              </h2>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {{ t("admin.settings.telegram.description") }}
+              </p>
+            </div>
+            <div class="space-y-6 p-6">
+              <div
+                class="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-dark-700"
+              >
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">{{
+                    t("admin.settings.telegram.enabled")
+                  }}</label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.telegram.enabledHint") }}
+                  </p>
+                </div>
+                <Toggle v-model="form.telegram_enabled" />
+              </div>
+
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div class="md:col-span-2">
+                  <label
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    {{ t("admin.settings.telegram.botToken") }}
+                  </label>
+                  <input
+                    v-model="form.telegram_bot_token"
+                    type="password"
+                    class="input"
+                    autocomplete="new-password"
+                    autocapitalize="off"
+                    spellcheck="false"
+                    :placeholder="
+                      form.telegram_bot_token_configured
+                        ? t(
+                            'admin.settings.telegram.botTokenConfiguredPlaceholder',
+                          )
+                        : t('admin.settings.telegram.botTokenPlaceholder')
+                    "
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{
+                      form.telegram_bot_token_configured
+                        ? t("admin.settings.telegram.botTokenConfiguredHint")
+                        : t("admin.settings.telegram.botTokenHint")
+                    }}
+                  </p>
+                </div>
+
+                <div>
+                  <label
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    {{ t("admin.settings.telegram.chatIds") }}
+                  </label>
+                  <textarea
+                    v-model="form.telegram_chat_ids"
+                    rows="4"
+                    class="input min-h-[112px]"
+                    :placeholder="
+                      t('admin.settings.telegram.chatIdsPlaceholder')
+                    "
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.telegram.chatIdsHint") }}
+                  </p>
+                </div>
+
+                <div>
+                  <label
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    {{ t("admin.settings.telegram.proxyUrls") }}
+                  </label>
+                  <textarea
+                    v-model="form.telegram_proxy_urls"
+                    rows="4"
+                    class="input min-h-[112px]"
+                    :placeholder="
+                      t('admin.settings.telegram.proxyUrlsPlaceholder')
+                    "
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.telegram.proxyUrlsHint") }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Send Test Email - Only show when email verification is enabled -->
           <div v-if="form.email_verify_enabled" class="card">
             <div
@@ -4704,7 +4837,10 @@ import ProxySelector from "@/components/common/ProxySelector.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
 import { useClipboard } from "@/composables/useClipboard";
-import { extractApiErrorMessage, extractI18nErrorMessage } from "@/utils/apiError";
+import {
+  extractApiErrorMessage,
+  extractI18nErrorMessage,
+} from "@/utils/apiError";
 import { useAppStore } from "@/stores";
 import { useAdminSettingsStore } from "@/stores/adminSettings";
 import { normalizeVisibleMethod } from "@/components/payment/paymentFlow";
@@ -4841,6 +4977,7 @@ type SettingsForm = Omit<
 > & {
   smtp_password: string;
   turnstile_secret_key: string;
+  telegram_bot_token: string;
   linuxdo_connect_client_secret: string;
   wechat_connect_app_secret: string;
   wechat_connect_open_app_secret: string;
@@ -4920,6 +5057,11 @@ const form = reactive<SettingsForm>({
   smtp_from_email: "",
   smtp_from_name: "",
   smtp_use_tls: true,
+  telegram_enabled: false,
+  telegram_bot_token: "",
+  telegram_bot_token_configured: false,
+  telegram_chat_ids: "",
+  telegram_proxy_urls: "",
   // Cloudflare Turnstile
   turnstile_enabled: false,
   turnstile_site_key: "",
@@ -5015,22 +5157,30 @@ const authSourceDefaultsMeta = computed(() => [
   {
     source: "email" as AuthSourceType,
     title: t("admin.settings.authSourceDefaults.sources.email.title"),
-    description: t("admin.settings.authSourceDefaults.sources.email.description"),
+    description: t(
+      "admin.settings.authSourceDefaults.sources.email.description",
+    ),
   },
   {
     source: "linuxdo" as AuthSourceType,
     title: t("admin.settings.authSourceDefaults.sources.linuxdo.title"),
-    description: t("admin.settings.authSourceDefaults.sources.linuxdo.description"),
+    description: t(
+      "admin.settings.authSourceDefaults.sources.linuxdo.description",
+    ),
   },
   {
     source: "oidc" as AuthSourceType,
     title: t("admin.settings.authSourceDefaults.sources.oidc.title"),
-    description: t("admin.settings.authSourceDefaults.sources.oidc.description"),
+    description: t(
+      "admin.settings.authSourceDefaults.sources.oidc.description",
+    ),
   },
   {
     source: "wechat" as AuthSourceType,
     title: t("admin.settings.authSourceDefaults.sources.wechat.title"),
-    description: t("admin.settings.authSourceDefaults.sources.wechat.description"),
+    description: t(
+      "admin.settings.authSourceDefaults.sources.wechat.description",
+    ),
   },
 ]);
 
@@ -5527,6 +5677,7 @@ async function loadSettings() {
     registrationEmailSuffixWhitelistDraft.value = "";
     form.smtp_password = "";
     smtpPasswordManuallyEdited.value = false;
+    form.telegram_bot_token = "";
     form.turnstile_secret_key = "";
     form.linuxdo_connect_client_secret = "";
     form.wechat_connect_app_secret = "";
@@ -5548,7 +5699,9 @@ async function loadSettings() {
       wechatCapabilities.mobileEnabled,
       settings.wechat_connect_mode,
     );
-    const legacyWeChatAppID = String(settings.wechat_connect_app_id || "").trim();
+    const legacyWeChatAppID = String(
+      settings.wechat_connect_app_id || "",
+    ).trim();
     const legacyWeChatSecretConfigured = Boolean(
       settings.wechat_connect_app_secret_configured,
     );
@@ -5558,7 +5711,10 @@ async function loadSettings() {
     if (!form.wechat_connect_mp_app_id && wechatCapabilities.mpEnabled) {
       form.wechat_connect_mp_app_id = legacyWeChatAppID;
     }
-    if (!form.wechat_connect_mobile_app_id && wechatCapabilities.mobileEnabled) {
+    if (
+      !form.wechat_connect_mobile_app_id &&
+      wechatCapabilities.mobileEnabled
+    ) {
       form.wechat_connect_mobile_app_id = legacyWeChatAppID;
     }
     if (
@@ -5572,7 +5728,8 @@ async function loadSettings() {
       !form.wechat_connect_mp_app_secret_configured &&
       wechatCapabilities.mpEnabled
     ) {
-      form.wechat_connect_mp_app_secret_configured = legacyWeChatSecretConfigured;
+      form.wechat_connect_mp_app_secret_configured =
+        legacyWeChatSecretConfigured;
     }
     if (
       !form.wechat_connect_mobile_app_secret_configured &&
@@ -5804,6 +5961,10 @@ async function saveSettings() {
       smtp_from_email: form.smtp_from_email,
       smtp_from_name: form.smtp_from_name,
       smtp_use_tls: form.smtp_use_tls,
+      telegram_enabled: form.telegram_enabled,
+      telegram_bot_token: form.telegram_bot_token || undefined,
+      telegram_chat_ids: form.telegram_chat_ids,
+      telegram_proxy_urls: form.telegram_proxy_urls,
       turnstile_enabled: form.turnstile_enabled,
       turnstile_site_key: form.turnstile_site_key,
       turnstile_secret_key: form.turnstile_secret_key || undefined,
@@ -5935,6 +6096,7 @@ async function saveSettings() {
     registrationEmailSuffixWhitelistDraft.value = "";
     form.smtp_password = "";
     smtpPasswordManuallyEdited.value = false;
+    form.telegram_bot_token = "";
     form.turnstile_secret_key = "";
     form.linuxdo_connect_client_secret = "";
     form.wechat_connect_app_secret = "";
@@ -6515,9 +6677,10 @@ function findProviderEnablementConflict(
   return null;
 }
 
-function showProviderEnablementConflict(
-  conflict: { method: "alipay" | "wxpay"; conflicting: ProviderInstance },
-) {
+function showProviderEnablementConflict(conflict: {
+  method: "alipay" | "wxpay";
+  conflicting: ProviderInstance;
+}) {
   appStore.showError(
     t("admin.settings.payment.enableConflict", {
       method: t(`payment.methods.${conflict.method}`),
@@ -6532,7 +6695,9 @@ async function loadProviders() {
     const res = await adminAPI.payment.getProviders();
     providers.value = res.data || [];
   } catch (err: unknown) {
-    appStore.showError(extractI18nErrorMessage(err, t, "payment.errors", t("common.error")));
+    appStore.showError(
+      extractI18nErrorMessage(err, t, "payment.errors", t("common.error")),
+    );
   } finally {
     providersLoading.value = false;
   }
@@ -6581,7 +6746,9 @@ async function handleSaveProvider(payload: Partial<ProviderInstance>) {
     // Auto-save settings so provider changes take effect immediately
     await saveSettings();
   } catch (err: unknown) {
-    appStore.showError(extractI18nErrorMessage(err, t, "payment.errors", t("common.error")));
+    appStore.showError(
+      extractI18nErrorMessage(err, t, "payment.errors", t("common.error")),
+    );
   } finally {
     providerSaving.value = false;
   }
@@ -6619,7 +6786,9 @@ async function handleToggleField(
     await adminAPI.payment.updateProvider(provider.id, payload);
     await loadProviders();
   } catch (err: unknown) {
-    appStore.showError(extractI18nErrorMessage(err, t, "payment.errors", t("common.error")));
+    appStore.showError(
+      extractI18nErrorMessage(err, t, "payment.errors", t("common.error")),
+    );
   }
 }
 
@@ -6644,7 +6813,9 @@ async function handleToggleType(provider: ProviderInstance, type: string) {
     } as any);
     await loadProviders();
   } catch (err: unknown) {
-    appStore.showError(extractI18nErrorMessage(err, t, "payment.errors", t("common.error")));
+    appStore.showError(
+      extractI18nErrorMessage(err, t, "payment.errors", t("common.error")),
+    );
   }
 }
 
@@ -6666,7 +6837,9 @@ async function handleReorderProviders(
     );
     await loadProviders();
   } catch (err: unknown) {
-    appStore.showError(extractI18nErrorMessage(err, t, "payment.errors", t("common.error")));
+    appStore.showError(
+      extractI18nErrorMessage(err, t, "payment.errors", t("common.error")),
+    );
     loadProviders();
   }
 }
@@ -6679,7 +6852,9 @@ async function handleDeleteProvider() {
     showDeleteProviderDialog.value = false;
     loadProviders();
   } catch (err: unknown) {
-    appStore.showError(extractI18nErrorMessage(err, t, "payment.errors", t("common.error")));
+    appStore.showError(
+      extractI18nErrorMessage(err, t, "payment.errors", t("common.error")),
+    );
   }
 }
 

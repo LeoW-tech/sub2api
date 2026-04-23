@@ -1,6 +1,6 @@
-import { computed, reactive, ref } from 'vue'
-import { flushPromises, shallowMount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { computed, reactive, ref } from "vue";
+import { flushPromises, shallowMount } from "@vue/test-utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   loadMock,
@@ -8,9 +8,7 @@ const {
   debouncedReloadMock,
   handlePageChangeMock,
   handlePageSizeChangeMock,
-  runAccountTestStreamMock,
-  getByIdMock,
-  bulkUpdateMock,
+  bulkTestActivateMock,
   getBatchTodayStatsMock,
   getAllProxiesMock,
   getIPOptionsMock,
@@ -19,16 +17,14 @@ const {
   showErrorMock,
   setSelectedIdsMock,
   clearSelectionMock,
-  removeManyMock
+  removeManyMock,
 } = vi.hoisted(() => ({
   loadMock: vi.fn(),
   reloadMock: vi.fn(),
   debouncedReloadMock: vi.fn(),
   handlePageChangeMock: vi.fn(),
   handlePageSizeChangeMock: vi.fn(),
-  runAccountTestStreamMock: vi.fn(),
-  getByIdMock: vi.fn(),
-  bulkUpdateMock: vi.fn(),
+  bulkTestActivateMock: vi.fn(),
   getBatchTodayStatsMock: vi.fn(),
   getAllProxiesMock: vi.fn(),
   getIPOptionsMock: vi.fn(),
@@ -37,97 +33,92 @@ const {
   showErrorMock: vi.fn(),
   setSelectedIdsMock: vi.fn(),
   clearSelectionMock: vi.fn(),
-  removeManyMock: vi.fn()
-}))
+  removeManyMock: vi.fn(),
+}));
 
-const accountsRef = ref<any[]>([])
-const selectedIdsRef = ref<number[]>([])
-const loadingRef = ref(false)
+const accountsRef = ref<any[]>([]);
+const selectedIdsRef = ref<number[]>([]);
+const loadingRef = ref(false);
 const tableParams = reactive({
-  platform: '',
-  type: '',
-  status: '',
-  privacy_mode: '',
-  network_status: '',
-  group: '',
-  search: '',
-  sort_by: 'name',
-  sort_order: 'asc'
-})
+  platform: "",
+  type: "",
+  status: "",
+  privacy_mode: "",
+  network_status: "",
+  group: "",
+  search: "",
+  sort_by: "name",
+  sort_order: "asc",
+});
 const paginationState = reactive({
   page: 1,
   page_size: 20,
   total: 0,
-  pages: 1
-})
+  pages: 1,
+});
 
-vi.mock('@vueuse/core', () => ({
+vi.mock("@vueuse/core", () => ({
   useIntervalFn: () => ({
     pause: vi.fn(),
-    resume: vi.fn()
-  })
-}))
+    resume: vi.fn(),
+  }),
+}));
 
-vi.mock('vue-i18n', async () => {
-  const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
+vi.mock("vue-i18n", async () => {
+  const actual = await vi.importActual<typeof import("vue-i18n")>("vue-i18n");
   return {
     ...actual,
     useI18n: () => ({
       t: (key: string, params?: Record<string, number>) => {
-        if (key === 'admin.accounts.bulkTestActivateSummary') {
-          return `测试成功 ${params?.success ?? 0} 个，测试失败 ${params?.failed ?? 0} 个，已启用 ${params?.activated ?? 0} 个`
+        if (key === "admin.accounts.bulkTestActivateSummary") {
+          return `测试成功 ${params?.success ?? 0} 个，测试失败 ${params?.failed ?? 0} 个，新增启用 ${params?.activated ?? 0} 个，新增禁用 ${params?.deactivated ?? 0} 个`;
         }
         const messages: Record<string, string> = {
-          'common.confirm': '确认',
-          'common.error': '错误',
-          'admin.accounts.bulkActions.testActivate': '批量测试激活',
-          'admin.accounts.bulkActions.testActivating': '批量测试激活中...'
-        }
-        return messages[key] || key
-      }
-    })
-  }
-})
+          "common.confirm": "确认",
+          "common.error": "错误",
+          "admin.accounts.bulkActions.testActivate": "批量测试激活",
+          "admin.accounts.bulkActions.testActivating": "批量测试激活中...",
+        };
+        return messages[key] || key;
+      },
+    }),
+  };
+});
 
-vi.mock('@/stores/app', () => ({
+vi.mock("@/stores/app", () => ({
   useAppStore: () => ({
     showSuccess: showSuccessMock,
-    showError: showErrorMock
-  })
-}))
+    showError: showErrorMock,
+  }),
+}));
 
-vi.mock('@/stores/auth', () => ({
+vi.mock("@/stores/auth", () => ({
   useAuthStore: () => ({
-    isSimpleMode: false
-  })
-}))
+    isSimpleMode: false,
+  }),
+}));
 
-vi.mock('@/api/admin/accountTestStream', () => ({
-  runAccountTestStream: runAccountTestStreamMock
-}))
-
-vi.mock('@/api/admin', () => ({
+vi.mock("@/api/admin", () => ({
   adminAPI: {
     accounts: {
-      getById: getByIdMock,
-      bulkUpdate: bulkUpdateMock,
-      getBatchTodayStats: getBatchTodayStatsMock
+      bulkTestActivate: bulkTestActivateMock,
+      getBatchTodayStats: getBatchTodayStatsMock,
     },
     proxies: {
       getAll: getAllProxiesMock,
-      getIPOptions: getIPOptionsMock
+      getIPOptions: getIPOptionsMock,
     },
     groups: {
-      getAll: getAllGroupsMock
-    }
-  }
-}))
+      getAll: getAllGroupsMock,
+    },
+  },
+}));
 
-vi.mock('@/composables/useSwipeSelect', () => ({
-  useSwipeSelect: vi.fn()
-}))
+vi.mock("@/composables/useSwipeSelect", () => ({
+  useSwipeSelect: vi.fn(),
+}));
 
-vi.mock('@/composables/useTableLoader', () => ({
+vi.mock("@/composables/useTableLoader", () => ({
   useTableLoader: () => ({
     items: accountsRef,
     loading: loadingRef,
@@ -137,11 +128,11 @@ vi.mock('@/composables/useTableLoader', () => ({
     reload: reloadMock,
     debouncedReload: debouncedReloadMock,
     handlePageChange: handlePageChangeMock,
-    handlePageSizeChange: handlePageSizeChangeMock
-  })
-}))
+    handlePageSizeChange: handlePageSizeChangeMock,
+  }),
+}));
 
-vi.mock('@/composables/useTableSelection', () => ({
+vi.mock("@/composables/useTableSelection", () => ({
   useTableSelection: () => ({
     selectedIds: computed(() => selectedIdsRef.value),
     allVisibleSelected: computed(() => false),
@@ -154,23 +145,24 @@ vi.mock('@/composables/useTableSelection', () => ({
     removeMany: removeManyMock,
     toggleVisible: vi.fn(),
     selectVisible: vi.fn(),
-    batchUpdate: vi.fn()
-  })
-}))
+    batchUpdate: vi.fn(),
+  }),
+}));
 
-import AccountsView from '../AccountsView.vue'
+import AccountsView from "../AccountsView.vue";
 
 function mountView() {
   return shallowMount(AccountsView, {
     global: {
       stubs: {
-        AppLayout: { template: '<div><slot /></div>' },
+        AppLayout: { template: "<div><slot /></div>" },
         TablePageLayout: {
-          template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          template:
+            '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>',
         },
         AccountBulkActionsBar: {
-          props: ['selectedIds', 'testingActivate'],
-          emits: ['test-activate'],
+          props: ["selectedIds", "testingActivate"],
+          emits: ["test-activate"],
           template: `
             <button
               class="bulk-test-activate-trigger"
@@ -179,7 +171,7 @@ function mountView() {
             >
               bulk-test-activate
             </button>
-          `
+          `,
         },
         AccountTableActions: true,
         AccountTableFilters: true,
@@ -205,190 +197,145 @@ function mountView() {
         AccountGroupsCell: true,
         AccountCapacityCell: true,
         PlatformTypeBadge: true,
-        Icon: true
-      }
-    }
-  })
+        Icon: true,
+      },
+    },
+  });
 }
 
-describe('AccountsView bulk test activate', () => {
+describe("AccountsView bulk test activate", () => {
   beforeEach(() => {
     accountsRef.value = [
-      { id: 1, name: 'Account 1', status: 'inactive', schedulable: true },
-      { id: 2, name: 'Account 2', status: 'active', schedulable: true },
-      { id: 3, name: 'Account 3', status: 'inactive', schedulable: true },
-      { id: 4, name: 'Account 4', status: 'inactive', schedulable: true }
-    ]
-    selectedIdsRef.value = [1, 2, 3, 4]
-    paginationState.total = accountsRef.value.length
-    paginationState.pages = 1
+      { id: 1, name: "Account 1", status: "inactive", schedulable: true },
+      { id: 2, name: "Account 2", status: "active", schedulable: true },
+      { id: 3, name: "Account 3", status: "inactive", schedulable: true },
+      { id: 4, name: "Account 4", status: "inactive", schedulable: true },
+    ];
+    selectedIdsRef.value = [1, 2, 3, 4];
+    paginationState.total = accountsRef.value.length;
+    paginationState.pages = 1;
 
-    loadMock.mockReset()
-    reloadMock.mockReset()
-    debouncedReloadMock.mockReset()
-    handlePageChangeMock.mockReset()
-    handlePageSizeChangeMock.mockReset()
-    runAccountTestStreamMock.mockReset()
-    getByIdMock.mockReset()
-    bulkUpdateMock.mockReset()
-    getBatchTodayStatsMock.mockReset()
-    getAllProxiesMock.mockReset()
-    getIPOptionsMock.mockReset()
-    getAllGroupsMock.mockReset()
-    showSuccessMock.mockReset()
-    showErrorMock.mockReset()
-    setSelectedIdsMock.mockReset()
-    clearSelectionMock.mockReset()
-    removeManyMock.mockReset()
+    loadMock.mockReset();
+    reloadMock.mockReset();
+    debouncedReloadMock.mockReset();
+    handlePageChangeMock.mockReset();
+    handlePageSizeChangeMock.mockReset();
+    bulkTestActivateMock.mockReset();
+    getBatchTodayStatsMock.mockReset();
+    getAllProxiesMock.mockReset();
+    getIPOptionsMock.mockReset();
+    getAllGroupsMock.mockReset();
+    showSuccessMock.mockReset();
+    showErrorMock.mockReset();
+    setSelectedIdsMock.mockReset();
+    clearSelectionMock.mockReset();
+    removeManyMock.mockReset();
 
     setSelectedIdsMock.mockImplementation((ids: number[]) => {
-      selectedIdsRef.value = ids
-    })
+      selectedIdsRef.value = ids;
+    });
     clearSelectionMock.mockImplementation(() => {
-      selectedIdsRef.value = []
-    })
+      selectedIdsRef.value = [];
+    });
 
-    getBatchTodayStatsMock.mockResolvedValue({ stats: {} })
-    getAllProxiesMock.mockResolvedValue([])
-    getIPOptionsMock.mockResolvedValue([])
-    getAllGroupsMock.mockResolvedValue([])
-    bulkUpdateMock.mockResolvedValue({
-      success: 0,
-      failed: 0,
-      success_ids: [],
-      failed_ids: [],
-      results: []
-    })
-
-    vi.stubGlobal('confirm', vi.fn(() => true))
-  })
-
-  it('批量测试激活按 10 并发启动测试任务', async () => {
-    const started: number[] = []
-    const resolvers = new Map<number, (value: { success: boolean }) => void>()
-
-    runAccountTestStreamMock.mockImplementation((accountId: number) => new Promise((resolve) => {
-      started.push(accountId)
-      resolvers.set(accountId, resolve)
-    }))
-    getByIdMock.mockImplementation(async (accountId: number) => ({
-      id: accountId,
-      status: 'inactive'
-    }))
-    bulkUpdateMock.mockResolvedValue({
+    getBatchTodayStatsMock.mockResolvedValue({ stats: {} });
+    getAllProxiesMock.mockResolvedValue([]);
+    getIPOptionsMock.mockResolvedValue([]);
+    getAllGroupsMock.mockResolvedValue([]);
+    bulkTestActivateMock.mockResolvedValue({
+      trigger: "manual",
+      model_id: "gpt-5.4",
+      total: 4,
       success: 4,
       failed: 0,
+      activated: 3,
+      deactivated: 0,
       success_ids: [1, 2, 3, 4],
       failed_ids: [],
-      results: []
-    })
+      activated_ids: [1, 3, 4],
+      deactivated_ids: [],
+    });
 
-    const wrapper = mountView()
-    await flushPromises()
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true),
+    );
+  });
 
-    await wrapper.get('button.bulk-test-activate-trigger').trigger('click')
-    await flushPromises()
+  it("批量测试激活调用后端接口并提交选中账号 ID", async () => {
+    const wrapper = mountView();
+    await flushPromises();
 
-    expect(started).toEqual([1, 2, 3, 4])
+    await wrapper.get("button.bulk-test-activate-trigger").trigger("click");
+    await flushPromises();
 
-    resolvers.get(1)?.({ success: true })
-    await flushPromises()
+    expect(bulkTestActivateMock).toHaveBeenCalledWith([1, 2, 3, 4]);
+  });
 
-    expect(started).toEqual([1, 2, 3, 4])
-
-    resolvers.get(2)?.({ success: true })
-    resolvers.get(3)?.({ success: true })
-    resolvers.get(4)?.({ success: true })
-    await flushPromises()
-  })
-
-  it('固定使用 GPT-5.4，失败不阻塞，并且只激活测试成功且当前非 active 的账号', async () => {
-    selectedIdsRef.value = [1, 2, 3]
+  it("根据后端汇总结果更新本地状态并保留失败选择", async () => {
+    selectedIdsRef.value = [1, 2, 3];
     accountsRef.value = [
-      { id: 1, name: 'Account 1', status: 'inactive', schedulable: false },
-      { id: 2, name: 'Account 2', status: 'active', schedulable: false },
-      { id: 3, name: 'Account 3', status: 'inactive', schedulable: true }
-    ]
+      { id: 1, name: "Account 1", status: "inactive", schedulable: false },
+      { id: 2, name: "Account 2", status: "active", schedulable: false },
+      { id: 3, name: "Account 3", status: "inactive", schedulable: true },
+    ];
 
-    runAccountTestStreamMock
-      .mockResolvedValueOnce({ success: true })
-      .mockResolvedValueOnce({ success: true })
-      .mockRejectedValueOnce(new Error('boom'))
-
-    getByIdMock
-      .mockResolvedValueOnce({ id: 1, name: 'Account 1', status: 'inactive', schedulable: true })
-      .mockResolvedValueOnce({ id: 2, name: 'Account 2', status: 'active', schedulable: true })
-
-    bulkUpdateMock.mockResolvedValue({
+    bulkTestActivateMock.mockResolvedValueOnce({
+      trigger: "manual",
+      model_id: "gpt-5.4",
+      total: 3,
       success: 1,
-      failed: 0,
+      failed: 2,
+      activated: 1,
+      deactivated: 1,
       success_ids: [1],
+      failed_ids: [2, 3],
+      activated_ids: [1],
+      deactivated_ids: [2],
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    await wrapper.get("button.bulk-test-activate-trigger").trigger("click");
+    await flushPromises();
+
+    expect(accountsRef.value).toEqual([
+      { id: 1, name: "Account 1", status: "active", schedulable: false },
+      { id: 2, name: "Account 2", status: "inactive", schedulable: false },
+      { id: 3, name: "Account 3", status: "inactive", schedulable: true },
+    ]);
+    expect(setSelectedIdsMock).toHaveBeenCalledWith([2, 3]);
+    expect(showErrorMock).toHaveBeenCalledWith(
+      "测试成功 1 个，测试失败 2 个，新增启用 1 个，新增禁用 1 个",
+    );
+  });
+
+  it("全部成功时显示成功提示并清空选择", async () => {
+    bulkTestActivateMock.mockResolvedValueOnce({
+      trigger: "manual",
+      model_id: "gpt-5.4",
+      total: 4,
+      success: 4,
+      failed: 0,
+      activated: 4,
+      deactivated: 0,
+      success_ids: [1, 2, 3, 4],
       failed_ids: [],
-      results: [{ account_id: 1, success: true }]
-    })
+      activated_ids: [1, 2, 3, 4],
+      deactivated_ids: [],
+    });
 
-    const wrapper = mountView()
-    await flushPromises()
+    const wrapper = mountView();
+    await flushPromises();
 
-    await wrapper.get('button.bulk-test-activate-trigger').trigger('click')
-    await flushPromises()
-    await flushPromises()
+    await wrapper.get("button.bulk-test-activate-trigger").trigger("click");
+    await flushPromises();
 
-    expect(runAccountTestStreamMock).toHaveBeenCalledTimes(3)
-    expect(runAccountTestStreamMock).toHaveBeenNthCalledWith(
-      1,
-      1,
-      expect.objectContaining({ modelId: 'gpt-5.4' })
-    )
-    expect(runAccountTestStreamMock).toHaveBeenNthCalledWith(
-      2,
-      2,
-      expect.objectContaining({ modelId: 'gpt-5.4' })
-    )
-    expect(runAccountTestStreamMock).toHaveBeenNthCalledWith(
-      3,
-      3,
-      expect.objectContaining({ modelId: 'gpt-5.4' })
-    )
-    expect(getByIdMock).toHaveBeenCalledTimes(2)
-    expect(getByIdMock).toHaveBeenNthCalledWith(1, 1)
-    expect(getByIdMock).toHaveBeenNthCalledWith(2, 2)
-    expect(bulkUpdateMock).toHaveBeenCalledWith([1], { status: 'active' })
-    expect(accountsRef.value).toEqual([
-      { id: 1, name: 'Account 1', status: 'active', schedulable: true },
-      { id: 2, name: 'Account 2', status: 'active', schedulable: true },
-      { id: 3, name: 'Account 3', status: 'inactive', schedulable: true }
-    ])
-    expect(setSelectedIdsMock).toHaveBeenCalledWith([3])
-    expect(showErrorMock).toHaveBeenCalledWith('测试成功 2 个，测试失败 1 个，已启用 1 个')
-  })
-
-  it('测试成功后会立即把 active 但调度关闭的账号回填为 schedulable=true', async () => {
-    selectedIdsRef.value = [2]
-    accountsRef.value = [
-      { id: 2, name: 'Account 2', status: 'active', schedulable: false }
-    ]
-
-    runAccountTestStreamMock.mockResolvedValueOnce({ success: true })
-    getByIdMock.mockResolvedValueOnce({
-      id: 2,
-      name: 'Account 2',
-      status: 'active',
-      schedulable: true
-    })
-
-    const wrapper = mountView()
-    await flushPromises()
-
-    await wrapper.get('button.bulk-test-activate-trigger').trigger('click')
-    await flushPromises()
-    await flushPromises()
-
-    expect(bulkUpdateMock).not.toHaveBeenCalled()
-    expect(accountsRef.value).toEqual([
-      { id: 2, name: 'Account 2', status: 'active', schedulable: true }
-    ])
-    expect(clearSelectionMock).toHaveBeenCalled()
-    expect(showSuccessMock).toHaveBeenCalledWith('测试成功 1 个，测试失败 0 个，已启用 0 个')
-  })
-})
+    expect(showSuccessMock).toHaveBeenCalledWith(
+      "测试成功 4 个，测试失败 0 个，新增启用 4 个，新增禁用 0 个",
+    );
+    expect(clearSelectionMock).toHaveBeenCalled();
+    expect(setSelectedIdsMock).not.toHaveBeenCalled();
+  });
+});

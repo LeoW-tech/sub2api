@@ -340,8 +340,18 @@ func ProvideScheduledTestRunnerService(
 	return svc
 }
 
-func ProvideProxyNetworkMonitorService(adminService AdminService, proxyRepo ProxyRepository) *ProxyNetworkMonitorService {
-	svc := NewProxyNetworkMonitorService(adminService, proxyRepo)
+func ProvideTelegramNotificationService(settingService *SettingService) *TelegramNotificationService {
+	return NewTelegramNotificationService(settingService)
+}
+
+func ProvideAccountBulkTestActivateService(accountRepo AccountRepository, accountTestSvc *AccountTestService, telegram *TelegramNotificationService, cfg *config.Config) *AccountBulkTestActivateService {
+	svc := NewAccountBulkTestActivateService(accountRepo, accountTestSvc, telegram, cfg)
+	svc.Start()
+	return svc
+}
+
+func ProvideProxyNetworkMonitorService(adminService AdminService, proxyRepo ProxyRepository, telegram *TelegramNotificationService) *ProxyNetworkMonitorService {
+	svc := NewProxyNetworkMonitorService(adminService, proxyRepo, telegram)
 	svc.Start()
 	return svc
 }
@@ -500,6 +510,8 @@ var ProviderSet = wire.NewSet(
 	NewAccountUsageService,
 	NewAccountTestService,
 	ProvideSettingService,
+	ProvideTelegramNotificationService,
+	ProvideAccountBulkTestActivateService,
 	NewDataManagementService,
 	ProvideBackupService,
 	ProvideOpsSystemLogSink,

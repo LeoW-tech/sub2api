@@ -45,19 +45,20 @@ func NewOAuthHandler(oauthService *service.OAuthService) *OAuthHandler {
 
 // AccountHandler handles admin account management
 type AccountHandler struct {
-	adminService            service.AdminService
-	oauthService            *service.OAuthService
-	openaiOAuthService      *service.OpenAIOAuthService
-	geminiOAuthService      *service.GeminiOAuthService
-	antigravityOAuthService *service.AntigravityOAuthService
-	rateLimitService        *service.RateLimitService
-	accountUsageService     *service.AccountUsageService
-	accountTestService      *service.AccountTestService
-	concurrencyService      *service.ConcurrencyService
-	crsSyncService          *service.CRSSyncService
-	sessionLimitCache       service.SessionLimitCache
-	rpmCache                service.RPMCache
-	tokenCacheInvalidator   service.TokenCacheInvalidator
+	adminService                   service.AdminService
+	oauthService                   *service.OAuthService
+	openaiOAuthService             *service.OpenAIOAuthService
+	geminiOAuthService             *service.GeminiOAuthService
+	antigravityOAuthService        *service.AntigravityOAuthService
+	rateLimitService               *service.RateLimitService
+	accountUsageService            *service.AccountUsageService
+	accountTestService             *service.AccountTestService
+	accountBulkTestActivateService *service.AccountBulkTestActivateService
+	concurrencyService             *service.ConcurrencyService
+	crsSyncService                 *service.CRSSyncService
+	sessionLimitCache              service.SessionLimitCache
+	rpmCache                       service.RPMCache
+	tokenCacheInvalidator          service.TokenCacheInvalidator
 }
 
 // NewAccountHandler creates a new admin account handler
@@ -70,6 +71,7 @@ func NewAccountHandler(
 	rateLimitService *service.RateLimitService,
 	accountUsageService *service.AccountUsageService,
 	accountTestService *service.AccountTestService,
+	accountBulkTestActivateService *service.AccountBulkTestActivateService,
 	concurrencyService *service.ConcurrencyService,
 	crsSyncService *service.CRSSyncService,
 	sessionLimitCache service.SessionLimitCache,
@@ -77,19 +79,20 @@ func NewAccountHandler(
 	tokenCacheInvalidator service.TokenCacheInvalidator,
 ) *AccountHandler {
 	return &AccountHandler{
-		adminService:            adminService,
-		oauthService:            oauthService,
-		openaiOAuthService:      openaiOAuthService,
-		geminiOAuthService:      geminiOAuthService,
-		antigravityOAuthService: antigravityOAuthService,
-		rateLimitService:        rateLimitService,
-		accountUsageService:     accountUsageService,
-		accountTestService:      accountTestService,
-		concurrencyService:      concurrencyService,
-		crsSyncService:          crsSyncService,
-		sessionLimitCache:       sessionLimitCache,
-		rpmCache:                rpmCache,
-		tokenCacheInvalidator:   tokenCacheInvalidator,
+		adminService:                   adminService,
+		oauthService:                   oauthService,
+		openaiOAuthService:             openaiOAuthService,
+		geminiOAuthService:             geminiOAuthService,
+		antigravityOAuthService:        antigravityOAuthService,
+		rateLimitService:               rateLimitService,
+		accountUsageService:            accountUsageService,
+		accountTestService:             accountTestService,
+		accountBulkTestActivateService: accountBulkTestActivateService,
+		concurrencyService:             concurrencyService,
+		crsSyncService:                 crsSyncService,
+		sessionLimitCache:              sessionLimitCache,
+		rpmCache:                       rpmCache,
+		tokenCacheInvalidator:          tokenCacheInvalidator,
 	}
 }
 
@@ -147,6 +150,10 @@ type BulkUpdateAccountsRequest struct {
 	Credentials             map[string]any `json:"credentials"`
 	Extra                   map[string]any `json:"extra"`
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"` // 用户确认混合渠道风险
+}
+
+type BulkTestActivateAccountsRequest struct {
+	AccountIDs []int64 `json:"account_ids" binding:"required,min=1"`
 }
 
 // CheckMixedChannelRequest represents check mixed channel risk request
@@ -1433,6 +1440,29 @@ func (h *AccountHandler) BulkUpdate(c *gin.Context) {
 	}
 
 	response.Success(c, result)
+}
+
+// BulkTestActivate handles bulk test activation for selected accounts.
+// POST /api/v1/admin/accounts/bulk-test-activate
+func (h *AccountHandler) BulkTestActivate(c *gin.Context) {
+	if h.accountBulkTestActivateService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Bulk test activate service unavailable")
+		return
+	}
+
+	var req BulkTestActivateAccountsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	summary, err := h.accountBulkTestActivateService.Execute(c.Request.Context(), req.AccountIDs, service.AccountBulkTestActivateTriggerManual)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, summary)
 }
 
 // ========== OAuth Handlers ==========

@@ -502,7 +502,8 @@ export default {
       suggestedEmail: "Suggested email: {email}",
       bindExistingAccount: "Bind existing account",
       createNewAccount: "Create new account",
-      createAccountHint: "Enter an email address to create your account and continue.",
+      createAccountHint:
+        "Enter an email address to create your account and continue.",
       bindLoginHint:
         "Log in to an existing account to bind this {providerName} sign-in.",
       signInThenBindDescription:
@@ -959,8 +960,7 @@ export default {
     overviewDescription:
       "Check account status, profile sources, and common actions at a glance.",
     basicsTitle: "Profile & Avatar",
-    basicsDescription:
-      "Keep your public profile details and avatar aligned.",
+    basicsDescription: "Keep your public profile details and avatar aligned.",
     linkedProfileSources: "Profile Sources",
     linkedProfileSourcesDescription:
       "Some profile details may stay synced from third-party sign-in methods.",
@@ -1119,8 +1119,7 @@ export default {
       notes: {
         emailManagedFromProfile: "Primary email is managed in the profile form",
         canUnbind: "You can unbind this sign-in method",
-        bindAnotherBeforeUnbind:
-          "Bind another sign-in method before unbinding",
+        bindAnotherBeforeUnbind: "Bind another sign-in method before unbinding",
       },
       source: {
         avatar: "Avatar is currently synced from {providerName}",
@@ -2606,7 +2605,7 @@ export default {
           "Partially completed: {success} succeeded, {failed} failed",
       },
       bulkTestActivateSummary:
-        "Test succeeded for {success} account(s), failed for {failed}, activated {activated}",
+        "Test succeeded for {success} account(s), failed for {failed}, newly activated {activated}, newly deactivated {deactivated}",
       bulkEdit: {
         title: "Bulk Edit Accounts",
         selectionInfo:
@@ -5239,6 +5238,29 @@ export default {
         fromNamePlaceholder: "Sub2API",
         useTls: "Use TLS",
         useTlsHint: "Enable TLS encryption for SMTP connection",
+      },
+      telegram: {
+        title: "Telegram Push",
+        description:
+          "Only used for Telegram summary messages after proxy network scans and bulk test activation runs.",
+        enabled: "Enable Telegram Push",
+        enabledHint:
+          "When disabled, no Telegram scheduler summary will be sent.",
+        botToken: "Bot Token",
+        botTokenPlaceholder: "123456:ABCDEF...",
+        botTokenHint: "Leave empty if no token is configured yet.",
+        botTokenConfiguredPlaceholder: "********",
+        botTokenConfiguredHint:
+          "Token configured. Leave empty to keep the current value.",
+        chatIds: "Chat ID List",
+        chatIdsPlaceholder: "123456789\n-1001234567890",
+        chatIdsHint:
+          "Supports newline or comma separated values. Leave empty to disable delivery.",
+        proxyUrls: "Proxy URL List",
+        proxyUrlsPlaceholder:
+          "http://host.docker.internal:58080\nhttp://host.docker.internal:58081\nhttp://host.docker.internal:58082",
+        proxyUrlsHint:
+          "Supports newline or comma separated values. Uses the default door proxy order when empty.",
       },
       testEmail: {
         title: "Send Test Email",

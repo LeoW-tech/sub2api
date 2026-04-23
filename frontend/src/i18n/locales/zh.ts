@@ -501,10 +501,8 @@ export default {
       totpHint:
         "请输入 {account} 的 6 位验证码，以完成此次 {providerName} 登录绑定。",
       verifyAndContinue: "验证并继续",
-      wechatAvailabilityUnknown:
-        "暂时无法确认微信登录可用性，请刷新后重试。",
-      wechatSystemBrowserOnly:
-        "当前微信登录流程仅支持在系统浏览器中继续。",
+      wechatAvailabilityUnknown: "暂时无法确认微信登录可用性，请刷新后重试。",
+      wechatSystemBrowserOnly: "当前微信登录流程仅支持在系统浏览器中继续。",
       wechatBrowserOnly: "当前微信登录流程仅支持在微信内置浏览器中继续。",
       wechatNotConfigured: "微信登录尚未配置。",
     },
@@ -1020,7 +1018,8 @@ export default {
     },
     avatar: {
       title: "资料头像",
-      description: "仅支持上传头像图片；静态图片会自动压缩到 20KB 以内后再保存。",
+      description:
+        "仅支持上传头像图片；静态图片会自动压缩到 20KB 以内后再保存。",
       uploadAction: "上传图片",
       uploadHint:
         "上传图片时会自动压缩静态图片到 20KB 以内，GIF 需自行控制在 20KB 以内",
@@ -1029,8 +1028,7 @@ export default {
       deleteSuccess: "头像已删除",
       invalidType: "请选择图片文件",
       gifTooLarge: "GIF 头像必须在 20KB 以内",
-      compressTooLarge:
-        "无法将图片压缩到 20KB 以内，请换一张更小的图片",
+      compressTooLarge: "无法将图片压缩到 20KB 以内，请换一张更小的图片",
       compressFailed: "压缩所选图片失败",
       readFailed: "读取所选图片失败",
       emptyDeleteHint: "当前没有可删除的头像",
@@ -2639,7 +2637,7 @@ export default {
         partialSuccess: "操作部分完成：{success} 成功，{failed} 失败",
       },
       bulkTestActivateSummary:
-        "测试成功 {success} 个，测试失败 {failed} 个，已启用 {activated} 个",
+        "测试成功 {success} 个，测试失败 {failed} 个，新增启用 {activated} 个，新增禁用 {deactivated} 个",
       bulkEdit: {
         title: "批量编辑账号",
         selectionInfo:
@@ -5162,6 +5160,24 @@ export default {
         fromNamePlaceholder: "Sub2API",
         useTls: "使用 TLS",
         useTlsHint: "为 SMTP 连接启用 TLS 加密",
+      },
+      telegram: {
+        title: "Telegram 推送",
+        description: "仅用于网络检查和批量测试激活完成后的 Telegram 摘要推送。",
+        enabled: "启用 Telegram 推送",
+        enabledHint: "关闭后将不发送任何 Telegram 调度摘要。",
+        botToken: "Bot Token",
+        botTokenPlaceholder: "123456:ABCDEF...",
+        botTokenHint: "留空表示未配置 Token。",
+        botTokenConfiguredPlaceholder: "********",
+        botTokenConfiguredHint: "Token 已配置，留空以保留当前值。",
+        chatIds: "Chat ID 列表",
+        chatIdsPlaceholder: "123456789\n-1001234567890",
+        chatIdsHint: "支持换行或逗号分隔，留空则不发送。",
+        proxyUrls: "代理 URL 列表",
+        proxyUrlsPlaceholder:
+          "http://host.docker.internal:58080\nhttp://host.docker.internal:58081\nhttp://host.docker.internal:58082",
+        proxyUrlsHint: "支持换行或逗号分隔。留空时使用默认 door 代理顺序。",
       },
       testEmail: {
         title: "发送测试邮件",

@@ -129,7 +129,7 @@ func TestProxyNetworkMonitorService_RunFullScan(t *testing.T) {
 		proxyRepo:   proxyRepo,
 		proxyProber: &proxyNetworkMonitorProberStub{},
 	}
-	svc := NewProxyNetworkMonitorService(adminSvc, proxyRepo)
+	svc := NewProxyNetworkMonitorService(adminSvc, proxyRepo, nil)
 
 	summary, err := svc.RunFullScan(context.Background())
 	require.NoError(t, err)
@@ -160,7 +160,7 @@ func TestProxyNetworkMonitorService_RunFullScan_PreventsOverlap(t *testing.T) {
 		accountRepo: accountRepo,
 		proxyRepo:   proxyRepo,
 		proxyProber: &proxyNetworkMonitorProberStub{},
-	}, proxyRepo)
+	}, proxyRepo, nil)
 	svc.scanRunning.Store(true)
 
 	summary, err := svc.RunFullScan(context.Background())

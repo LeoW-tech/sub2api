@@ -353,6 +353,10 @@ export interface SystemSettings {
   smtp_from_email: string;
   smtp_from_name: string;
   smtp_use_tls: boolean;
+  telegram_enabled: boolean;
+  telegram_bot_token_configured: boolean;
+  telegram_chat_ids: string;
+  telegram_proxy_urls: string;
   // Cloudflare Turnstile settings
   turnstile_enabled: boolean;
   turnstile_site_key: string;
@@ -524,6 +528,10 @@ export interface UpdateSettingsRequest {
   smtp_from_email?: string;
   smtp_from_name?: string;
   smtp_use_tls?: boolean;
+  telegram_enabled?: boolean;
+  telegram_bot_token?: string;
+  telegram_chat_ids?: string;
+  telegram_proxy_urls?: string;
   turnstile_enabled?: boolean;
   turnstile_site_key?: string;
   turnstile_secret_key?: string;

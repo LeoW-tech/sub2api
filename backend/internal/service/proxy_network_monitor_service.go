@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -31,6 +32,7 @@ type ProxyNetworkScanSummary struct {
 type ProxyNetworkMonitorService struct {
 	adminService AdminService
 	proxyRepo    ProxyRepository
+	telegram     *TelegramNotificationService
 
 	stopCh   chan struct{}
 	stopOnce sync.Once
@@ -40,10 +42,11 @@ type ProxyNetworkMonitorService struct {
 	lastSummary atomic.Pointer[ProxyNetworkScanSummary]
 }
 
-func NewProxyNetworkMonitorService(adminService AdminService, proxyRepo ProxyRepository) *ProxyNetworkMonitorService {
+func NewProxyNetworkMonitorService(adminService AdminService, proxyRepo ProxyRepository, telegram *TelegramNotificationService) *ProxyNetworkMonitorService {
 	return &ProxyNetworkMonitorService{
 		adminService: adminService,
 		proxyRepo:    proxyRepo,
+		telegram:     telegram,
 		stopCh:       make(chan struct{}),
 	}
 }
@@ -147,6 +150,7 @@ func (s *ProxyNetworkMonitorService) RunFullScan(ctx context.Context) (*ProxyNet
 		"offline", summary.Offline,
 		"errors", summary.Errors,
 	)
+	s.notifySummary(ctx, summary)
 	return summary, nil
 }
 
@@ -180,9 +184,9 @@ func (s *ProxyNetworkMonitorService) listAllProxies(ctx context.Context) ([]Prox
 
 	for {
 		items, pageInfo, err := s.proxyRepo.List(ctx, pagination.PaginationParams{
-			Page:     page,
-			PageSize: proxyNetworkMonitorPageSize,
-			SortBy:   "id",
+			Page:      page,
+			PageSize:  proxyNetworkMonitorPageSize,
+			SortBy:    "id",
 			SortOrder: "desc",
 		})
 		if err != nil {
@@ -202,4 +206,55 @@ func (s *ProxyNetworkMonitorService) listAllProxies(ctx context.Context) ([]Prox
 	}
 
 	return out, nil
+}
+
+func (s *ProxyNetworkMonitorService) countNetworkPausedOfflineAccounts(ctx context.Context) (int, error) {
+	if s == nil || s.adminService == nil {
+		return 0, nil
+	}
+
+	page := 1
+	totalCount := 0
+	for {
+		accounts, total, err := s.adminService.ListAccounts(ctx, page, proxyNetworkMonitorPageSize, "", "", "", "", 0, "", ProxyNetworkStatusOffline, "", "id", "asc")
+		if err != nil {
+			return 0, err
+		}
+		if len(accounts) == 0 {
+			break
+		}
+		for i := range accounts {
+			if accounts[i].NetworkAutoPaused && !accounts[i].Schedulable {
+				totalCount++
+			}
+		}
+		if int64(page*proxyNetworkMonitorPageSize) >= total {
+			break
+		}
+		page++
+	}
+	return totalCount, nil
+}
+
+func (s *ProxyNetworkMonitorService) notifySummary(ctx context.Context, summary *ProxyNetworkScanSummary) {
+	if s == nil || s.telegram == nil || summary == nil {
+		return
+	}
+	pausedCount, err := s.countNetworkPausedOfflineAccounts(ctx)
+	if err != nil {
+		slog.Warn("proxy_network_monitor.count_paused_offline_accounts_failed", "error", err)
+		return
+	}
+
+	message := fmt.Sprintf(
+		"网络检查完成\n代理总数：%d\n在线：%d\n离线：%d\n错误：%d\n网络异常且保持关闭调度的账号：%d",
+		summary.Total,
+		summary.Online,
+		summary.Offline,
+		summary.Errors,
+		pausedCount,
+	)
+	if err := s.telegram.SendText(ctx, message); err != nil {
+		slog.Warn("proxy_network_monitor.telegram_notify_failed", "error", err)
+	}
 }
