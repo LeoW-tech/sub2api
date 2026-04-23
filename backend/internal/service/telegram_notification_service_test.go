@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,16 +31,14 @@ func TestTelegramNotificationService_SendText_UsesNextProxyOnFailure(t *testing.
 	defer server.Close()
 
 	svc := &TelegramNotificationService{
-		settingService: &SettingService{
-			settingRepo: &settingRepoStubForTelegram{
-				values: map[string]string{
-					SettingKeyTelegramEnabled:   "true",
-					SettingKeyTelegramBotToken:  "secret",
-					SettingKeyTelegramChatIDs:   "123456",
-					SettingKeyTelegramProxyURLs: "http://bad-proxy:8080,http://good-proxy:8080",
-				},
+		settingService: NewSettingService(&settingRepoStubForTelegram{
+			values: map[string]string{
+				SettingKeyTelegramEnabled:   "true",
+				SettingKeyTelegramBotToken:  "secret",
+				SettingKeyTelegramChatIDs:   "123456",
+				SettingKeyTelegramProxyURLs: "http://bad-proxy:8080,http://good-proxy:8080",
 			},
-		},
+		}, &config.Config{}),
 		baseURL: server.URL,
 		clientFactory: func(proxyURL string) (*http.Client, error) {
 			if strings.Contains(proxyURL, "bad-proxy") {
@@ -51,6 +50,39 @@ func TestTelegramNotificationService_SendText_UsesNextProxyOnFailure(t *testing.
 
 	err := svc.SendText(context.Background(), "hello")
 	require.NoError(t, err)
+}
+
+func TestTelegramNotificationService_SendTestTextWithConfig_RequiresTokenAndChatID(t *testing.T) {
+	svc := &TelegramNotificationService{}
+
+	err := svc.SendTestTextWithConfig(context.Background(), &TelegramNotificationConfig{}, "hello")
+	require.EqualError(t, err, "telegram bot token is required")
+
+	err = svc.SendTestTextWithConfig(context.Background(), &TelegramNotificationConfig{
+		BotToken: "secret",
+	}, "hello")
+	require.EqualError(t, err, "telegram chat id is required")
+}
+
+func TestTelegramNotificationService_SendTestTextWithConfig_ReturnsTelegramAPIError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"ok":false,"error_code":400,"description":"Bad Request: chat not found"}`))
+	}))
+	defer server.Close()
+
+	svc := &TelegramNotificationService{
+		baseURL: server.URL,
+		clientFactory: func(proxyURL string) (*http.Client, error) {
+			return server.Client(), nil
+		},
+	}
+
+	err := svc.SendTestTextWithConfig(context.Background(), &TelegramNotificationConfig{
+		BotToken: "secret",
+		ChatIDs:  []string{"123456"},
+	}, "hello")
+	require.EqualError(t, err, `telegram send failed: 123456: telegram api status 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}`)
 }
 
 type settingRepoStubForTelegram struct {

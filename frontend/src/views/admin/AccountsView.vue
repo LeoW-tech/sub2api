@@ -646,6 +646,7 @@ import Icon from "@/components/icons/Icon.vue";
 import ErrorPassthroughRulesModal from "@/components/admin/ErrorPassthroughRulesModal.vue";
 import TLSFingerprintProfilesModal from "@/components/admin/TLSFingerprintProfilesModal.vue";
 import { buildOpenAIUsageRefreshKey } from "@/utils/accountUsageRefresh";
+import { extractApiErrorMessage } from "@/utils/apiError";
 import { formatDateTime, formatRelativeTime } from "@/utils/format";
 import type {
   Account,
@@ -1660,7 +1661,11 @@ const handleBulkTestActivate = async () => {
     }
   } catch (error) {
     console.error("Failed to bulk test activate accounts:", error);
-    appStore.showError(t("common.error"));
+    appStore.showError(
+      extractApiErrorMessage(error, t("common.error"), {
+        REQUEST_TIMEOUT: t("admin.accounts.bulkTestActivateTimeout"),
+      }),
+    );
     setSelectedIds(accountIds);
   } finally {
     bulkTestingActivate.value = false;

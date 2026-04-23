@@ -2640,6 +2640,8 @@ export default {
       },
       bulkTestActivateSummary:
         "测试成功 {success} 个，测试失败 {failed} 个，新增启用 {activated} 个，新增禁用 {deactivated} 个",
+      bulkTestActivateTimeout:
+        "请求超时，批量测试仍可能在后台继续执行，请稍后刷新查看结果。",
       bulkEdit: {
         title: "批量编辑账号",
         selectionInfo:
@@ -5190,6 +5192,11 @@ export default {
         sending: "发送中...",
         enterRecipientHint: "请输入收件人邮箱地址",
       },
+      testTelegram: {
+        sendTestTelegram: "发送测试 Telegram",
+        sending: "发送中...",
+        enterChatIdsHint: "请输入至少一个 Telegram Chat ID",
+      },
       opsMonitoring: {
         title: "运维监控",
         description: "启用运维监控模块，用于排障与健康可视化",
@@ -5412,10 +5419,12 @@ export default {
       settingsSaved: "设置保存成功",
       smtpConnectionSuccess: "SMTP 连接成功",
       testEmailSent: "测试邮件发送成功",
+      testTelegramSent: "测试 Telegram 消息发送成功",
       failedToLoad: "加载设置失败",
       failedToSave: "保存设置失败",
       failedToTestSmtp: "SMTP 连接测试失败",
       failedToSendTestEmail: "发送测试邮件失败",
+      failedToSendTestTelegram: "发送测试 Telegram 消息失败",
     },
 
     // Error Passthrough Rules

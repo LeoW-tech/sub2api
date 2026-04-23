@@ -468,6 +468,9 @@ export async function bulkTestActivate(
     {
       account_ids: accountIds,
     },
+    {
+      timeout: 120000,
+    },
   );
   return data;
 }

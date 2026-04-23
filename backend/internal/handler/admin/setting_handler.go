@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
@@ -56,17 +58,23 @@ func firstNonEmpty(values ...string) string {
 type SettingHandler struct {
 	settingService       *service.SettingService
 	emailService         *service.EmailService
+	telegramService      settingHandlerTelegramService
 	turnstileService     *service.TurnstileService
 	opsService           *service.OpsService
 	paymentConfigService *service.PaymentConfigService
 	paymentService       *service.PaymentService
 }
 
+type settingHandlerTelegramService interface {
+	SendTestTextWithConfig(ctx context.Context, cfg *service.TelegramNotificationConfig, text string) error
+}
+
 // NewSettingHandler 创建系统设置处理器
-func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService) *SettingHandler {
+func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, telegramService *service.TelegramNotificationService, turnstileService *service.TurnstileService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService) *SettingHandler {
 	return &SettingHandler{
 		settingService:       settingService,
 		emailService:         emailService,
+		telegramService:      telegramService,
 		turnstileService:     turnstileService,
 		opsService:           opsService,
 		paymentConfigService: paymentConfigService,
@@ -2107,6 +2115,12 @@ type SendTestEmailRequest struct {
 	SMTPUseTLS   bool   `json:"smtp_use_tls"`
 }
 
+type SendTestTelegramRequest struct {
+	TelegramBotToken  string `json:"telegram_bot_token"`
+	TelegramChatIDs   string `json:"telegram_chat_ids"`
+	TelegramProxyURLs string `json:"telegram_proxy_urls"`
+}
+
 // SendTestEmail 发送测试邮件
 // POST /api/v1/admin/settings/send-test-email
 func (h *SettingHandler) SendTestEmail(c *gin.Context) {
@@ -2206,6 +2220,71 @@ func (h *SettingHandler) SendTestEmail(c *gin.Context) {
 	response.Success(c, gin.H{"message": "Test email sent successfully"})
 }
 
+// SendTestTelegram 发送测试 Telegram 消息
+// POST /api/v1/admin/settings/send-test-telegram
+func (h *SettingHandler) SendTestTelegram(c *gin.Context) {
+	if h.telegramService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Telegram notification service unavailable")
+		return
+	}
+
+	var req SendTestTelegramRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	req.TelegramBotToken = strings.TrimSpace(req.TelegramBotToken)
+	req.TelegramChatIDs = strings.TrimSpace(req.TelegramChatIDs)
+	req.TelegramProxyURLs = strings.TrimSpace(req.TelegramProxyURLs)
+
+	var savedSettings *service.SystemSettings
+	needsSavedFallback := req.TelegramBotToken == "" || req.TelegramChatIDs == "" || req.TelegramProxyURLs == ""
+	if needsSavedFallback {
+		settings, err := h.settingService.GetAllSettings(c.Request.Context())
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, "Failed to load saved Telegram settings")
+			return
+		}
+		savedSettings = settings
+	}
+
+	if req.TelegramBotToken == "" && savedSettings != nil {
+		req.TelegramBotToken = strings.TrimSpace(savedSettings.TelegramBotToken)
+	}
+	if req.TelegramChatIDs == "" && savedSettings != nil {
+		req.TelegramChatIDs = strings.TrimSpace(savedSettings.TelegramChatIDs)
+	}
+	if req.TelegramProxyURLs == "" && savedSettings != nil {
+		req.TelegramProxyURLs = strings.TrimSpace(savedSettings.TelegramProxyURLs)
+	}
+
+	siteName := strings.TrimSpace(h.settingService.GetSiteName(c.Request.Context()))
+	if siteName == "" {
+		siteName = "Sub2API"
+	}
+	text := fmt.Sprintf(
+		"[%s] Telegram 测试消息\n时间：%s",
+		siteName,
+		time.Now().Format(time.RFC3339),
+	)
+
+	sendCtx, cancel := context.WithTimeout(c.Request.Context(), 20*time.Second)
+	defer cancel()
+
+	if err := h.telegramService.SendTestTextWithConfig(sendCtx, &service.TelegramNotificationConfig{
+		Enabled:   true,
+		BotToken:  req.TelegramBotToken,
+		ChatIDs:   splitTelegramTextList(req.TelegramChatIDs),
+		ProxyURLs: splitTelegramTextList(req.TelegramProxyURLs),
+	}, text); err != nil {
+		response.BadRequest(c, "Failed to send test Telegram message: "+err.Error())
+		return
+	}
+
+	response.Success(c, gin.H{"message": "Test Telegram message sent successfully"})
+}
+
 // GetAdminAPIKey 获取管理员 API Key 状态
 // GET /api/v1/admin/settings/admin-api-key
 func (h *SettingHandler) GetAdminAPIKey(c *gin.Context) {
@@ -2219,6 +2298,29 @@ func (h *SettingHandler) GetAdminAPIKey(c *gin.Context) {
 		"exists":     exists,
 		"masked_key": maskedKey,
 	})
+}
+
+func splitTelegramTextList(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == '\n' || r == '\r' || r == ',' || r == ';'
+	})
+	out := make([]string, 0, len(parts))
+	seen := make(map[string]struct{}, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		out = append(out, trimmed)
+	}
+	return out
 }
 
 // RegenerateAdminAPIKey 生成/重新生成管理员 API Key

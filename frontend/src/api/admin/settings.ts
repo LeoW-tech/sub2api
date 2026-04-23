@@ -709,6 +709,22 @@ export async function sendTestEmail(
   return data;
 }
 
+export interface SendTestTelegramRequest {
+  telegram_bot_token?: string;
+  telegram_chat_ids: string;
+  telegram_proxy_urls: string;
+}
+
+export async function sendTestTelegram(
+  request: SendTestTelegramRequest,
+): Promise<{ message: string }> {
+  const { data } = await apiClient.post<{ message: string }>(
+    "/admin/settings/send-test-telegram",
+    request,
+  );
+  return data;
+}
+
 /**
  * Admin API Key status response
  */
@@ -968,6 +984,7 @@ export const settingsAPI = {
   updateSettings,
   testSmtpConnection,
   sendTestEmail,
+  sendTestTelegram,
   getAdminApiKey,
   regenerateAdminApiKey,
   deleteAdminApiKey,

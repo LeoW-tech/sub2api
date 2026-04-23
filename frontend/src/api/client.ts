@@ -278,6 +278,15 @@ apiClient.interceptors.response.use(
       })
     }
 
+    // Timeout / network error
+    if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || '')) {
+      return Promise.reject({
+        status: 0,
+        code: 'REQUEST_TIMEOUT',
+        message: 'Request timeout',
+      })
+    }
+
     // Network error
     return Promise.reject({
       status: 0,

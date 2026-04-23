@@ -7,6 +7,7 @@ import SettingsView from "../SettingsView.vue";
 const {
   getSettings,
   updateSettings,
+  sendTestTelegram,
   getWebSearchEmulationConfig,
   updateWebSearchEmulationConfig,
   getAdminApiKey,
@@ -27,6 +28,7 @@ const {
 } = vi.hoisted(() => ({
   getSettings: vi.fn(),
   updateSettings: vi.fn(),
+  sendTestTelegram: vi.fn(),
   getWebSearchEmulationConfig: vi.fn(),
   updateWebSearchEmulationConfig: vi.fn(),
   getAdminApiKey: vi.fn(),
@@ -53,6 +55,7 @@ vi.mock("@/api", () => ({
     settings: {
       getSettings,
       updateSettings,
+      sendTestTelegram,
       getWebSearchEmulationConfig,
       updateWebSearchEmulationConfig,
       getAdminApiKey,
@@ -475,6 +478,16 @@ async function openUsersTab(wrapper: ReturnType<typeof mountView>) {
 
   expect(usersTabButton).toBeDefined();
   await usersTabButton?.trigger("click");
+  await flushPromises();
+}
+
+async function openEmailTab(wrapper: ReturnType<typeof mountView>) {
+  const emailTabButton = wrapper
+    .findAll("button")
+    .find((node) => node.text().includes("admin.settings.tabs.email"));
+
+  expect(emailTabButton).toBeDefined();
+  await emailTabButton?.trigger("click");
   await flushPromises();
 }
 
@@ -918,5 +931,124 @@ describe("admin SettingsView wechat connect controls", () => {
         oidc_connect_validate_id_token: false,
       }),
     );
+  });
+});
+
+describe("admin SettingsView telegram test controls", () => {
+  beforeEach(() => {
+    getSettings.mockReset();
+    updateSettings.mockReset();
+    sendTestTelegram.mockReset();
+    getWebSearchEmulationConfig.mockReset();
+    updateWebSearchEmulationConfig.mockReset();
+    getAdminApiKey.mockReset();
+    getOverloadCooldownSettings.mockReset();
+    getStreamTimeoutSettings.mockReset();
+    getRectifierSettings.mockReset();
+    getBetaPolicySettings.mockReset();
+    getGroups.mockReset();
+    listProxies.mockReset();
+    getProviders.mockReset();
+    updateProvider.mockReset();
+    createProvider.mockReset();
+    deleteProvider.mockReset();
+    fetchPublicSettings.mockReset();
+    adminSettingsFetch.mockReset();
+    showError.mockReset();
+    showSuccess.mockReset();
+
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      telegram_chat_ids: "1820493278",
+    });
+    updateSettings.mockImplementation(async (payload) => ({
+      ...baseSettingsResponse,
+      ...payload,
+    }));
+    sendTestTelegram.mockResolvedValue({
+      message: "Test Telegram message sent successfully",
+    });
+    getWebSearchEmulationConfig.mockResolvedValue({
+      enabled: false,
+      providers: [],
+    });
+    updateWebSearchEmulationConfig.mockResolvedValue({
+      enabled: false,
+      providers: [],
+    });
+    getAdminApiKey.mockResolvedValue({
+      exists: false,
+      masked_key: "",
+    });
+    getOverloadCooldownSettings.mockResolvedValue({
+      enabled: true,
+      cooldown_minutes: 10,
+    });
+    getStreamTimeoutSettings.mockResolvedValue({
+      enabled: true,
+      action: "temp_unsched",
+      temp_unsched_minutes: 5,
+      threshold_count: 3,
+      threshold_window_minutes: 10,
+    });
+    getRectifierSettings.mockResolvedValue({
+      enabled: false,
+      thinking_signature_enabled: true,
+      thinking_budget_enabled: true,
+    });
+    getBetaPolicySettings.mockResolvedValue({
+      enabled: false,
+      rules: [],
+    });
+    getGroups.mockResolvedValue([]);
+    listProxies.mockResolvedValue({ items: [], total: 0 });
+    getProviders.mockResolvedValue([]);
+    fetchPublicSettings.mockResolvedValue(null);
+    adminSettingsFetch.mockResolvedValue(undefined);
+  });
+
+  it("发送测试 Telegram 时调用设置接口并展示成功提示", async () => {
+    const wrapper = mountView();
+
+    await flushPromises();
+    await openEmailTab(wrapper);
+    await wrapper.get("button.send-test-telegram-button").trigger("click");
+    await flushPromises();
+
+    expect(sendTestTelegram).toHaveBeenCalledWith({
+      telegram_bot_token: undefined,
+      telegram_chat_ids: "1820493278",
+      telegram_proxy_urls: "",
+    });
+    expect(showSuccess).toHaveBeenCalledWith(
+      "Test Telegram message sent successfully",
+    );
+  });
+
+  it("未填写 chat id 时按钮禁用且不发请求", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      telegram_chat_ids: "",
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+    await openEmailTab(wrapper);
+    const button = wrapper.get("button.send-test-telegram-button");
+
+    expect(button.attributes("disabled")).toBeDefined();
+    expect(sendTestTelegram).not.toHaveBeenCalled();
+  });
+
+  it("发送测试 Telegram 失败时展示接口错误", async () => {
+    sendTestTelegram.mockRejectedValueOnce(new Error("telegram failed"));
+
+    const wrapper = mountView();
+    await flushPromises();
+    await openEmailTab(wrapper);
+    await wrapper.get("button.send-test-telegram-button").trigger("click");
+    await flushPromises();
+
+    expect(showError).toHaveBeenCalledWith("error");
   });
 });

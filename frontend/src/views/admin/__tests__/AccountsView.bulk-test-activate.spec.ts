@@ -18,6 +18,7 @@ const {
   setSelectedIdsMock,
   clearSelectionMock,
   removeManyMock,
+  extractApiErrorMessageMock,
 } = vi.hoisted(() => ({
   loadMock: vi.fn(),
   reloadMock: vi.fn(),
@@ -34,6 +35,7 @@ const {
   setSelectedIdsMock: vi.fn(),
   clearSelectionMock: vi.fn(),
   removeManyMock: vi.fn(),
+  extractApiErrorMessageMock: vi.fn(),
 }));
 
 const accountsRef = ref<any[]>([]);
@@ -116,6 +118,11 @@ vi.mock("@/api/admin", () => ({
 
 vi.mock("@/composables/useSwipeSelect", () => ({
   useSwipeSelect: vi.fn(),
+}));
+
+vi.mock("@/utils/apiError", () => ({
+  extractApiErrorMessage: (...args: unknown[]) =>
+    extractApiErrorMessageMock(...args),
 }));
 
 vi.mock("@/composables/useTableLoader", () => ({
@@ -230,6 +237,7 @@ describe("AccountsView bulk test activate", () => {
     setSelectedIdsMock.mockReset();
     clearSelectionMock.mockReset();
     removeManyMock.mockReset();
+    extractApiErrorMessageMock.mockReset();
 
     setSelectedIdsMock.mockImplementation((ids: number[]) => {
       selectedIdsRef.value = ids;
@@ -259,6 +267,9 @@ describe("AccountsView bulk test activate", () => {
     vi.stubGlobal(
       "confirm",
       vi.fn(() => true),
+    );
+    extractApiErrorMessageMock.mockImplementation(
+      (_error: unknown, fallback: string) => fallback,
     );
   });
 
@@ -337,5 +348,26 @@ describe("AccountsView bulk test activate", () => {
     );
     expect(clearSelectionMock).toHaveBeenCalled();
     expect(setSelectedIdsMock).not.toHaveBeenCalled();
+  });
+
+  it("接口失败时展示提取后的错误信息", async () => {
+    bulkTestActivateMock.mockRejectedValueOnce({
+      code: "REQUEST_TIMEOUT",
+      message: "Request timeout",
+    });
+    extractApiErrorMessageMock.mockReturnValueOnce(
+      "请求超时，批量测试仍可能在后台继续执行，请稍后刷新查看结果。",
+    );
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    await wrapper.get("button.bulk-test-activate-trigger").trigger("click");
+    await flushPromises();
+
+    expect(showErrorMock).toHaveBeenCalledWith(
+      "请求超时，批量测试仍可能在后台继续执行，请稍后刷新查看结果。",
+    );
+    expect(setSelectedIdsMock).toHaveBeenCalledWith([1, 2, 3, 4]);
   });
 });

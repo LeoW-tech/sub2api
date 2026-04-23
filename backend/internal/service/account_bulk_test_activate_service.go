@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -19,6 +20,8 @@ const (
 	accountBulkTestActivateDefaultConcurrency = 10
 	accountBulkTestActivateSchedule           = "0 */6 * * *"
 	accountBulkTestActivatePageSize           = 200
+	accountBulkTestActivateManualTimeout      = 30 * time.Minute
+	accountBulkTestActivateNotifyTimeout      = 20 * time.Second
 )
 
 var accountBulkTestActivateCronParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
@@ -47,7 +50,7 @@ type AccountBulkTestActivateSummary struct {
 type AccountBulkTestActivateService struct {
 	accountRepo    AccountRepository
 	accountTestSvc accountBulkTestRunner
-	telegram       *TelegramNotificationService
+	telegram       accountBulkTestActivateNotifier
 	cfg            *config.Config
 
 	cron      *cron.Cron
@@ -58,7 +61,7 @@ type AccountBulkTestActivateService struct {
 func NewAccountBulkTestActivateService(
 	accountRepo AccountRepository,
 	accountTestSvc accountBulkTestRunner,
-	telegram *TelegramNotificationService,
+	telegram accountBulkTestActivateNotifier,
 	cfg *config.Config,
 ) *AccountBulkTestActivateService {
 	return &AccountBulkTestActivateService{
@@ -71,6 +74,10 @@ func NewAccountBulkTestActivateService(
 
 type accountBulkTestRunner interface {
 	RunTestBackground(ctx context.Context, accountID int64, modelID string) (*ScheduledTestResult, error)
+}
+
+type accountBulkTestActivateNotifier interface {
+	SendText(ctx context.Context, text string) error
 }
 
 func (s *AccountBulkTestActivateService) Start() {
@@ -114,6 +121,15 @@ func (s *AccountBulkTestActivateService) Stop() {
 }
 
 func (s *AccountBulkTestActivateService) Execute(ctx context.Context, accountIDs []int64, trigger AccountBulkTestActivateTrigger) (*AccountBulkTestActivateSummary, error) {
+	if trigger == AccountBulkTestActivateTriggerManual {
+		execCtx, cancel := accountBulkTestActivateDetachedContext(ctx, accountBulkTestActivateManualTimeout)
+		defer cancel()
+		return s.execute(execCtx, accountIDs, trigger)
+	}
+	return s.execute(ctx, accountIDs, trigger)
+}
+
+func (s *AccountBulkTestActivateService) execute(ctx context.Context, accountIDs []int64, trigger AccountBulkTestActivateTrigger) (*AccountBulkTestActivateSummary, error) {
 	if s == nil || s.accountRepo == nil || s.accountTestSvc == nil {
 		return nil, nil
 	}
@@ -316,6 +332,9 @@ func (s *AccountBulkTestActivateService) notifySummary(ctx context.Context, summ
 	if s == nil || s.telegram == nil || summary == nil {
 		return
 	}
+	notifyCtx, cancel := accountBulkTestActivateDetachedContext(ctx, accountBulkTestActivateNotifyTimeout)
+	defer cancel()
+
 	message := fmt.Sprintf(
 		"批量测试激活完成\n触发方式：%s\n测试总数：%d\n成功：%d\n失败：%d\n新增启用：%d\n新增禁用：%d",
 		summary.Trigger,
@@ -325,8 +344,39 @@ func (s *AccountBulkTestActivateService) notifySummary(ctx context.Context, summ
 		summary.Activated,
 		summary.Deactivated,
 	)
-	if err := s.telegram.SendText(ctx, message); err != nil {
-		logger.LegacyPrintf("service.account_bulk_test_activate", "[AccountBulkTestActivate] telegram notify failed: %v", err)
+	if err := s.telegram.SendText(notifyCtx, message); err != nil {
+		logger.LegacyPrintf(
+			"service.account_bulk_test_activate",
+			"[AccountBulkTestActivate] telegram notify failed (category=%s): %v",
+			accountBulkTestActivateNotifyErrorCategory(err),
+			err,
+		)
+	}
+}
+
+func accountBulkTestActivateDetachedContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		return context.WithTimeout(context.Background(), timeout)
+	}
+	return context.WithTimeout(context.WithoutCancel(ctx), timeout)
+}
+
+func accountBulkTestActivateNotifyErrorCategory(err error) string {
+	switch {
+	case err == nil:
+		return "none"
+	case errors.Is(err, context.Canceled):
+		return "context_canceled"
+	case errors.Is(err, context.DeadlineExceeded):
+		return "deadline_exceeded"
+	case strings.Contains(err.Error(), "load telegram config"):
+		return "settings_load_failed"
+	case strings.Contains(err.Error(), "telegram api status"):
+		return "telegram_api_status"
+	case strings.Contains(err.Error(), "telegram api rejected"):
+		return "telegram_api_rejected"
+	default:
+		return "send_failed"
 	}
 }
 

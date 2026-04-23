@@ -59,15 +59,53 @@ func (s *TelegramNotificationService) SendText(ctx context.Context, text string)
 	}
 	cfg, err := s.loadConfig(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("load telegram config: %w", err)
 	}
-	if !cfg.Enabled || cfg.BotToken == "" || len(cfg.ChatIDs) == 0 {
+	return s.sendTextWithConfig(ctx, cfg, text, false)
+}
+
+func (s *TelegramNotificationService) SendTestTextWithConfig(ctx context.Context, cfg *TelegramNotificationConfig, text string) error {
+	if s == nil {
+		return fmt.Errorf("telegram notification service unavailable")
+	}
+	return s.sendTextWithConfig(ctx, cfg, text, true)
+}
+
+func (s *TelegramNotificationService) sendTextWithConfig(ctx context.Context, cfg *TelegramNotificationConfig, text string, strict bool) error {
+	if cfg == nil {
+		if strict {
+			return fmt.Errorf("telegram config is required")
+		}
+		return nil
+	}
+
+	botToken := strings.TrimSpace(cfg.BotToken)
+	chatIDs := append([]string(nil), cfg.ChatIDs...)
+	proxyURLs := append([]string(nil), cfg.ProxyURLs...)
+	if len(proxyURLs) == 0 {
+		proxyURLs = append([]string(nil), telegramDefaultProxyURLs...)
+	}
+
+	if strict {
+		if botToken == "" {
+			return fmt.Errorf("telegram bot token is required")
+		}
+		if len(chatIDs) == 0 {
+			return fmt.Errorf("telegram chat id is required")
+		}
+	}
+	if !strict && (!cfg.Enabled || botToken == "" || len(chatIDs) == 0) {
 		return nil
 	}
 
 	var sendErrors []string
-	for _, chatID := range cfg.ChatIDs {
-		if err := s.sendToChat(ctx, cfg, chatID, text); err != nil {
+	for _, chatID := range chatIDs {
+		if err := s.sendToChat(ctx, &TelegramNotificationConfig{
+			Enabled:   cfg.Enabled,
+			BotToken:  botToken,
+			ChatIDs:   chatIDs,
+			ProxyURLs: proxyURLs,
+		}, chatID, text); err != nil {
 			sendErrors = append(sendErrors, fmt.Sprintf("%s: %v", chatID, err))
 		}
 	}

@@ -187,6 +187,23 @@ describe('API Client', () => {
   // --- 网络错误 ---
 
   describe('网络错误', () => {
+    it('超时错误返回 REQUEST_TIMEOUT', async () => {
+      const adapter = vi.fn().mockRejectedValue({
+        code: 'ECONNABORTED',
+        message: 'timeout of 30000ms exceeded',
+        config: { url: '/test' },
+      })
+      apiClient.defaults.adapter = adapter
+
+      await expect(apiClient.get('/test')).rejects.toEqual(
+        expect.objectContaining({
+          status: 0,
+          code: 'REQUEST_TIMEOUT',
+          message: 'Request timeout',
+        })
+      )
+    })
+
     it('网络错误返回 status 0 的错误', async () => {
       const adapter = vi.fn().mockRejectedValue({
         code: 'ERR_NETWORK',

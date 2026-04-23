@@ -2608,6 +2608,8 @@ export default {
       },
       bulkTestActivateSummary:
         "Test succeeded for {success} account(s), failed for {failed}, newly activated {activated}, newly deactivated {deactivated}",
+      bulkTestActivateTimeout:
+        "Request timed out. The bulk test may still be running in the background, so please refresh and check again shortly.",
       bulkEdit: {
         title: "Bulk Edit Accounts",
         selectionInfo:
@@ -5273,6 +5275,11 @@ export default {
         sending: "Sending...",
         enterRecipientHint: "Please enter a recipient email address",
       },
+      testTelegram: {
+        sendTestTelegram: "Send Test Telegram",
+        sending: "Sending...",
+        enterChatIdsHint: "Please enter at least one Telegram chat ID",
+      },
       opsMonitoring: {
         title: "Ops Monitoring",
         description:
@@ -5516,10 +5523,12 @@ export default {
       settingsSaved: "Settings saved successfully",
       smtpConnectionSuccess: "SMTP connection successful",
       testEmailSent: "Test email sent successfully",
+      testTelegramSent: "Test Telegram message sent successfully",
       failedToLoad: "Failed to load settings",
       failedToSave: "Failed to save settings",
       failedToTestSmtp: "SMTP connection test failed",
       failedToSendTestEmail: "Failed to send test email",
+      failedToSendTestTelegram: "Failed to send test Telegram message",
     },
 
     // Error Passthrough Rules

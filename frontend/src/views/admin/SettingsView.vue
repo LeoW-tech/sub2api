@@ -4543,6 +4543,43 @@
                   </p>
                 </div>
               </div>
+
+              <div class="flex justify-end border-t border-gray-100 pt-4 dark:border-dark-700">
+                <button
+                  type="button"
+                  class="btn btn-secondary send-test-telegram-button"
+                  :disabled="
+                    sendingTestTelegram || !form.telegram_chat_ids || loadFailed
+                  "
+                  @click="sendTestTelegram"
+                >
+                  <svg
+                    v-if="sendingTestTelegram"
+                    class="h-4 w-4 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      class="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      stroke-width="4"
+                    ></circle>
+                    <path
+                      class="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  {{
+                    sendingTestTelegram
+                      ? t("admin.settings.testTelegram.sending")
+                      : t("admin.settings.testTelegram.sendTestTelegram")
+                  }}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -4914,6 +4951,7 @@ const loadFailed = ref(false);
 const saving = ref(false);
 const testingSmtp = ref(false);
 const sendingTestEmail = ref(false);
+const sendingTestTelegram = ref(false);
 const smtpPasswordManuallyEdited = ref(false);
 const testEmailAddress = ref("");
 const registrationEmailSuffixWhitelistTags = ref<string[]>([]);
@@ -6215,6 +6253,34 @@ async function sendTestEmail() {
     );
   } finally {
     sendingTestEmail.value = false;
+  }
+}
+
+async function sendTestTelegram() {
+  if (!form.telegram_chat_ids) {
+    appStore.showError(t("admin.settings.testTelegram.enterChatIdsHint"));
+    return;
+  }
+
+  sendingTestTelegram.value = true;
+  try {
+    const result = await adminAPI.settings.sendTestTelegram({
+      telegram_bot_token: form.telegram_bot_token || undefined,
+      telegram_chat_ids: form.telegram_chat_ids,
+      telegram_proxy_urls: form.telegram_proxy_urls,
+    });
+    appStore.showSuccess(
+      result.message || t("admin.settings.testTelegramSent"),
+    );
+  } catch (error: unknown) {
+    appStore.showError(
+      extractApiErrorMessage(
+        error,
+        t("admin.settings.failedToSendTestTelegram"),
+      ),
+    );
+  } finally {
+    sendingTestTelegram.value = false;
   }
 }
 
