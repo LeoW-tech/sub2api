@@ -35,9 +35,10 @@ vi.mock('vue-i18n', async () => {
 })
 
 const DataTableStub = {
-  props: ['data'],
+  props: ['data', 'progressiveMount', 'initialRenderCount', 'renderBatchSize'],
   template: `
     <div>
+      <div class="progressive-props">{{ progressiveMount }}|{{ initialRenderCount }}|{{ renderBatchSize }}</div>
       <div v-for="row in data" :key="row.request_id">
         <slot name="cell-model" :row="row" :value="row.model" />
         <slot name="cell-cost" :row="row" />
@@ -146,5 +147,25 @@ describe('admin UsageTable tooltip', () => {
     const text = wrapper.text()
     expect(text).toContain('claude-sonnet-4')
     expect(text).toContain('claude-sonnet-4-20250514')
+  })
+
+  it('enables progressive mounting only through the usage table wrapper props', () => {
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [],
+        loading: false,
+        columns: [],
+      },
+      global: {
+        stubs: {
+          DataTable: DataTableStub,
+          EmptyState: true,
+          Icon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    expect(wrapper.find('.progressive-props').text()).toBe('true|40|40')
   })
 })

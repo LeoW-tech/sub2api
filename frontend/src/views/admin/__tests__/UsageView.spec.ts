@@ -116,6 +116,10 @@ const GroupDistributionChartStub = {
 describe('admin UsageView distribution metric toggles', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    ;(window as typeof window & { __APP_CONFIG__?: unknown }).__APP_CONFIG__ = {
+      table_default_page_size: 1000,
+      table_page_size_options: [200, 500, 1000],
+    }
     list.mockReset()
     getStats.mockReset()
     getSnapshotV2.mockReset()
@@ -151,6 +155,7 @@ describe('admin UsageView distribution metric toggles', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    delete (window as typeof window & { __APP_CONFIG__?: unknown }).__APP_CONFIG__
   })
 
   it('keeps model and group metric toggles independent without refetching chart data', async () => {
@@ -207,5 +212,42 @@ describe('admin UsageView distribution metric toggles', () => {
     expect(modelChart.find('.metric').text()).toBe('actual_cost')
     expect(groupChart.find('.metric').text()).toBe('actual_cost')
     expect(getSnapshotV2).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps requesting the configured full first page for usage logs', async () => {
+    mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          UsageStatsCards: true,
+          UsageFilters: UsageFiltersStub,
+          UsageTable: true,
+          UsageExportProgress: true,
+          UsageCleanupDialog: true,
+          UserBalanceHistoryModal: true,
+          Pagination: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenUsageTrend: true,
+          ModelDistributionChart: ModelDistributionChartStub,
+          GroupDistributionChart: GroupDistributionChartStub,
+        },
+      },
+    })
+
+    await vi.runAllTimersAsync()
+    await flushPromises()
+
+    expect(list).toHaveBeenCalledWith(
+      expect.objectContaining({
+        page: 1,
+        page_size: 1000,
+        exact_total: false,
+        sort_by: 'created_at',
+        sort_order: 'desc',
+      }),
+      expect.any(Object)
+    )
   })
 })
