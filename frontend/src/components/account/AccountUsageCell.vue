@@ -478,8 +478,14 @@ const activeQueryLoading = ref(false)
 const error = ref<string | null>(null)
 const usageInfo = ref<AccountUsageInfo | null>(null)
 const rootRef = ref<HTMLElement | null>(null)
+const getDesktopViewportMatches = () => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return true
+  }
+  return window.matchMedia(desktopViewportQuery).matches
+}
 const isDesktopViewport = ref(
-  typeof window === 'undefined' ? true : window.matchMedia(desktopViewportQuery).matches
+  getDesktopViewportMatches()
 )
 const hasEnteredViewport = ref(false)
 const pendingAutoLoad = ref(false)
@@ -1131,7 +1137,7 @@ const formatKeyUserCost = computed(() => {
 })
 
 onMounted(() => {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
     desktopViewportMediaQuery = window.matchMedia(desktopViewportQuery)
     isDesktopViewport.value = desktopViewportMediaQuery.matches
     desktopViewportListener = (event: MediaQueryListEvent) => {
@@ -1153,6 +1159,7 @@ watch(openAIUsageRefreshKey, (nextKey, prevKey) => {
   if (!prevKey || nextKey === prevKey) return
   if (props.account.platform !== 'openai' || props.account.type !== 'oauth') return
 
+  _usageCache.delete(props.account.id)
   requestAutoLoad()
 })
 
