@@ -104,7 +104,7 @@ func TestSanitizeWebSearchConfig_MaskAPIKey(t *testing.T) {
 	cfg := &WebSearchEmulationConfig{
 		Enabled: true,
 		Providers: []WebSearchProviderConfig{
-				{Type: "brave", APIKey: "configured-brave-key"},
+			{Type: "brave", APIKey: "placeholder"},
 		},
 	}
 	out := SanitizeWebSearchConfig(context.Background(), cfg)
@@ -129,7 +129,7 @@ func TestSanitizeWebSearchConfig_PreservesOtherFields(t *testing.T) {
 	cfg := &WebSearchEmulationConfig{
 		Enabled: true,
 		Providers: []WebSearchProviderConfig{
-			{Type: "brave", APIKey: "configured-brave-key", QuotaLimit: int64Ptr(1000)},
+			{Type: "brave", APIKey: "placeholder", QuotaLimit: int64Ptr(1000)},
 		},
 	}
 	out := SanitizeWebSearchConfig(context.Background(), cfg)
@@ -139,10 +139,10 @@ func TestSanitizeWebSearchConfig_PreservesOtherFields(t *testing.T) {
 
 func TestSanitizeWebSearchConfig_DoesNotMutateOriginal(t *testing.T) {
 	cfg := &WebSearchEmulationConfig{
-		Providers: []WebSearchProviderConfig{{Type: "brave", APIKey: "configured-brave-key"}},
+		Providers: []WebSearchProviderConfig{{Type: "brave", APIKey: "placeholder"}},
 	}
 	_ = SanitizeWebSearchConfig(context.Background(), cfg)
-	require.Equal(t, "secret", cfg.Providers[0].APIKey)
+	require.Equal(t, "placeholder", cfg.Providers[0].APIKey)
 }
 
 // --- PopulateWebSearchUsage ---
@@ -245,12 +245,12 @@ func TestPopulateWebSearchUsage_DoesNotMutateOriginal(t *testing.T) {
 
 	cfg := &WebSearchEmulationConfig{
 		Providers: []WebSearchProviderConfig{
-			{Type: "brave", APIKey: "configured-brave-key", QuotaLimit: int64Ptr(100)},
+			{Type: "brave", APIKey: "placeholder", QuotaLimit: int64Ptr(100)},
 		},
 	}
 	_ = PopulateWebSearchUsage(context.Background(), cfg)
 	// Original should be unchanged
-	require.Equal(t, "secret", cfg.Providers[0].APIKey)
+	require.Equal(t, "placeholder", cfg.Providers[0].APIKey)
 	require.Equal(t, int64(0), cfg.Providers[0].QuotaUsed)
 }
 

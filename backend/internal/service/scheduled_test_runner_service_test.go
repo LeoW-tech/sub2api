@@ -14,7 +14,7 @@ func TestScheduledTestRunnerService_TryRecoverAccount_EnablesSchedulable(t *test
 	repo := &rateLimitClearRepoStub{
 		getByIDAccount: &Account{
 			ID:          88,
-			Status:      StatusInactive,
+			Status:      StatusDisabled,
 			Schedulable: false,
 			Extra:       map[string]any{},
 		},

@@ -144,6 +144,18 @@ func (m *mockAccountRepoForGemini) ListSchedulableUngroupedByPlatform(ctx contex
 func (m *mockAccountRepoForGemini) ListSchedulableUngroupedByPlatforms(ctx context.Context, platforms []string) ([]Account, error) {
 	return m.ListSchedulableByPlatforms(ctx, platforms)
 }
+func (m *mockAccountRepoForGemini) PauseAccountsByProxyNetwork(ctx context.Context, proxyID int64) ([]int64, error) {
+	return nil, nil
+}
+func (m *mockAccountRepoForGemini) ResumeAccountsByProxyNetwork(ctx context.Context, proxyID int64) ([]int64, error) {
+	return nil, nil
+}
+func (m *mockAccountRepoForGemini) PauseAccountByNetwork(ctx context.Context, accountID int64) (bool, error) {
+	return false, nil
+}
+func (m *mockAccountRepoForGemini) RestoreAccountFromNetworkPause(ctx context.Context, accountID int64) (bool, error) {
+	return false, nil
+}
 func (m *mockAccountRepoForGemini) SetRateLimited(ctx context.Context, id int64, resetAt time.Time) error {
 	return nil
 }
@@ -164,6 +176,9 @@ func (m *mockAccountRepoForGemini) ClearAntigravityQuotaScopes(ctx context.Conte
 	return nil
 }
 func (m *mockAccountRepoForGemini) ClearModelRateLimits(ctx context.Context, id int64) error {
+	return nil
+}
+func (m *mockAccountRepoForGemini) ClearNetworkAutoPause(ctx context.Context, accountID int64) error {
 	return nil
 }
 func (m *mockAccountRepoForGemini) UpdateSessionWindow(ctx context.Context, id int64, start, end *time.Time, status string) error {

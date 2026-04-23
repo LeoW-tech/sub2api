@@ -302,7 +302,7 @@ func TestRateLimitService_RecoverAccountAfterSuccessfulTest_EnablesSchedulableWi
 	repo := &rateLimitClearRepoStub{
 		getByIDAccount: &Account{
 			ID:          18,
-			Status:      StatusInactive,
+			Status:      StatusDisabled,
 			Schedulable: false,
 			Extra:       map[string]any{},
 		},

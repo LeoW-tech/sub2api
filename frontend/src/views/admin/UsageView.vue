@@ -138,7 +138,7 @@ import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'; import { adminAPI } from '@/api/admin'; import { adminUsageAPI } from '@/api/admin/usage'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { formatReasoningEffort } from '@/utils/format'
-import { buildUsageWorkbookBuffer } from '@/utils/usageExportWorkbook'
+import { buildUsageWorkbookBlob } from '@/utils/usageExportWorkbook'
 import { resolveUsageRequestType, requestTypeToLegacyStream } from '@/utils/usageRequestType'
 import AppLayout from '@/components/layout/AppLayout.vue'; import Pagination from '@/components/common/Pagination.vue'; import Select from '@/components/common/Select.vue'; import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import UsageStatsCards from '@/components/admin/usage/UsageStatsCards.vue'; import UsageFilters from '@/components/admin/usage/UsageFilters.vue'
@@ -505,8 +505,8 @@ const exportToExcel = async () => {
       if (exportedCount >= total || res.items.length < 100) break; p++
     }
     if(!c.signal.aborted) {
-      const workbookBuffer = await buildUsageWorkbookBuffer(headers, exportRows)
-      saveAs(new Blob([workbookBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `usage_${filters.value.start_date}_to_${filters.value.end_date}.xlsx`)
+      const workbookBlob = await buildUsageWorkbookBlob(headers, exportRows)
+      saveAs(workbookBlob, `usage_${filters.value.start_date}_to_${filters.value.end_date}.xlsx`)
       appStore.showSuccess(t('usage.exportSuccess'))
     }
   } catch (error) { console.error('Failed to export:', error); appStore.showError('Export Failed') }

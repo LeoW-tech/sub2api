@@ -153,6 +153,18 @@ func (m *mockAccountRepoForPlatform) ListSchedulableUngroupedByPlatform(ctx cont
 func (m *mockAccountRepoForPlatform) ListSchedulableUngroupedByPlatforms(ctx context.Context, platforms []string) ([]Account, error) {
 	return m.ListSchedulableByPlatforms(ctx, platforms)
 }
+func (m *mockAccountRepoForPlatform) PauseAccountsByProxyNetwork(ctx context.Context, proxyID int64) ([]int64, error) {
+	return nil, nil
+}
+func (m *mockAccountRepoForPlatform) ResumeAccountsByProxyNetwork(ctx context.Context, proxyID int64) ([]int64, error) {
+	return nil, nil
+}
+func (m *mockAccountRepoForPlatform) PauseAccountByNetwork(ctx context.Context, accountID int64) (bool, error) {
+	return false, nil
+}
+func (m *mockAccountRepoForPlatform) RestoreAccountFromNetworkPause(ctx context.Context, accountID int64) (bool, error) {
+	return false, nil
+}
 func (m *mockAccountRepoForPlatform) SetRateLimited(ctx context.Context, id int64, resetAt time.Time) error {
 	return nil
 }
@@ -175,6 +187,9 @@ func (m *mockAccountRepoForPlatform) ClearAntigravityQuotaScopes(ctx context.Con
 	return nil
 }
 func (m *mockAccountRepoForPlatform) ClearModelRateLimits(ctx context.Context, id int64) error {
+	return nil
+}
+func (m *mockAccountRepoForPlatform) ClearNetworkAutoPause(ctx context.Context, accountID int64) error {
 	return nil
 }
 func (m *mockAccountRepoForPlatform) UpdateSessionWindow(ctx context.Context, id int64, start, end *time.Time, status string) error {
