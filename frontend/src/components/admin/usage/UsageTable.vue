@@ -8,9 +8,6 @@
         :server-side-sort="serverSideSort"
         :default-sort-key="defaultSortKey"
         :default-sort-order="defaultSortOrder"
-        :progressive-mount="true"
-        :initial-render-count="40"
-        :render-batch-size="40"
         @sort="(key, order) => $emit('sort', key, order)"
       >
         <template #cell-user="{ row }">

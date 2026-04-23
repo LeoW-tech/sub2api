@@ -81,7 +81,7 @@
         <!-- Model Filter -->
         <div class="w-full sm:w-auto sm:min-w-[220px]">
           <label class="input-label">{{ t('usage.model') }}</label>
-          <Select v-model="filters.model" :options="resolvedModelOptions" searchable @change="emitChange" />
+          <Select v-model="filters.model" :options="modelOptions" searchable @change="emitChange" />
         </div>
 
         <!-- Account Filter -->
@@ -168,7 +168,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, toRef, watch } from 'vue'
+import { ref, onMounted, onUnmounted, toRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
@@ -182,12 +182,10 @@ interface Props {
   startDate: string
   endDate: string
   showActions?: boolean
-  modelOptions?: SelectOption[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  showActions: true,
-  modelOptions: () => []
+  showActions: true
 })
 const emit = defineEmits([
   'update:modelValue',
@@ -224,20 +222,8 @@ const accountResults = ref<SimpleAccount[]>([])
 const showAccountDropdown = ref(false)
 let accountSearchTimeout: ReturnType<typeof setTimeout> | null = null
 
+const modelOptions = ref<SelectOption[]>([{ value: null, label: t('admin.usage.allModels') }])
 const groupOptions = ref<SelectOption[]>([{ value: null, label: t('admin.usage.allGroups') }])
-const resolvedModelOptions = computed<SelectOption[]>(() => {
-  const options: SelectOption[] = [{ value: null, label: t('admin.usage.allModels') }]
-  const seenValues = new Set<string>()
-
-  for (const option of props.modelOptions) {
-    const key = `${typeof option.value}:${String(option.value ?? '')}`
-    if (seenValues.has(key)) continue
-    seenValues.add(key)
-    options.push(option)
-  }
-
-  return options
-})
 
 const requestTypeOptions = ref<SelectOption[]>([
   { value: null, label: t('admin.usage.allTypes') },
@@ -436,9 +422,24 @@ onMounted(async () => {
   document.addEventListener('click', onDocumentClick)
 
   try {
-    const gs = await adminAPI.groups.list(1, 1000)
+    const [gs, ms] = await Promise.all([
+      adminAPI.groups.list(1, 1000),
+      adminAPI.dashboard.getModelStats({ start_date: props.startDate, end_date: props.endDate })
+    ])
 
     groupOptions.value.push(...gs.items.map((g: any) => ({ value: g.id, label: g.name })))
+
+    const uniqueModels = new Set<string>()
+    ms.models?.forEach((s: any) => {
+      if (s.model) {
+        uniqueModels.add(s.model)
+      }
+    })
+    modelOptions.value.push(
+      ...Array.from(uniqueModels)
+        .sort()
+        .map((m) => ({ value: m, label: m }))
+    )
   } catch {
     // Ignore filter option loading errors (page still usable)
   }

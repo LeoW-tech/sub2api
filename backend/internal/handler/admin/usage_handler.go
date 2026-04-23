@@ -325,13 +325,12 @@ func (h *UsageHandler) Stats(c *gin.Context) {
 		EndTime:     &endTime,
 	}
 
-	stats, hit, err := h.getStatsCached(c.Request.Context(), filters)
+	stats, err := h.usageService.GetStatsWithFilters(c.Request.Context(), filters)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
-	c.Header("X-Snapshot-Cache", cacheStatusValue(hit))
 	response.Success(c, stats)
 }
 

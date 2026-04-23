@@ -240,10 +240,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, markRaw, ref, shallowRef, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
-import type { ChartData } from 'chart.js'
 import { Doughnut } from 'vue-chartjs'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import UserBreakdownSubTable from './UserBreakdownSubTable.vue'
@@ -346,43 +345,32 @@ const chartColors = [
   '#a855f7'
 ]
 
-const selectedModelStats = computed(() => {
+const displayModelStats = computed(() => {
   const sourceStats = props.source === 'upstream'
     ? props.upstreamModelStats
     : props.source === 'mapping'
       ? props.mappingModelStats
       : props.modelStats
-  return sourceStats ?? []
+  if (!sourceStats?.length) return []
+
+  const metricKey = props.metric === 'actual_cost' ? 'actual_cost' : 'total_tokens'
+  return [...sourceStats].sort((a, b) => b[metricKey] - a[metricKey])
 })
 
-const displayModelStats = shallowRef<ModelStat[]>([])
-const chartData = shallowRef<ChartData<'doughnut', number[], string> | null>(null)
+const chartData = computed(() => {
+  if (!displayModelStats.value.length) return null
 
-watch(
-  [selectedModelStats, () => props.metric],
-  ([sourceStats, metric]) => {
-    if (!sourceStats?.length) {
-      displayModelStats.value = []
-      chartData.value = null
-      return
-    }
-
-    const metricKey = metric === 'actual_cost' ? 'actual_cost' : 'total_tokens'
-    const sorted = [...sourceStats].sort((a, b) => b[metricKey] - a[metricKey])
-    displayModelStats.value = sorted
-    chartData.value = markRaw({
-      labels: sorted.map((model) => model.model),
-      datasets: [
-        {
-          data: sorted.map((model) => metric === 'actual_cost' ? model.actual_cost : model.total_tokens),
-          backgroundColor: chartColors.slice(0, sorted.length),
-          borderWidth: 0
-        }
-      ]
-    })
-  },
-  { immediate: true }
-)
+  return {
+    labels: displayModelStats.value.map((m) => m.model),
+    datasets: [
+      {
+        data: displayModelStats.value.map((m) => props.metric === 'actual_cost' ? m.actual_cost : m.total_tokens),
+        backgroundColor: chartColors.slice(0, displayModelStats.value.length),
+        borderWidth: 0
+      }
+    ]
+  }
+})
 
 const rankingChartData = computed(() => {
   if (!props.rankingItems?.length) return null
@@ -439,17 +427,9 @@ const rankingDisplayItems = computed<RankingDisplayItem[]>(() => {
     : [...props.rankingItems]
 })
 
-const doughnutOptions = markRaw({
+const doughnutOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
-  animation: false,
-  transitions: {
-    active: {
-      animation: {
-        duration: 0
-      }
-    }
-  },
   plugins: {
     legend: {
       display: false
@@ -468,19 +448,11 @@ const doughnutOptions = markRaw({
       }
     }
   }
-})
+}))
 
-const rankingDoughnutOptions = markRaw({
+const rankingDoughnutOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
-  animation: false,
-  transitions: {
-    active: {
-      animation: {
-        duration: 0
-      }
-    }
-  },
   plugins: {
     legend: {
       display: false
@@ -496,7 +468,7 @@ const rankingDoughnutOptions = markRaw({
       }
     }
   }
-})
+}))
 
 const formatTokens = (value: number): string => {
   if (value >= 1_000_000_000) {
@@ -523,8 +495,7 @@ const getRankingRowLabel = (item: RankingDisplayItem): string => {
   return getRankingUserLabel(item)
 }
 
-const formatCost = (value?: number | null): string => {
-  if (value == null || Number.isNaN(value)) return '0.0000'
+const formatCost = (value: number): string => {
   if (value >= 1000) {
     return (value / 1000).toFixed(2) + 'K'
   } else if (value >= 1) {

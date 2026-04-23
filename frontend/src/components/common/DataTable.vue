@@ -33,7 +33,7 @@
 
     <template v-else>
       <div
-        v-for="(row, index) in visibleRows"
+        v-for="(row, index) in sortedData"
         :key="resolveRowKey(row, index)"
         class="rounded-lg border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-900"
       >
@@ -158,8 +158,8 @@
           </tr>
           <tr
             v-for="virtualRow in virtualItems"
-            :key="resolveRowKey(visibleRows[virtualRow.index], virtualRow.index)"
-            :data-row-id="resolveRowKey(visibleRows[virtualRow.index], virtualRow.index)"
+            :key="resolveRowKey(sortedData[virtualRow.index], virtualRow.index)"
+            :data-row-id="resolveRowKey(sortedData[virtualRow.index], virtualRow.index)"
             :data-index="virtualRow.index"
             :ref="measureElement"
             class="hover:bg-gray-50 dark:hover:bg-dark-800"
@@ -175,12 +175,12 @@
               ]"
             >
               <slot :name="`cell-${column.key}`"
-                    :row="visibleRows[virtualRow.index]"
-                    :value="visibleRows[virtualRow.index][column.key]"
+                    :row="sortedData[virtualRow.index]"
+                    :value="sortedData[virtualRow.index][column.key]"
                     :expanded="actionsExpanded">
                 {{ column.formatter
-                   ? column.formatter(visibleRows[virtualRow.index][column.key], visibleRows[virtualRow.index])
-                   : visibleRows[virtualRow.index][column.key] }}
+                   ? column.formatter(sortedData[virtualRow.index][column.key], sortedData[virtualRow.index])
+                   : sortedData[virtualRow.index][column.key] }}
               </slot>
             </td>
           </tr>
@@ -276,8 +276,6 @@ let resizeObserver: ResizeObserver | null = null
 let resizeHandler: (() => void) | null = null
 let desktopViewportMediaQuery: MediaQueryList | null = null
 let desktopViewportListener: ((event: MediaQueryListEvent) => void) | null = null
-let progressiveMountHandle: number | null = null
-let progressiveMountCycle = 0
 
 const detachDesktopTableTracking = () => {
   resizeObserver?.disconnect()
@@ -307,67 +305,6 @@ const attachDesktopTableTracking = () => {
   }
 }
 
-const getPerfNow = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now())
-
-const normalizedInitialRenderCount = computed(() => Math.max(1, props.initialRenderCount ?? 40))
-const normalizedRenderBatchSize = computed(() => Math.max(1, props.renderBatchSize ?? 40))
-
-const logProgressiveMount = (message: string) => {
-  if (!import.meta.env.DEV || !props.progressiveMount) return
-  const total = sortedData.value?.length ?? 0
-  console.debug(`[DataTable] ${message} (${renderedCount.value}/${total})`)
-}
-
-const cancelProgressiveMount = () => {
-  if (progressiveMountHandle === null) return
-  if (typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function') {
-    window.cancelAnimationFrame(progressiveMountHandle)
-  } else {
-    clearTimeout(progressiveMountHandle)
-  }
-  progressiveMountHandle = null
-}
-
-const scheduleProgressiveMount = (cycle: number) => {
-  cancelProgressiveMount()
-
-  const runFrame = async () => {
-    if (cycle !== progressiveMountCycle) return
-
-    const total = sortedData.value?.length ?? 0
-    if (renderedCount.value >= total) {
-      await nextTick()
-      if (cycle !== progressiveMountCycle) return
-      logProgressiveMount(`progressive mount complete in ${(getPerfNow() - progressiveMountStartedAt.value).toFixed(1)}ms`)
-      return
-    }
-
-    renderedCount.value = Math.min(total, renderedCount.value + normalizedRenderBatchSize.value)
-
-    if (renderedCount.value >= total) {
-      await nextTick()
-      if (cycle !== progressiveMountCycle) return
-      logProgressiveMount(`progressive mount complete in ${(getPerfNow() - progressiveMountStartedAt.value).toFixed(1)}ms`)
-      return
-    }
-
-    scheduleProgressiveMount(cycle)
-  }
-
-  if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-    progressiveMountHandle = window.requestAnimationFrame(() => {
-      progressiveMountHandle = null
-      void runFrame()
-    })
-    return
-  }
-
-  progressiveMountHandle = setTimeout(() => {
-    progressiveMountHandle = null
-    void runFrame()
-  }, 0) as unknown as number
-}
-
 onMounted(() => {
   if (typeof window !== 'undefined') {
     desktopViewportMediaQuery = window.matchMedia(desktopViewportQuery)
@@ -384,7 +321,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  cancelProgressiveMount()
   detachDesktopTableTracking()
   if (desktopViewportMediaQuery && desktopViewportListener) {
     if (typeof desktopViewportMediaQuery.removeEventListener === 'function') {
@@ -425,12 +361,6 @@ interface Props {
   estimateRowHeight?: number
   /** Number of rows to render beyond the visible area (default 5) */
   overscan?: number
-  /** Progressively mount rows to avoid blocking the main thread on initial render */
-  progressiveMount?: boolean
-  /** Initial number of rows to mount when progressive mounting is enabled */
-  initialRenderCount?: number
-  /** Number of rows to add per animation frame when progressive mounting is enabled */
-  renderBatchSize?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -439,17 +369,12 @@ const props = withDefaults(defineProps<Props>(), {
   stickyActionsColumn: true,
   expandableActions: true,
   defaultSortOrder: 'asc',
-  serverSideSort: false,
-  progressiveMount: false,
-  initialRenderCount: 40,
-  renderBatchSize: 40,
+  serverSideSort: false
 })
 
 const sortKey = ref<string>('')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 const actionsExpanded = ref(false)
-const renderedCount = ref(0)
-const progressiveMountStartedAt = ref(0)
 
 type PersistedSortState = {
   key: string
@@ -647,59 +572,9 @@ const sortedData = computed(() => {
     .map(item => item.row)
 })
 
-const visibleRows = computed(() => {
-  if (!props.progressiveMount) {
-    return sortedData.value ?? []
-  }
-
-  return (sortedData.value ?? []).slice(0, renderedCount.value)
-})
-
-watch(
-  [
-    () => props.progressiveMount,
-    () => props.loading,
-    () => sortedData.value,
-    normalizedInitialRenderCount,
-    normalizedRenderBatchSize,
-  ],
-  async () => {
-    cancelProgressiveMount()
-    progressiveMountCycle += 1
-    const cycle = progressiveMountCycle
-    const total = sortedData.value?.length ?? 0
-
-    if (props.loading || total === 0) {
-      renderedCount.value = props.progressiveMount ? 0 : total
-      return
-    }
-
-    if (!props.progressiveMount) {
-      renderedCount.value = total
-      return
-    }
-
-    progressiveMountStartedAt.value = getPerfNow()
-    renderedCount.value = Math.min(total, normalizedInitialRenderCount.value)
-    await nextTick()
-
-    if (cycle !== progressiveMountCycle) return
-
-    logProgressiveMount(`progressive mount first batch in ${(getPerfNow() - progressiveMountStartedAt.value).toFixed(1)}ms`)
-
-    if (renderedCount.value >= total) {
-      logProgressiveMount(`progressive mount complete in ${(getPerfNow() - progressiveMountStartedAt.value).toFixed(1)}ms`)
-      return
-    }
-
-    scheduleProgressiveMount(cycle)
-  },
-  { immediate: true, flush: 'post' }
-)
-
 // --- Virtual scrolling ---
 const rowVirtualizer = useVirtualizer(computed(() => ({
-  count: isDesktopViewport.value ? visibleRows.value.length : 0,
+  count: isDesktopViewport.value ? (sortedData.value?.length ?? 0) : 0,
   getScrollElement: () => tableWrapperRef.value,
   estimateSize: () => props.estimateRowHeight ?? 56,
   overscan: props.overscan ?? 5,
@@ -824,8 +699,6 @@ watch(
 defineExpose({
   virtualizer: rowVirtualizer,
   sortedData,
-  visibleRows,
-  renderedCount,
   resolveRowKey,
   tableWrapperEl: tableWrapperRef,
 })

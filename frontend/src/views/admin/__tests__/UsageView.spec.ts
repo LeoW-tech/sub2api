@@ -9,12 +9,6 @@ const { list, getStats, getSnapshotV2, getModelStats, getById } = vi.hoisted(() 
     setItem: vi.fn(),
     removeItem: vi.fn(),
   })
-  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
-    return setTimeout(() => callback(0), 0) as unknown as number
-  })
-  vi.stubGlobal('cancelAnimationFrame', (handle: number) => {
-    clearTimeout(handle)
-  })
 
   return {
     list: vi.fn(),
@@ -116,10 +110,6 @@ const GroupDistributionChartStub = {
 describe('admin UsageView distribution metric toggles', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    ;(window as typeof window & { __APP_CONFIG__?: unknown }).__APP_CONFIG__ = {
-      table_default_page_size: 1000,
-      table_page_size_options: [200, 500, 1000],
-    }
     list.mockReset()
     getStats.mockReset()
     getSnapshotV2.mockReset()
@@ -148,14 +138,11 @@ describe('admin UsageView distribution metric toggles', () => {
     })
     getModelStats.mockResolvedValue({
       models: [],
-      start_date: '2026-03-01',
-      end_date: '2026-03-02',
     })
   })
 
   afterEach(() => {
     vi.useRealTimers()
-    delete (window as typeof window & { __APP_CONFIG__?: unknown }).__APP_CONFIG__
   })
 
   it('keeps model and group metric toggles independent without refetching chart data', async () => {
@@ -180,11 +167,10 @@ describe('admin UsageView distribution metric toggles', () => {
       },
     })
 
-    await vi.runAllTimersAsync()
+    vi.advanceTimersByTime(120)
     await flushPromises()
 
     expect(getSnapshotV2).toHaveBeenCalledTimes(1)
-    expect(getModelStats).toHaveBeenCalledTimes(1)
     const now = new Date()
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
     expect(getSnapshotV2).toHaveBeenCalledWith(expect.objectContaining({
@@ -212,42 +198,5 @@ describe('admin UsageView distribution metric toggles', () => {
     expect(modelChart.find('.metric').text()).toBe('actual_cost')
     expect(groupChart.find('.metric').text()).toBe('actual_cost')
     expect(getSnapshotV2).toHaveBeenCalledTimes(1)
-  })
-
-  it('keeps requesting the configured full first page for usage logs', async () => {
-    mount(UsageView, {
-      global: {
-        stubs: {
-          AppLayout: AppLayoutStub,
-          UsageStatsCards: true,
-          UsageFilters: UsageFiltersStub,
-          UsageTable: true,
-          UsageExportProgress: true,
-          UsageCleanupDialog: true,
-          UserBalanceHistoryModal: true,
-          Pagination: true,
-          Select: true,
-          DateRangePicker: true,
-          Icon: true,
-          TokenUsageTrend: true,
-          ModelDistributionChart: ModelDistributionChartStub,
-          GroupDistributionChart: GroupDistributionChartStub,
-        },
-      },
-    })
-
-    await vi.runAllTimersAsync()
-    await flushPromises()
-
-    expect(list).toHaveBeenCalledWith(
-      expect.objectContaining({
-        page: 1,
-        page_size: 1000,
-        exact_total: false,
-        sort_by: 'created_at',
-        sort_order: 'desc',
-      }),
-      expect.any(Object)
-    )
   })
 })

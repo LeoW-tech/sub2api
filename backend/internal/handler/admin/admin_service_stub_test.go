@@ -185,6 +185,14 @@ func (s *stubAdminService) GetUserUsageStats(ctx context.Context, userID int64, 
 	return map[string]any{"user_id": userID}, nil
 }
 
+func (s *stubAdminService) GetUserRPMStatus(ctx context.Context, userID int64) (*service.UserRPMStatus, error) {
+	return &service.UserRPMStatus{
+		UserRPMUsed:  0,
+		UserRPMLimit: 0,
+		PerGroup:     nil,
+	}, nil
+}
+
 func (s *stubAdminService) BindUserAuthIdentity(ctx context.Context, userID int64, input service.AdminBindAuthIdentityInput) (*service.AdminBoundAuthIdentity, error) {
 	s.boundAuthIdentityFor = userID
 	copied := input
