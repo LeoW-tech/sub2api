@@ -4,7 +4,9 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
@@ -18,6 +20,7 @@ type adminUsageRepoCapture struct {
 	listParams   pagination.PaginationParams
 	listFilters  usagestats.UsageLogFilters
 	statsFilters usagestats.UsageLogFilters
+	statsCalls   atomic.Int32
 }
 
 func (s *adminUsageRepoCapture) ListWithFilters(ctx context.Context, params pagination.PaginationParams, filters usagestats.UsageLogFilters) ([]service.UsageLog, *pagination.PaginationResult, error) {
@@ -33,7 +36,12 @@ func (s *adminUsageRepoCapture) ListWithFilters(ctx context.Context, params pagi
 
 func (s *adminUsageRepoCapture) GetStatsWithFilters(ctx context.Context, filters usagestats.UsageLogFilters) (*usagestats.UsageStats, error) {
 	s.statsFilters = filters
+	s.statsCalls.Add(1)
 	return &usagestats.UsageStats{}, nil
+}
+
+func resetAdminUsageReadCachesForTest() {
+	adminUsageStatsCache = newSnapshotCache(30 * time.Second)
 }
 
 func newAdminUsageRequestTypeTestRouter(repo *adminUsageRepoCapture) *gin.Engine {
@@ -139,4 +147,27 @@ func TestAdminUsageStatsInvalidStream(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestAdminUsageStatsUsesCache(t *testing.T) {
+	t.Cleanup(resetAdminUsageReadCachesForTest)
+	resetAdminUsageReadCachesForTest()
+
+	repo := &adminUsageRepoCapture{}
+	router := newAdminUsageRequestTypeTestRouter(repo)
+
+	req1 := httptest.NewRequest(http.MethodGet, "/admin/usage/stats?start_date=2026-03-01&end_date=2026-03-07", nil)
+	rec1 := httptest.NewRecorder()
+	router.ServeHTTP(rec1, req1)
+
+	require.Equal(t, http.StatusOK, rec1.Code)
+	require.Equal(t, "miss", rec1.Header().Get("X-Snapshot-Cache"))
+
+	req2 := httptest.NewRequest(http.MethodGet, "/admin/usage/stats?start_date=2026-03-01&end_date=2026-03-07", nil)
+	rec2 := httptest.NewRecorder()
+	router.ServeHTTP(rec2, req2)
+
+	require.Equal(t, http.StatusOK, rec2.Code)
+	require.Equal(t, "hit", rec2.Header().Get("X-Snapshot-Cache"))
+	require.Equal(t, int32(1), repo.statsCalls.Load())
 }

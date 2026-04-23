@@ -107,9 +107,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { markRaw, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
+import type { ChartData } from 'chart.js'
 import { Doughnut } from 'vue-chartjs'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import UserBreakdownSubTable from './UserBreakdownSubTable.vue'
@@ -181,31 +182,46 @@ const chartColors = [
   '#84cc16'
 ]
 
-const displayGroupStats = computed(() => {
-  if (!props.groupStats?.length) return []
+const displayGroupStats = shallowRef<GroupStat[]>([])
+const chartData = shallowRef<ChartData<'doughnut', number[], string> | null>(null)
 
-  const metricKey = props.metric === 'actual_cost' ? 'actual_cost' : 'total_tokens'
-  return [...props.groupStats].sort((a, b) => b[metricKey] - a[metricKey])
-})
+watch(
+  [() => props.groupStats, () => props.metric],
+  ([groupStats, metric]) => {
+    if (!groupStats?.length) {
+      displayGroupStats.value = []
+      chartData.value = null
+      return
+    }
 
-const chartData = computed(() => {
-  if (!props.groupStats?.length) return null
+    const metricKey = metric === 'actual_cost' ? 'actual_cost' : 'total_tokens'
+    const sorted = [...groupStats].sort((a, b) => b[metricKey] - a[metricKey])
+    displayGroupStats.value = sorted
+    chartData.value = markRaw({
+      labels: sorted.map((group) => group.group_name || String(group.group_id)),
+      datasets: [
+        {
+          data: sorted.map((group) => metric === 'actual_cost' ? group.actual_cost : group.total_tokens),
+          backgroundColor: chartColors.slice(0, sorted.length),
+          borderWidth: 0
+        }
+      ]
+    })
+  },
+  { immediate: true }
+)
 
-  return {
-    labels: displayGroupStats.value.map((g) => g.group_name || String(g.group_id)),
-    datasets: [
-      {
-        data: displayGroupStats.value.map((g) => props.metric === 'actual_cost' ? g.actual_cost : g.total_tokens),
-        backgroundColor: chartColors.slice(0, displayGroupStats.value.length),
-        borderWidth: 0
-      }
-    ]
-  }
-})
-
-const doughnutOptions = computed(() => ({
+const doughnutOptions = markRaw({
   responsive: true,
   maintainAspectRatio: false,
+  animation: false,
+  transitions: {
+    active: {
+      animation: {
+        duration: 0
+      }
+    }
+  },
   plugins: {
     legend: {
       display: false
@@ -224,7 +240,7 @@ const doughnutOptions = computed(() => ({
       }
     }
   }
-}))
+})
 
 const formatTokens = (value: number): string => {
   if (value >= 1_000_000_000) {
@@ -241,7 +257,8 @@ const formatNumber = (value: number): string => {
   return value.toLocaleString()
 }
 
-const formatCost = (value: number): string => {
+const formatCost = (value?: number | null): string => {
+  if (value == null || Number.isNaN(value)) return '0.0000'
   if (value >= 1000) {
     return (value / 1000).toFixed(2) + 'K'
   } else if (value >= 1) {

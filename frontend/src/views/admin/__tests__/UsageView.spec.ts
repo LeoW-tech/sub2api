@@ -3,17 +3,24 @@ import { flushPromises, mount } from '@vue/test-utils'
 
 import UsageView from '../UsageView.vue'
 
-const { list, getStats, getSnapshotV2, getById } = vi.hoisted(() => {
+const { list, getStats, getSnapshotV2, getModelStats, getById } = vi.hoisted(() => {
   vi.stubGlobal('localStorage', {
     getItem: vi.fn(() => null),
     setItem: vi.fn(),
     removeItem: vi.fn(),
+  })
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    return setTimeout(() => callback(0), 0) as unknown as number
+  })
+  vi.stubGlobal('cancelAnimationFrame', (handle: number) => {
+    clearTimeout(handle)
   })
 
   return {
     list: vi.fn(),
     getStats: vi.fn(),
     getSnapshotV2: vi.fn(),
+    getModelStats: vi.fn(),
     getById: vi.fn(),
   }
 })
@@ -40,6 +47,7 @@ vi.mock('@/api/admin', () => ({
     },
     dashboard: {
       getSnapshotV2,
+      getModelStats,
     },
     users: {
       getById,
@@ -111,6 +119,7 @@ describe('admin UsageView distribution metric toggles', () => {
     list.mockReset()
     getStats.mockReset()
     getSnapshotV2.mockReset()
+    getModelStats.mockReset()
     getById.mockReset()
 
     list.mockResolvedValue({
@@ -132,6 +141,11 @@ describe('admin UsageView distribution metric toggles', () => {
       trend: [],
       models: [],
       groups: [],
+    })
+    getModelStats.mockResolvedValue({
+      models: [],
+      start_date: '2026-03-01',
+      end_date: '2026-03-02',
     })
   })
 
@@ -161,10 +175,11 @@ describe('admin UsageView distribution metric toggles', () => {
       },
     })
 
-    vi.advanceTimersByTime(120)
+    await vi.runAllTimersAsync()
     await flushPromises()
 
     expect(getSnapshotV2).toHaveBeenCalledTimes(1)
+    expect(getModelStats).toHaveBeenCalledTimes(1)
     const now = new Date()
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
     expect(getSnapshotV2).toHaveBeenCalledWith(expect.objectContaining({

@@ -132,9 +132,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, markRaw, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
+import type { ChartData } from 'chart.js'
 import { Doughnut } from 'vue-chartjs'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import UserBreakdownSubTable from './UserBreakdownSubTable.vue'
@@ -223,38 +224,55 @@ const chartColors = [
   '#a855f7'
 ]
 
-const displayEndpointStats = computed(() => {
+const selectedEndpointStats = computed(() => {
   const sourceStats = props.source === 'upstream'
     ? props.upstreamEndpointStats
     : props.source === 'path'
       ? props.endpointPathStats
       : props.endpointStats
-  if (!sourceStats?.length) return []
-
-  const metricKey = props.metric === 'actual_cost' ? 'actual_cost' : 'total_tokens'
-  return [...sourceStats].sort((a, b) => b[metricKey] - a[metricKey])
+  return sourceStats ?? []
 })
 
-const chartData = computed(() => {
-  if (!displayEndpointStats.value?.length) return null
+const displayEndpointStats = shallowRef<EndpointStat[]>([])
+const chartData = shallowRef<ChartData<'doughnut', number[], string> | null>(null)
 
-  return {
-    labels: displayEndpointStats.value.map((item) => item.endpoint),
-    datasets: [
-      {
-        data: displayEndpointStats.value.map((item) =>
-          props.metric === 'actual_cost' ? item.actual_cost : item.total_tokens
-        ),
-        backgroundColor: chartColors.slice(0, displayEndpointStats.value.length),
-        borderWidth: 0
-      }
-    ]
-  }
-})
+watch(
+  [selectedEndpointStats, () => props.metric],
+  ([sourceStats, metric]) => {
+    if (!sourceStats?.length) {
+      displayEndpointStats.value = []
+      chartData.value = null
+      return
+    }
 
-const doughnutOptions = computed(() => ({
+    const metricKey = metric === 'actual_cost' ? 'actual_cost' : 'total_tokens'
+    const sorted = [...sourceStats].sort((a, b) => b[metricKey] - a[metricKey])
+    displayEndpointStats.value = sorted
+    chartData.value = markRaw({
+      labels: sorted.map((item) => item.endpoint),
+      datasets: [
+        {
+          data: sorted.map((item) => metric === 'actual_cost' ? item.actual_cost : item.total_tokens),
+          backgroundColor: chartColors.slice(0, sorted.length),
+          borderWidth: 0
+        }
+      ]
+    })
+  },
+  { immediate: true }
+)
+
+const doughnutOptions = markRaw({
   responsive: true,
   maintainAspectRatio: false,
+  animation: false,
+  transitions: {
+    active: {
+      animation: {
+        duration: 0
+      }
+    }
+  },
   plugins: {
     legend: {
       display: false
@@ -273,7 +291,7 @@ const doughnutOptions = computed(() => ({
       }
     }
   }
-}))
+})
 
 const formatTokens = (value: number): string => {
   if (value >= 1_000_000_000) {
@@ -290,7 +308,8 @@ const formatNumber = (value: number): string => {
   return value.toLocaleString()
 }
 
-const formatCost = (value: number): string => {
+const formatCost = (value?: number | null): string => {
+  if (value == null || Number.isNaN(value)) return '0.0000'
   if (value >= 1000) {
     return (value / 1000).toFixed(2) + 'K'
   } else if (value >= 1) {

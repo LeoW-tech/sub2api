@@ -17,7 +17,7 @@
             <div class="ml-auto flex items-center gap-2">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.dashboard.granularity') }}:</span>
               <div class="w-28">
-                <Select v-model="granularity" :options="granularityOptions" @change="loadChartData" />
+                <Select v-model="granularity" :options="granularityOptions" @change="refreshChartSections" />
               </div>
             </div>
           </div>
@@ -64,7 +64,7 @@
           <TokenUsageTrend :trend-data="trendData" :loading="chartsLoading" />
         </div>
       </div>
-      <UsageFilters v-model="filters" :start-date="startDate" :end-date="endDate" :exporting="exporting" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
+      <UsageFilters v-model="filters" :start-date="startDate" :end-date="endDate" :exporting="exporting" :model-options="modelFilterOptions" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
         <template #after-reset>
           <div class="relative" ref="columnDropdownRef">
             <button
@@ -131,7 +131,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, shallowRef, reactive, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { saveAs } from 'file-saver'
 import { useRoute } from 'vue-router'
@@ -140,7 +140,7 @@ import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { formatReasoningEffort } from '@/utils/format'
 import { buildUsageWorkbookBlob } from '@/utils/usageExportWorkbook'
 import { resolveUsageRequestType, requestTypeToLegacyStream } from '@/utils/usageRequestType'
-import AppLayout from '@/components/layout/AppLayout.vue'; import Pagination from '@/components/common/Pagination.vue'; import Select from '@/components/common/Select.vue'; import DateRangePicker from '@/components/common/DateRangePicker.vue'
+import AppLayout from '@/components/layout/AppLayout.vue'; import Pagination from '@/components/common/Pagination.vue'; import Select, { type SelectOption } from '@/components/common/Select.vue'; import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import UsageStatsCards from '@/components/admin/usage/UsageStatsCards.vue'; import UsageFilters from '@/components/admin/usage/UsageFilters.vue'
 import UsageTable from '@/components/admin/usage/UsageTable.vue'; import UsageExportProgress from '@/components/admin/usage/UsageExportProgress.vue'
 import UsageCleanupDialog from '@/components/admin/usage/UsageCleanupDialog.vue'
@@ -155,9 +155,15 @@ const appStore = useAppStore()
 type DistributionMetric = 'tokens' | 'actual_cost'
 type EndpointSource = 'inbound' | 'upstream' | 'path'
 type ModelDistributionSource = 'requested' | 'upstream' | 'mapping'
+type DeferredEndpointStats = {
+  seq: number
+  inbound: EndpointStat[]
+  upstream: EndpointStat[]
+  paths: EndpointStat[]
+}
 const route = useRoute()
-const usageStats = ref<AdminUsageStatsResponse | null>(null); const usageLogs = ref<AdminUsageLog[]>([]); const loading = ref(false); const exporting = ref(false)
-const trendData = ref<TrendDataPoint[]>([]); const requestedModelStats = ref<ModelStat[]>([]); const upstreamModelStats = ref<ModelStat[]>([]); const mappingModelStats = ref<ModelStat[]>([]); const groupStats = ref<GroupStat[]>([]); const chartsLoading = ref(false); const modelStatsLoading = ref(false); const granularity = ref<'day' | 'hour'>('hour')
+const usageStats = shallowRef<AdminUsageStatsResponse | null>(null); const usageLogs = shallowRef<AdminUsageLog[]>([]); const loading = ref(false); const exporting = ref(false)
+const trendData = shallowRef<TrendDataPoint[]>([]); const requestedModelStats = shallowRef<ModelStat[]>([]); const upstreamModelStats = shallowRef<ModelStat[]>([]); const mappingModelStats = shallowRef<ModelStat[]>([]); const groupStats = shallowRef<GroupStat[]>([]); const chartsLoading = ref(false); const modelStatsLoading = ref(false); const granularity = ref<'day' | 'hour'>('hour')
 const modelDistributionMetric = ref<DistributionMetric>('tokens')
 const modelDistributionSource = ref<ModelDistributionSource>('requested')
 const loadedModelSources = reactive<Record<ModelDistributionSource, boolean>>({
@@ -168,14 +174,17 @@ const loadedModelSources = reactive<Record<ModelDistributionSource, boolean>>({
 const groupDistributionMetric = ref<DistributionMetric>('tokens')
 const endpointDistributionMetric = ref<DistributionMetric>('tokens')
 const endpointDistributionSource = ref<EndpointSource>('inbound')
-const inboundEndpointStats = ref<EndpointStat[]>([])
-const upstreamEndpointStats = ref<EndpointStat[]>([])
-const endpointPathStats = ref<EndpointStat[]>([])
+const inboundEndpointStats = shallowRef<EndpointStat[]>([])
+const upstreamEndpointStats = shallowRef<EndpointStat[]>([])
+const endpointPathStats = shallowRef<EndpointStat[]>([])
+const modelFilterOptions = shallowRef<SelectOption[]>([])
 const endpointStatsLoading = ref(false)
 let abortController: AbortController | null = null; let exportAbortController: AbortController | null = null
 let chartReqSeq = 0
 let statsReqSeq = 0
 let modelStatsReqSeq = 0
+let pageLoadPipelineSeq = 0
+let deferredEndpointStats: DeferredEndpointStats | null = null
 const exportProgress = reactive({ show: false, progress: 0, current: 0, total: 0, estimatedTime: '' })
 const cleanupDialogVisible = ref(false)
 // Balance history modal state
@@ -204,6 +213,76 @@ const handleUserClick = async (userId: number) => {
 }
 
 const granularityOptions = computed(() => [{ value: 'day', label: t('admin.dashboard.day') }, { value: 'hour', label: t('admin.dashboard.hour') }])
+const perfLoggingEnabled = import.meta.env.DEV
+
+const getPerfNow = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+
+const logPerf = (label: string, startedAt: number) => {
+  if (!perfLoggingEnabled) return
+  console.debug(`[admin/usage] ${label}: ${(getPerfNow() - startedAt).toFixed(1)}ms`)
+}
+
+const nextFrame = async () => {
+  await new Promise<void>((resolve) => {
+    if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+      setTimeout(resolve, 0)
+      return
+    }
+    window.requestAnimationFrame(() => resolve())
+  })
+}
+
+const yieldToMainThread = async (frames = 1) => {
+  for (let i = 0; i < frames; i += 1) {
+    await nextFrame()
+  }
+}
+
+const buildModelFilterOptions = (models: ModelStat[]): SelectOption[] => {
+  const uniqueModels = new Set<string>()
+  models.forEach((stat) => {
+    if (stat.model) {
+      uniqueModels.add(stat.model)
+    }
+  })
+
+  return Array.from(uniqueModels)
+    .sort()
+    .map((model) => ({ value: model, label: model }))
+}
+
+const applyEndpointStats = (payload: Omit<DeferredEndpointStats, 'seq'>) => {
+  inboundEndpointStats.value = payload.inbound
+  upstreamEndpointStats.value = payload.upstream
+  endpointPathStats.value = payload.paths
+  endpointStatsLoading.value = false
+}
+
+const flushDeferredEndpointStats = (expectedSeq: number) => {
+  if (!deferredEndpointStats || deferredEndpointStats.seq !== expectedSeq) {
+    return
+  }
+  applyEndpointStats({
+    inbound: deferredEndpointStats.inbound,
+    upstream: deferredEndpointStats.upstream,
+    paths: deferredEndpointStats.paths,
+  })
+  deferredEndpointStats = null
+}
+
+const setModelStatsForSource = (source: ModelDistributionSource, models: ModelStat[]) => {
+  if (source === 'requested') {
+    requestedModelStats.value = models
+    modelFilterOptions.value = buildModelFilterOptions(models)
+    return
+  }
+  if (source === 'upstream') {
+    upstreamModelStats.value = models
+    return
+  }
+  mappingModelStats.value = models
+}
+
 // Use local timezone to avoid UTC timezone issues
 const formatLD = (d: Date) => {
   const year = d.getFullYear()
@@ -298,35 +377,53 @@ const buildUsageListParams = (
 }
 
 const loadLogs = async () => {
+  const startedAt = getPerfNow()
   abortController?.abort(); const c = new AbortController(); abortController = c; loading.value = true
   try {
     const res = await adminAPI.usage.list(
       buildUsageListParams(pagination.page, pagination.page_size, false),
       { signal: c.signal }
     )
-    if(!c.signal.aborted) { usageLogs.value = res.items; pagination.total = res.total }
+    if(!c.signal.aborted) {
+      usageLogs.value = res.items
+      pagination.total = res.total
+      logPerf('logs loaded', startedAt)
+    }
   } catch (error: any) { if(error?.name !== 'AbortError') console.error('Failed to load usage logs:', error) } finally { if(abortController === c) loading.value = false }
 }
-const loadStats = async () => {
+const loadStats = async (options?: { deferEndpointStats?: boolean }) => {
+  const startedAt = getPerfNow()
   const seq = ++statsReqSeq
   endpointStatsLoading.value = true
+  deferredEndpointStats = null
   try {
     const requestType = filters.value.request_type
     const legacyStream = requestType ? requestTypeToLegacyStream(requestType) : filters.value.stream
     const s = await adminAPI.usage.getStats({ ...filters.value, stream: legacyStream === null ? undefined : legacyStream })
     if (seq !== statsReqSeq) return
     usageStats.value = s
-    inboundEndpointStats.value = s.endpoints || []
-    upstreamEndpointStats.value = s.upstream_endpoints || []
-    endpointPathStats.value = s.endpoint_paths || []
+    const endpointPayload: DeferredEndpointStats = {
+      seq,
+      inbound: s.endpoints || [],
+      upstream: s.upstream_endpoints || [],
+      paths: s.endpoint_paths || [],
+    }
+    if (options?.deferEndpointStats) {
+      deferredEndpointStats = endpointPayload
+    } else {
+      applyEndpointStats(endpointPayload)
+    }
+    logPerf('stats loaded', startedAt)
   } catch (error) {
     if (seq !== statsReqSeq) return
     console.error('Failed to load usage stats:', error)
+    deferredEndpointStats = null
     inboundEndpointStats.value = []
     upstreamEndpointStats.value = []
     endpointPathStats.value = []
+    endpointStatsLoading.value = false
   } finally {
-    if (seq === statsReqSeq) endpointStatsLoading.value = false
+    if (seq === statsReqSeq && !options?.deferEndpointStats) endpointStatsLoading.value = false
   }
 }
 
@@ -334,6 +431,7 @@ const resetModelStatsCache = () => {
   requestedModelStats.value = []
   upstreamModelStats.value = []
   mappingModelStats.value = []
+  modelFilterOptions.value = []
   loadedModelSources.requested = false
   loadedModelSources.upstream = false
   loadedModelSources.mapping = false
@@ -343,7 +441,7 @@ const loadModelStats = async (source: ModelDistributionSource, force = false) =>
   if (!force && loadedModelSources[source]) {
     return
   }
-
+  const startedAt = getPerfNow()
   const seq = ++modelStatsReqSeq
   modelStatsLoading.value = true
   try {
@@ -367,24 +465,13 @@ const loadModelStats = async (source: ModelDistributionSource, force = false) =>
     if (seq !== modelStatsReqSeq) return
 
     const models = response.models || []
-    if (source === 'requested') {
-      requestedModelStats.value = models
-    } else if (source === 'upstream') {
-      upstreamModelStats.value = models
-    } else {
-      mappingModelStats.value = models
-    }
+    setModelStatsForSource(source, models)
     loadedModelSources[source] = true
+    logPerf(`models loaded (${source})`, startedAt)
   } catch (error) {
     if (seq !== modelStatsReqSeq) return
     console.error('Failed to load model stats:', error)
-    if (source === 'requested') {
-      requestedModelStats.value = []
-    } else if (source === 'upstream') {
-      upstreamModelStats.value = []
-    } else {
-      mappingModelStats.value = []
-    }
+    setModelStatsForSource(source, [])
     loadedModelSources[source] = false
   } finally {
     if (seq === modelStatsReqSeq) modelStatsLoading.value = false
@@ -392,6 +479,7 @@ const loadModelStats = async (source: ModelDistributionSource, force = false) =>
 }
 
 const loadChartData = async () => {
+  const startedAt = getPerfNow()
   const seq = ++chartReqSeq
   chartsLoading.value = true
   try {
@@ -418,22 +506,56 @@ const loadChartData = async () => {
     if (seq !== chartReqSeq) return
     trendData.value = snapshot.trend || []
     groupStats.value = snapshot.groups || []
+    logPerf('charts loaded', startedAt)
   } catch (error) { console.error('Failed to load chart data:', error) } finally { if (seq === chartReqSeq) chartsLoading.value = false }
 }
-const applyFilters = () => {
-  pagination.page = 1
+
+const runLoadPipeline = async (options?: { resetPage?: boolean }) => {
+  const pipelineSeq = ++pageLoadPipelineSeq
+  const pipelineStartedAt = getPerfNow()
+
+  if (options?.resetPage) {
+    pagination.page = 1
+  }
+
   resetModelStatsCache()
-  loadLogs()
-  loadStats()
-  loadModelStats(modelDistributionSource.value, true)
-  loadChartData()
+
+  await Promise.all([
+    loadLogs(),
+    loadStats({ deferEndpointStats: true })
+  ])
+  if (pipelineSeq !== pageLoadPipelineSeq) return
+
+  await yieldToMainThread(1)
+  if (pipelineSeq !== pageLoadPipelineSeq) return
+  await loadChartData()
+  if (pipelineSeq !== pageLoadPipelineSeq) return
+
+  await yieldToMainThread(1)
+  if (pipelineSeq !== pageLoadPipelineSeq) return
+  await loadModelStats(modelDistributionSource.value, true)
+  if (pipelineSeq !== pageLoadPipelineSeq) return
+
+  await yieldToMainThread(1)
+  if (pipelineSeq !== pageLoadPipelineSeq) return
+  flushDeferredEndpointStats(statsReqSeq)
+
+  await nextTick()
+  logPerf('charts mounted', pipelineStartedAt)
+}
+
+const refreshChartSections = async () => {
+  const refreshSeq = ++pageLoadPipelineSeq
+  await yieldToMainThread(1)
+  if (refreshSeq !== pageLoadPipelineSeq) return
+  await loadChartData()
+}
+
+const applyFilters = () => {
+  void runLoadPipeline({ resetPage: true })
 }
 const refreshData = () => {
-  resetModelStatsCache()
-  loadLogs()
-  loadStats()
-  loadModelStats(modelDistributionSource.value, true)
-  loadChartData()
+  void runLoadPipeline()
 }
 const resetFilters = () => {
   const range = getLast24HoursRangeDates()
@@ -594,14 +716,9 @@ const handleColumnClickOutside = (event: MouseEvent) => {
 
 onMounted(() => {
   applyRouteQueryFilters()
-  loadLogs()
-  loadStats()
-  loadModelStats(modelDistributionSource.value, true)
-  window.setTimeout(() => {
-    void loadChartData()
-  }, 120)
   loadSavedColumns()
   document.addEventListener('click', handleColumnClickOutside)
+  void runLoadPipeline()
 })
 onUnmounted(() => { abortController?.abort(); exportAbortController?.abort(); document.removeEventListener('click', handleColumnClickOutside) })
 
