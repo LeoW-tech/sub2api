@@ -31,8 +31,9 @@ type RateLimitService struct {
 
 // SuccessfulTestRecoveryResult 表示测试成功后恢复了哪些运行时状态。
 type SuccessfulTestRecoveryResult struct {
-	ClearedError     bool
-	ClearedRateLimit bool
+	ClearedError       bool
+	ClearedRateLimit   bool
+	EnabledSchedulable bool
 }
 
 // AccountRecoveryOptions 控制账号恢复时的附加行为。
@@ -1249,6 +1250,13 @@ func (s *RateLimitService) RecoverAccountState(ctx context.Context, accountID in
 			return nil, err
 		}
 		result.ClearedRateLimit = true
+	}
+
+	if !account.Schedulable {
+		if err := s.accountRepo.SetSchedulable(ctx, accountID, true); err != nil {
+			return nil, err
+		}
+		result.EnabledSchedulable = true
 	}
 
 	return result, nil

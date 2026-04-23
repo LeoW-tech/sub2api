@@ -499,6 +499,7 @@
       :show="showTest"
       :account="testingAcc"
       @close="closeTestModal"
+      @tested="handleAccountUpdated"
     />
     <AccountStatsModal
       :show="showStats"
@@ -1694,6 +1695,15 @@ const handleBulkTestActivate = async () => {
     const statusLookupFailedIds = testSuccessIds.filter((accountId) =>
       statusLookup.errors.has(accountId),
     );
+    const testedAccounts = testSuccessIds
+      .map((accountId) => statusLookup.results.get(accountId))
+      .filter((account): account is Account => Boolean(account));
+    if (testedAccounts.length > 0) {
+      testedAccounts.forEach((account) => {
+        patchAccountInList(account);
+      });
+      enterAutoRefreshSilentWindow();
+    }
     const activateIds = testSuccessIds.filter((accountId) => {
       const account = statusLookup.results.get(accountId);
       return account?.status !== "active";

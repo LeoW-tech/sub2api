@@ -13,6 +13,7 @@ const {
   bulkUpdateMock,
   getBatchTodayStatsMock,
   getAllProxiesMock,
+  getIPOptionsMock,
   getAllGroupsMock,
   showSuccessMock,
   showErrorMock,
@@ -30,6 +31,7 @@ const {
   bulkUpdateMock: vi.fn(),
   getBatchTodayStatsMock: vi.fn(),
   getAllProxiesMock: vi.fn(),
+  getIPOptionsMock: vi.fn(),
   getAllGroupsMock: vi.fn(),
   showSuccessMock: vi.fn(),
   showErrorMock: vi.fn(),
@@ -112,7 +114,8 @@ vi.mock('@/api/admin', () => ({
       getBatchTodayStats: getBatchTodayStatsMock
     },
     proxies: {
-      getAll: getAllProxiesMock
+      getAll: getAllProxiesMock,
+      getIPOptions: getIPOptionsMock
     },
     groups: {
       getAll: getAllGroupsMock
@@ -230,6 +233,7 @@ describe('AccountsView bulk test activate', () => {
     bulkUpdateMock.mockReset()
     getBatchTodayStatsMock.mockReset()
     getAllProxiesMock.mockReset()
+    getIPOptionsMock.mockReset()
     getAllGroupsMock.mockReset()
     showSuccessMock.mockReset()
     showErrorMock.mockReset()
@@ -246,6 +250,7 @@ describe('AccountsView bulk test activate', () => {
 
     getBatchTodayStatsMock.mockResolvedValue({ stats: {} })
     getAllProxiesMock.mockResolvedValue([])
+    getIPOptionsMock.mockResolvedValue([])
     getAllGroupsMock.mockResolvedValue([])
     bulkUpdateMock.mockResolvedValue({
       success: 0,
@@ -299,6 +304,11 @@ describe('AccountsView bulk test activate', () => {
 
   it('固定使用 GPT-5.4，失败不阻塞，并且只激活测试成功且当前非 active 的账号', async () => {
     selectedIdsRef.value = [1, 2, 3]
+    accountsRef.value = [
+      { id: 1, name: 'Account 1', status: 'inactive', schedulable: false },
+      { id: 2, name: 'Account 2', status: 'active', schedulable: false },
+      { id: 3, name: 'Account 3', status: 'inactive', schedulable: true }
+    ]
 
     runAccountTestStreamMock
       .mockResolvedValueOnce({ success: true })
@@ -306,8 +316,8 @@ describe('AccountsView bulk test activate', () => {
       .mockRejectedValueOnce(new Error('boom'))
 
     getByIdMock
-      .mockResolvedValueOnce({ id: 1, status: 'inactive' })
-      .mockResolvedValueOnce({ id: 2, status: 'active' })
+      .mockResolvedValueOnce({ id: 1, name: 'Account 1', status: 'inactive', schedulable: true })
+      .mockResolvedValueOnce({ id: 2, name: 'Account 2', status: 'active', schedulable: true })
 
     bulkUpdateMock.mockResolvedValue({
       success: 1,
@@ -344,7 +354,41 @@ describe('AccountsView bulk test activate', () => {
     expect(getByIdMock).toHaveBeenNthCalledWith(1, 1)
     expect(getByIdMock).toHaveBeenNthCalledWith(2, 2)
     expect(bulkUpdateMock).toHaveBeenCalledWith([1], { status: 'active' })
+    expect(accountsRef.value).toEqual([
+      { id: 1, name: 'Account 1', status: 'active', schedulable: true },
+      { id: 2, name: 'Account 2', status: 'active', schedulable: true },
+      { id: 3, name: 'Account 3', status: 'inactive', schedulable: true }
+    ])
     expect(setSelectedIdsMock).toHaveBeenCalledWith([3])
     expect(showErrorMock).toHaveBeenCalledWith('测试成功 2 个，测试失败 1 个，已启用 1 个')
+  })
+
+  it('测试成功后会立即把 active 但调度关闭的账号回填为 schedulable=true', async () => {
+    selectedIdsRef.value = [2]
+    accountsRef.value = [
+      { id: 2, name: 'Account 2', status: 'active', schedulable: false }
+    ]
+
+    runAccountTestStreamMock.mockResolvedValueOnce({ success: true })
+    getByIdMock.mockResolvedValueOnce({
+      id: 2,
+      name: 'Account 2',
+      status: 'active',
+      schedulable: true
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('button.bulk-test-activate-trigger').trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    expect(bulkUpdateMock).not.toHaveBeenCalled()
+    expect(accountsRef.value).toEqual([
+      { id: 2, name: 'Account 2', status: 'active', schedulable: true }
+    ])
+    expect(clearSelectionMock).toHaveBeenCalled()
+    expect(showSuccessMock).toHaveBeenCalledWith('测试成功 1 个，测试失败 0 个，已启用 0 个')
   })
 })

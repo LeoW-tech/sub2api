@@ -2,15 +2,17 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AccountTestModal from '../AccountTestModal.vue'
 
-const { getAvailableModels, copyToClipboard } = vi.hoisted(() => ({
+const { getAvailableModels, getById, copyToClipboard } = vi.hoisted(() => ({
   getAvailableModels: vi.fn(),
+  getById: vi.fn(),
   copyToClipboard: vi.fn()
 }))
 
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
-      getAvailableModels
+      getAvailableModels,
+      getById
     }
   }
 }))
@@ -88,11 +90,21 @@ function mountModal() {
 
 describe('AccountTestModal', () => {
   beforeEach(() => {
+    getAvailableModels.mockReset()
     getAvailableModels.mockResolvedValue([
       { id: 'gemini-2.0-flash', display_name: 'Gemini 2.0 Flash' },
       { id: 'gemini-2.5-flash-image', display_name: 'Gemini 2.5 Flash Image' },
       { id: 'gemini-3.1-flash-image', display_name: 'Gemini 3.1 Flash Image' }
     ])
+    getById.mockReset()
+    getById.mockResolvedValue({
+      id: 42,
+      name: 'Gemini Image Test',
+      platform: 'gemini',
+      type: 'apikey',
+      status: 'active',
+      schedulable: true
+    })
     copyToClipboard.mockReset()
     Object.defineProperty(globalThis, 'localStorage', {
       value: {
@@ -143,5 +155,30 @@ describe('AccountTestModal', () => {
     const preview = wrapper.find('img[alt="gemini-test-image-1"]')
     expect(preview.exists()).toBe(true)
     expect(preview.attributes('src')).toBe('data:image/png;base64,QUJD')
+  })
+
+  it('测试成功后会拉取最新账号并向父组件发出 tested 事件', async () => {
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const buttons = wrapper.findAll('button')
+    const startButton = buttons.find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+
+    await startButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    expect(getById).toHaveBeenCalledTimes(1)
+    expect(getById).toHaveBeenCalledWith(42)
+    expect(wrapper.emitted('tested')).toEqual([
+      [
+        expect.objectContaining({
+          id: 42,
+          schedulable: true
+        })
+      ]
+    ])
   })
 })
