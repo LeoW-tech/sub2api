@@ -955,6 +955,8 @@ export default {
     description: "Manage your account information and settings",
     accountBalance: "Account Balance",
     concurrencyLimit: "Concurrency Limit",
+    rpmLimit: "RPM Limit",
+    rpmUnlimited: "Unlimited",
     memberSince: "Member Since",
     overviewTitle: "Account Overview",
     overviewDescription:

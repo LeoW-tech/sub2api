@@ -911,6 +911,8 @@ export default {
     description: "管理您的账户信息和设置",
     accountBalance: "账户余额",
     concurrencyLimit: "并发限制",
+    rpmLimit: "RPM 限制",
+    rpmUnlimited: "不限制",
     memberSince: "注册时间",
     overviewTitle: "账户总览",
     overviewDescription: "快速查看账号状态、资料来源与常用设置。",
