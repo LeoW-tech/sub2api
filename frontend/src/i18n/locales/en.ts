@@ -316,6 +316,7 @@ export default {
     view: "View",
     settings: "Settings",
     chooseFile: "Choose File",
+    copy: "Copy",
     notAvailable: "N/A",
     now: "Now",
     today: "Today",
@@ -486,7 +487,64 @@ export default {
       completeRegistrationFailed:
         "Registration failed. Please check your invitation code and try again.",
     },
+    oauthFlow: {
+      profileDetailsTitle: "Use {providerName} profile details",
+      profileDetailsDescription:
+        "Choose whether to apply the nickname or avatar from {providerName} to this account.",
+      useDisplayName: "Use display name",
+      useAvatar: "Use avatar",
+      avatarAlt: "{providerName} avatar",
+      reviewProfileBeforeContinue:
+        "Review the {providerName} profile details before continuing.",
+      chooseHowToContinue: "Choose how to continue",
+      chooseAccountActionHint:
+        "Choose whether to bind an existing account or create a new one.",
+      suggestedEmail: "Suggested email: {email}",
+      bindExistingAccount: "Bind existing account",
+      createNewAccount: "Create new account",
+      createAccountHint: "Enter an email address to create your account and continue.",
+      bindLoginHint:
+        "Log in to an existing account to bind this {providerName} sign-in.",
+      signInThenBindDescription:
+        "Sign in to an existing account, then bind this {providerName} sign-in to it.",
+      bindSignInToExistingAccount:
+        "Bind this {providerName} sign-in to an existing account.",
+      bindCurrentAccountTitle: "Bind the current account",
+      bindCurrentAccountDescription:
+        "Bind this {providerName} sign-in to the account currently signed in on this browser.",
+      bindCurrentAccount: "Bind current account",
+      logInAndBind: "Log in and bind",
+      useDifferentEmail: "Use a different email",
+      backToOptions: "Back to options",
+      yourAccount: "your account",
+      totpHint:
+        "Enter the 6-digit verification code for {account} to finish binding this {providerName} sign-in.",
+      verifyAndContinue: "Verify and continue",
+      wechatAvailabilityUnknown:
+        "WeChat sign-in availability could not be confirmed. Refresh and retry.",
+      wechatSystemBrowserOnly:
+        "This WeChat sign-in flow is only available in your system browser.",
+      wechatBrowserOnly:
+        "This WeChat sign-in flow is only available inside the WeChat browser.",
+      wechatNotConfigured: "WeChat sign-in is not configured yet.",
+    },
+    linuxdoCallbackPageTitle: "LinuxDo Sign-In Callback",
+    oidcCallbackPageTitle: "OIDC Sign-In Callback",
+    oauthCallbackPageTitle: "OAuth Callback",
+    wechatProviderName: "WeChat",
+    wechatCallbackPageTitle: "WeChat Sign-In Callback",
+    wechatPaymentCallbackPageTitle: "WeChat Payment Callback",
+    wechatPayment: {
+      callbackTitle: "Resuming WeChat payment",
+      callbackProcessing: "Resuming WeChat payment...",
+      backToPayment: "Back to payment",
+      callbackMissingResumeToken:
+        "The WeChat payment callback is missing the resume token.",
+    },
     oauth: {
+      callbackTitle: "OAuth Callback",
+      callbackHint:
+        "Copy the code and state back to the admin authorization flow when needed.",
       code: "Code",
       state: "State",
       fullUrl: "Full URL",
@@ -897,9 +955,24 @@ export default {
     accountBalance: "Account Balance",
     concurrencyLimit: "Concurrency Limit",
     memberSince: "Member Since",
+    overviewTitle: "Account Overview",
+    overviewDescription:
+      "Check account status, profile sources, and common actions at a glance.",
+    basicsTitle: "Profile & Avatar",
+    basicsDescription:
+      "Keep your public profile details and avatar aligned.",
+    linkedProfileSources: "Profile Sources",
+    linkedProfileSourcesDescription:
+      "Some profile details may stay synced from third-party sign-in methods.",
+    securityTitle: "Security Settings",
+    securityDescription:
+      "Password, two-factor authentication, and alerts live in the right rail.",
     administrator: "Administrator",
     user: "User",
     username: "Username",
+    email: "Email",
+    status: "Status",
+    role: "Role",
     enterUsername: "Enter username",
     editProfile: "Edit Profile",
     updateProfile: "Update Profile",
@@ -994,6 +1067,65 @@ export default {
       maxEmailsReached: "Maximum number of notification emails reached",
       unverified: "Unverified",
       verified: "Verified",
+    },
+    avatar: {
+      title: "Profile Avatar",
+      description:
+        "Upload an avatar image. Static uploads are compressed to 20KB before saving.",
+      uploadAction: "Upload image",
+      uploadHint:
+        "Static uploads are compressed to 20KB when possible. GIF uploads must already be within 20KB.",
+      uploadRequired: "Upload an avatar image first",
+      saveSuccess: "Avatar updated",
+      deleteSuccess: "Avatar removed",
+      invalidType: "Please choose an image file",
+      gifTooLarge: "GIF avatars must already be 20KB or smaller",
+      compressTooLarge:
+        "Unable to compress this image below 20KB. Try a smaller image.",
+      compressFailed: "Failed to compress the selected image.",
+      readFailed: "Failed to read the selected image.",
+      emptyDeleteHint: "Avatar is already empty",
+    },
+    authBindings: {
+      title: "Connected Sign-In Methods",
+      description:
+        "View current bindings and connect another provider to this account.",
+      bindAction: "Bind {providerName}",
+      bindSuccess: "Account linked successfully",
+      emailPlaceholder: "Enter email address",
+      codePlaceholder: "Enter verification code",
+      passwordPlaceholder: "Set a login password",
+      replaceEmailPasswordPlaceholder: "Enter current password",
+      sendCodeAction: "Send code",
+      manageEmailAction: "Manage email",
+      hideEmailFormAction: "Hide email form",
+      confirmEmailBindAction: "Bind email",
+      confirmEmailReplaceAction: "Replace primary email",
+      codeSentTo: "Code sent to {email}",
+      replaceSuccess: "Primary email updated",
+      unbindAction: "Unbind",
+      unbindSuccess: "{providerName} unbound",
+      boundCount: "{count} linked records",
+      status: {
+        bound: "Bound",
+        notBound: "Not bound",
+      },
+      providers: {
+        email: "Email",
+        linuxdo: "LinuxDo",
+        oidc: "{providerName}",
+        wechat: "WeChat",
+      },
+      notes: {
+        emailManagedFromProfile: "Primary email is managed in the profile form",
+        canUnbind: "You can unbind this sign-in method",
+        bindAnotherBeforeUnbind:
+          "Bind another sign-in method before unbinding",
+      },
+      source: {
+        avatar: "Avatar is currently synced from {providerName}",
+        username: "Nickname is currently synced from {providerName}",
+      },
     },
   },
 
@@ -1457,6 +1589,7 @@ export default {
       updating: "Updating...",
       columns: {
         user: "User",
+        id: "ID",
         email: "Email",
         username: "Username",
         notes: "Notes",
@@ -1467,6 +1600,8 @@ export default {
         usage: "Usage",
         concurrency: "Concurrency",
         status: "Status",
+        lastActive: "Last Active",
+        lastUsed: "Last Used",
         created: "Created",
         actions: "Actions",
       },
@@ -2270,6 +2405,7 @@ export default {
         rateLimited: "Rate Limited",
         overloaded: "Overloaded",
         tempUnschedulable: "Temp Unschedulable",
+        quotaExceeded: "Quota Exceeded",
         unschedulable: "Unschedulable",
         rateLimitedUntil:
           "Rate limited and removed from scheduling. Auto resumes at {time}",
@@ -3140,8 +3276,7 @@ export default {
       connectedToApi: "Connected to API",
       usingModel: "Using model: {model}",
       sendingTestMessage: 'Sending test message: "hi"',
-      sendingGeminiImageRequest:
-        "Sending Gemini image generation test request...",
+      sendingImageRequest: "Sending image generation test request...",
       response: "Response:",
       startTest: "Start Test",
       testing: "Testing...",
@@ -3153,16 +3288,16 @@ export default {
       selectTestModel: "Select Test Model",
       testModel: "Test model",
       testPrompt: 'Prompt: "hi"',
-      geminiImagePromptLabel: "Image prompt",
-      geminiImagePromptPlaceholder:
+      imagePromptLabel: "Image prompt",
+      imagePromptPlaceholder:
         "Example: Generate an orange cat astronaut sticker in pixel-art style on a solid background.",
-      geminiImagePromptDefault:
+      imagePromptDefault:
         "Generate a cute orange cat astronaut sticker on a clean pastel background.",
-      geminiImageTestHint:
-        "When a Gemini image model is selected, this test sends a real image-generation request and previews the returned image below.",
-      geminiImageTestMode: "Mode: Gemini image generation test",
-      geminiImagePreview: "Generated images:",
-      geminiImageReceived: "Received test image #{count}",
+      imageTestHint:
+        "When an image model is selected, this test sends a real image-generation request and previews the returned image below.",
+      imageTestMode: "Mode: Image generation test",
+      imagePreview: "Generated images:",
+      imageReceived: "Received test image #{count}",
       // Stats Modal
       viewStats: "View Stats",
       usageStatistics: "Usage Statistics",
@@ -5014,10 +5149,13 @@ export default {
         callbackBaseUrl: "Callback Base URL",
         field_privateKey: "Private Key",
         field_publicKey: "Public Key",
+        field_mpAppId: "MP App ID",
         field_mchId: "Merchant ID",
         field_apiV3Key: "API v3 Key",
         field_publicKeyId: "Public Key ID",
         field_certSerial: "Certificate Serial",
+        field_h5AppName: "H5 App Name",
+        field_h5AppUrl: "H5 App URL",
         field_secretKey: "Secret Key",
         field_publishableKey: "Publishable Key",
         field_webhookSecret: "Webhook Secret",
@@ -5903,6 +6041,9 @@ export default {
       cancelRateLimited: "Too many cancellations. Please try again later.",
       PENDING_ORDERS:
         "This provider has pending orders. Please wait for them to complete before making changes.",
+      PAYMENT_PROVIDER_CONFLICT:
+        "Another enabled provider instance is already serving this payment method. Disable it before continuing.",
+      CONFLICT: "Order status has changed. Please refresh.",
     },
     stripePay: "Pay Now",
     stripeSuccessProcessing: "Payment successful, processing your order...",

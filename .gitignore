@@ -136,6 +136,7 @@ docs/*
 !docs/LOCAL_DEVELOPMENT_MAINTENANCE.md
 !docs/PAYMENT.md
 !docs/PAYMENT_CN.md
+!docs/ADMIN_PAYMENT_INTEGRATION_API.md
 .serena/
 .codex/
 frontend/coverage/
