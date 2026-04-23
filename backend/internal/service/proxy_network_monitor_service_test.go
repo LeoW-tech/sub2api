@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
@@ -110,6 +111,10 @@ func (p *proxyNetworkMonitorProberStub) ProbeProxy(ctx context.Context, proxyURL
 	default:
 		return &ProxyExitInfo{IP: "8.8.8.8", Country: "United States", CountryCode: "US"}, 333, nil
 	}
+}
+
+func TestProxyNetworkMonitorService_DefaultInterval(t *testing.T) {
+	require.Equal(t, 5*time.Minute, proxyNetworkMonitorInterval)
 }
 
 func TestProxyNetworkMonitorService_RunFullScan(t *testing.T) {

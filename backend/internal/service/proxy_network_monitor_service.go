@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	proxyNetworkMonitorInterval    = time.Hour
+	proxyNetworkMonitorInterval    = 5 * time.Minute
 	proxyNetworkMonitorPageSize    = 200
 	proxyNetworkMonitorConcurrency = 5
 )
