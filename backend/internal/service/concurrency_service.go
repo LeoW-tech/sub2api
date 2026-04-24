@@ -21,6 +21,7 @@ type ConcurrencyCache interface {
 	ReleaseAccountSlot(ctx context.Context, accountID int64, requestID string) error
 	GetAccountConcurrency(ctx context.Context, accountID int64) (int, error)
 	GetAccountConcurrencyBatch(ctx context.Context, accountIDs []int64) (map[int64]int, error)
+	ListActiveAccountIDs(ctx context.Context) ([]int64, error)
 
 	// 账号等待队列（账号级）
 	IncrementAccountWaitCount(ctx context.Context, accountID int64, maxWait int) (bool, error)
@@ -364,4 +365,12 @@ func (s *ConcurrencyService) GetAccountConcurrencyBatch(ctx context.Context, acc
 	defer cancel()
 
 	return s.cache.GetAccountConcurrencyBatch(redisCtx, accountIDs)
+}
+
+// ListActiveAccountIDs returns account IDs whose real-time concurrency is above zero.
+func (s *ConcurrencyService) ListActiveAccountIDs(ctx context.Context) ([]int64, error) {
+	if s == nil || s.cache == nil {
+		return nil, nil
+	}
+	return s.cache.ListActiveAccountIDs(ctx)
 }

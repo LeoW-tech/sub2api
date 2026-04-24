@@ -415,7 +415,7 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 
 			tt.setup(client)
 
-			accounts, _, err := repo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, tt.platform, tt.accType, tt.status, tt.search, tt.groupID, tt.privacyMode, "", "")
+			accounts, _, err := repo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, tt.platform, tt.accType, tt.status, tt.search, tt.groupID, tt.privacyMode, "", "", "", nil)
 			s.Require().NoError(err)
 			s.Require().Len(accounts, tt.wantCount)
 			if tt.validate != nil {
@@ -423,6 +423,31 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 			}
 		})
 	}
+}
+
+func (s *AccountRepoSuite) TestListWithFilters_AccountIDs() {
+	acc1 := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-a", Platform: service.PlatformOpenAI, Type: service.AccountTypeOAuth})
+	mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-b", Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey})
+	mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-c", Platform: service.PlatformAnthropic, Type: service.AccountTypeOAuth})
+
+	accounts, page, err := s.repo.ListWithFilters(
+		s.ctx,
+		pagination.PaginationParams{Page: 1, PageSize: 10},
+		service.PlatformOpenAI,
+		service.AccountTypeOAuth,
+		"",
+		"",
+		0,
+		"",
+		"",
+		"",
+		"",
+		[]int64{acc1.ID},
+	)
+	s.Require().NoError(err, "ListWithFilters account IDs")
+	s.Require().Equal(int64(1), page.Total)
+	s.Require().Len(accounts, 1)
+	s.Require().Equal(acc1.ID, accounts[0].ID)
 }
 
 // --- ListByGroup / ListActive / ListByPlatform ---
@@ -482,7 +507,7 @@ func (s *AccountRepoSuite) TestPreload_And_VirtualFields() {
 	s.Require().Len(got.Groups, 1, "expected Groups to be populated")
 	s.Require().Equal(group.ID, got.Groups[0].ID)
 
-	accounts, page, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, "", "", "", "acc", 0, "", "", "")
+	accounts, page, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, "", "", "", "acc", 0, "", "", "", "", nil)
 	s.Require().NoError(err, "ListWithFilters")
 	s.Require().Equal(int64(1), page.Total)
 	s.Require().Len(accounts, 1)
@@ -502,7 +527,7 @@ func (s *AccountRepoSuite) TestListWithFilters_ExitIP() {
 	mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-c", ProxyID: &proxyC.ID})
 	mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-no-proxy"})
 
-	accounts, _, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, "", "", "", "", 0, "", "", "203.0.113.10")
+	accounts, _, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, "", "", "", "", 0, "", "", "203.0.113.10", "", nil)
 	s.Require().NoError(err)
 	s.Require().Len(accounts, 2)
 	s.Require().ElementsMatch([]string{"acc-a", "acc-b"}, []string{accounts[0].Name, accounts[1].Name})

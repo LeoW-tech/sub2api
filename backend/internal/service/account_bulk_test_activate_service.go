@@ -377,6 +377,8 @@ func (s *AccountBulkTestActivateService) resolveAccounts(ctx context.Context, ac
 			"",
 			"",
 			"",
+			"",
+			nil,
 		)
 		if err != nil {
 			return nil, err

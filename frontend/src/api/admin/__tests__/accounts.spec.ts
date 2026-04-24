@@ -17,25 +17,30 @@ describe("admin accounts api", () => {
     getMock.mockReset();
   });
 
-  it("list 会携带 ip 筛选参数", async () => {
+  it("list 会携带 ip 与 capacity_status 筛选参数", async () => {
     getMock.mockResolvedValue({
       data: { items: [], total: 0, page: 1, page_size: 20, pages: 0 },
     });
 
-    await list(1, 20, { ip: "203.0.113.10", search: "keyword" });
+    await list(1, 20, {
+      ip: "203.0.113.10",
+      capacity_status: "concurrent",
+      search: "keyword",
+    });
 
     expect(getMock).toHaveBeenCalledWith("/admin/accounts", {
       params: {
         page: 1,
         page_size: 20,
         ip: "203.0.113.10",
+        capacity_status: "concurrent",
         search: "keyword",
       },
       signal: undefined,
     });
   });
 
-  it("exportData 会携带 ip 筛选参数", async () => {
+  it("exportData 会携带 ip 与 capacity_status 筛选参数", async () => {
     getMock.mockResolvedValue({
       data: {
         type: "sub2api-data",
@@ -49,6 +54,7 @@ describe("admin accounts api", () => {
     await exportData({
       filters: {
         ip: "203.0.113.10",
+        capacity_status: "concurrent",
         platform: "openai",
         sort_by: "priority",
         sort_order: "desc",
@@ -58,6 +64,7 @@ describe("admin accounts api", () => {
     expect(getMock).toHaveBeenCalledWith("/admin/accounts/data", {
       params: {
         ip: "203.0.113.10",
+        capacity_status: "concurrent",
         platform: "openai",
         sort_by: "priority",
         sort_order: "desc",

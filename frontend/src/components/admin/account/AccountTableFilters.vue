@@ -29,6 +29,13 @@
       @change="$emit('change')"
     />
     <Select
+      :model-value="filters.capacity_status"
+      class="w-40"
+      :options="capacityOptions"
+      @update:model-value="updateCapacityStatus"
+      @change="$emit('change')"
+    />
+    <Select
       :model-value="filters.privacy_mode"
       class="w-40"
       :options="privacyOptions"
@@ -88,6 +95,9 @@ const updateType = (value: string | number | boolean | null) => {
 const updateStatus = (value: string | number | boolean | null) => {
   emit("update:filters", { ...props.filters, status: value });
 };
+const updateCapacityStatus = (value: string | number | boolean | null) => {
+  emit("update:filters", { ...props.filters, capacity_status: value });
+};
 const updatePrivacyMode = (value: string | number | boolean | null) => {
   emit("update:filters", { ...props.filters, privacy_mode: value });
 };
@@ -129,6 +139,14 @@ const statusOptions = computed<SelectOption[]>(() => [
     label: t("admin.accounts.status.tempUnschedulable"),
   },
   { value: "unschedulable", label: t("admin.accounts.status.unschedulable") },
+]);
+
+const capacityOptions = computed<SelectOption[]>(() => [
+  { value: "", label: t("admin.accounts.allCapacity") },
+  {
+    value: "concurrent",
+    label: t("admin.accounts.capacityConcurrent"),
+  },
 ]);
 
 const privacyOptions = computed<SelectOption[]>(() => [

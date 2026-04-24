@@ -63,7 +63,7 @@ type AdminService interface {
 	ReplaceUserGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (*ReplaceUserGroupResult, error)
 
 	// Account management
-	ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP string, sortBy, sortOrder string) ([]Account, int64, error)
+	ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error)
 	GetAccount(ctx context.Context, id int64) (*Account, error)
 	GetAccountsByIDs(ctx context.Context, ids []int64) ([]*Account, error)
 	CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error)
@@ -518,6 +518,7 @@ type adminServiceImpl struct {
 	userSubRepo          UserSubscriptionRepository
 	privacyClientFactory PrivacyClientFactory
 	initialProbeEnqueuer AccountInitialProbeEnqueuer
+	concurrencyService   *ConcurrencyService
 }
 
 type userGroupRateBatchReader interface {
@@ -543,6 +544,7 @@ func NewAdminService(
 	defaultSubAssigner DefaultSubscriptionAssigner,
 	userSubRepo UserSubscriptionRepository,
 	privacyClientFactory PrivacyClientFactory,
+	concurrencyService *ConcurrencyService,
 ) AdminService {
 	return &adminServiceImpl{
 		userRepo:             userRepo,
@@ -562,6 +564,7 @@ func NewAdminService(
 		defaultSubAssigner:   defaultSubAssigner,
 		userSubRepo:          userSubRepo,
 		privacyClientFactory: privacyClientFactory,
+		concurrencyService:   concurrencyService,
 	}
 }
 
@@ -2042,9 +2045,23 @@ func (s *adminServiceImpl) ReplaceUserGroup(ctx context.Context, userID, oldGrou
 }
 
 // Account management implementations
-func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP string, sortBy, sortOrder string) ([]Account, int64, error) {
+func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
-	accounts, result, err := s.accountRepo.ListWithFilters(ctx, params, platform, accountType, status, search, groupID, privacyMode, networkStatus, exitIP)
+	var accountIDs []int64
+	if strings.TrimSpace(capacityStatus) == AccountCapacityStatusConcurrentFilter {
+		if s.concurrencyService == nil {
+			return []Account{}, 0, nil
+		}
+		ids, err := s.concurrencyService.ListActiveAccountIDs(ctx)
+		if err != nil {
+			return nil, 0, fmt.Errorf("list active concurrent accounts: %w", err)
+		}
+		if len(ids) == 0 {
+			return []Account{}, 0, nil
+		}
+		accountIDs = ids
+	}
+	accounts, result, err := s.accountRepo.ListWithFilters(ctx, params, platform, accountType, status, search, groupID, privacyMode, networkStatus, exitIP, capacityStatus, accountIDs)
 	if err != nil {
 		return nil, 0, err
 	}

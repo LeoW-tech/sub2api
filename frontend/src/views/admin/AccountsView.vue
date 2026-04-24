@@ -967,6 +967,7 @@ const {
     platform: "",
     type: "",
     status: "",
+    capacity_status: "",
     privacy_mode: "",
     network_status: "",
     ip: "",
@@ -1744,11 +1745,13 @@ const handleDataImported = () => {
   reload();
 };
 const ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE = "ungrouped";
+const ACCOUNT_CAPACITY_CONCURRENT_QUERY_VALUE = "concurrent";
 const ACCOUNT_PRIVACY_MODE_UNSET_QUERY_VALUE = "__unset__";
 const buildAccountQueryFilters = () => ({
   platform: params.platform || "",
   type: params.type || "",
   status: params.status || "",
+  capacity_status: params.capacity_status || "",
   group: params.group || "",
   privacy_mode: params.privacy_mode || "",
   network_status: params.network_status || "",
@@ -1798,6 +1801,9 @@ const accountMatchesCurrentFilters = (account: Account) => {
     } else if (account.status !== filters.status) {
       return false;
     }
+  }
+  if (filters.capacity_status === ACCOUNT_CAPACITY_CONCURRENT_QUERY_VALUE) {
+    if ((account.current_concurrency ?? 0) <= 0) return false;
   }
   if (filters.group) {
     const groupIds =

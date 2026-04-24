@@ -49,6 +49,7 @@ describe("AccountTableFilters", () => {
       platform: "",
       type: "",
       status: "",
+      capacity_status: "",
       privacy_mode: "",
       network_status: "",
       ip: "",
@@ -111,6 +112,7 @@ describe("AccountTableFilters", () => {
           platform: "",
           type: "",
           status: "disabled",
+          capacity_status: "",
           privacy_mode: "",
           network_status: "",
           ip: "",
@@ -133,7 +135,7 @@ describe("AccountTableFilters", () => {
     });
 
     const selects = wrapper.findAllComponents(SelectStub);
-    const networkOptions = selects[4]?.props("options") as Array<{
+    const networkOptions = selects[5]?.props("options") as Array<{
       value: string;
       label: string;
     }>;
@@ -158,7 +160,7 @@ describe("AccountTableFilters", () => {
     });
 
     const selects = wrapper.findAllComponents(SelectStub);
-    const ipOptions = selects[5]?.props("options") as Array<{
+    const ipOptions = selects[6]?.props("options") as Array<{
       value: string;
       label: string;
       description?: string;
@@ -188,7 +190,7 @@ describe("AccountTableFilters", () => {
     });
 
     const selects = wrapper.findAllComponents(SelectStub);
-    const ipSelect = selects[5];
+    const ipSelect = selects[6];
 
     await ipSelect.vm.$emit("update:modelValue", "203.0.113.10");
     await ipSelect.vm.$emit("change", "203.0.113.10");
@@ -199,9 +201,72 @@ describe("AccountTableFilters", () => {
           platform: "",
           type: "",
           status: "",
+          capacity_status: "",
           privacy_mode: "",
           network_status: "",
           ip: "203.0.113.10",
+          group: "",
+        },
+      ],
+    ]);
+    expect(wrapper.emitted("change")).toHaveLength(1);
+  });
+
+  it("容量筛选项包含全部容量与正在并发", () => {
+    const wrapper = mount(AccountTableFilters, {
+      props: baseProps,
+      global: {
+        stubs: {
+          Select: SelectStub,
+          SearchInput: SearchInputStub,
+        },
+      },
+    });
+
+    const selects = wrapper.findAllComponents(SelectStub);
+    const capacityOptions = selects[3]?.props("options") as Array<{
+      value: string;
+      label: string;
+    }>;
+
+    expect(capacityOptions).toEqual(
+      expect.arrayContaining([
+        { value: "", label: "admin.accounts.allCapacity" },
+        {
+          value: "concurrent",
+          label: "admin.accounts.capacityConcurrent",
+        },
+      ]),
+    );
+  });
+
+  it("选择正在并发时会发出对应容量筛选值", async () => {
+    const wrapper = mount(AccountTableFilters, {
+      props: baseProps,
+      global: {
+        stubs: {
+          Select: SelectStub,
+          SearchInput: SearchInputStub,
+        },
+      },
+    });
+
+    const selects = wrapper.findAllComponents(SelectStub);
+    const capacitySelect = selects[3];
+
+    await capacitySelect.vm.$emit("update:modelValue", "concurrent");
+    await capacitySelect.vm.$emit("change", "concurrent");
+
+    expect(wrapper.emitted("update:filters")).toEqual([
+      [
+        {
+          platform: "",
+          type: "",
+          status: "",
+          capacity_status: "concurrent",
+          privacy_mode: "",
+          network_status: "",
+          ip: "",
           group: "",
         },
       ],

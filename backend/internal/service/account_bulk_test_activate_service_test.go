@@ -273,7 +273,7 @@ func (s *accountRepoStubForBulkTestActivate) GetByIDs(_ context.Context, ids []i
 	return result, nil
 }
 
-func (s *accountRepoStubForBulkTestActivate) ListWithFilters(_ context.Context, _ pagination.PaginationParams, _, _, _, _ string, _ int64, _, _, _ string) ([]Account, *pagination.PaginationResult, error) {
+func (s *accountRepoStubForBulkTestActivate) ListWithFilters(_ context.Context, _ pagination.PaginationParams, _, _, _, _ string, _ int64, _, _, _, _ string, _ []int64) ([]Account, *pagination.PaginationResult, error) {
 	if s.listWithFilters != nil {
 		return nil, nil, s.listWithFilters
 	}

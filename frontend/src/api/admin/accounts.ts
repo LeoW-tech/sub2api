@@ -24,6 +24,7 @@ export interface AccountListFilters {
   platform?: string;
   type?: string;
   status?: string;
+  capacity_status?: string;
   group?: string;
   search?: string;
   privacy_mode?: string;
@@ -628,6 +629,7 @@ export async function exportData(options?: {
       platform,
       type,
       status,
+      capacity_status,
       group,
       privacy_mode,
       network_status,
@@ -639,6 +641,7 @@ export async function exportData(options?: {
     if (platform) params.platform = platform;
     if (type) params.type = type;
     if (status) params.status = status;
+    if (capacity_status) params.capacity_status = capacity_status;
     if (group) params.group = group;
     if (privacy_mode) params.privacy_mode = privacy_mode;
     if (network_status) params.network_status = network_status;

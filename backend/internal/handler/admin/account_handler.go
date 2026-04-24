@@ -174,6 +174,7 @@ type AccountWithConcurrency struct {
 }
 
 const accountListGroupUngroupedQueryValue = "ungrouped"
+const accountListCapacityConcurrentQueryValue = service.AccountCapacityStatusConcurrentFilter
 
 func (h *AccountHandler) buildAccountResponseWithRuntime(ctx context.Context, account *service.Account) AccountWithConcurrency {
 	item := AccountWithConcurrency{
@@ -230,6 +231,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 	privacyMode := strings.TrimSpace(c.Query("privacy_mode"))
 	networkStatus := strings.TrimSpace(c.Query("network_status"))
 	exitIP := strings.TrimSpace(c.Query("ip"))
+	capacityStatus := strings.TrimSpace(c.Query("capacity_status"))
 	sortBy := c.DefaultQuery("sort_by", "name")
 	sortOrder := c.DefaultQuery("sort_order", "asc")
 	// 标准化和验证 search 参数
@@ -241,6 +243,10 @@ func (h *AccountHandler) List(c *gin.Context) {
 
 	if networkStatus != "" && networkStatus != service.ProxyNetworkStatusOnline && networkStatus != service.ProxyNetworkStatusOffline {
 		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_NETWORK_STATUS_FILTER", "invalid network status filter"))
+		return
+	}
+	if capacityStatus != "" && capacityStatus != accountListCapacityConcurrentQueryValue {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_CAPACITY_STATUS_FILTER", "invalid capacity status filter"))
 		return
 	}
 
@@ -262,7 +268,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 		}
 	}
 
-	accounts, total, err := h.adminService.ListAccounts(c.Request.Context(), page, pageSize, platform, accountType, status, search, groupID, privacyMode, networkStatus, exitIP, sortBy, sortOrder)
+	accounts, total, err := h.adminService.ListAccounts(c.Request.Context(), page, pageSize, platform, accountType, status, search, groupID, privacyMode, networkStatus, exitIP, capacityStatus, sortBy, sortOrder)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -384,7 +390,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 		result[i] = item
 	}
 
-	etag := buildAccountsListETag(result, total, page, pageSize, platform, accountType, status, search, lite)
+	etag := buildAccountsListETag(result, total, page, pageSize, platform, accountType, status, search, groupID, privacyMode, networkStatus, exitIP, capacityStatus, lite)
 	if etag != "" {
 		c.Header("ETag", etag)
 		c.Header("Vary", "If-None-Match")
@@ -402,6 +408,8 @@ func buildAccountsListETag(
 	total int64,
 	page, pageSize int,
 	platform, accountType, status, search string,
+	groupID int64,
+	privacyMode, networkStatus, exitIP, capacityStatus string,
 	lite bool,
 ) string {
 	payload := struct {
@@ -412,6 +420,11 @@ func buildAccountsListETag(
 		AccountType string                   `json:"type"`
 		Status      string                   `json:"status"`
 		Search      string                   `json:"search"`
+		GroupID     int64                    `json:"group_id"`
+		PrivacyMode string                   `json:"privacy_mode"`
+		NetworkStatus string                 `json:"network_status"`
+		ExitIP      string                   `json:"ip"`
+		CapacityStatus string                `json:"capacity_status"`
 		Lite        bool                     `json:"lite"`
 		Items       []AccountWithConcurrency `json:"items"`
 	}{
@@ -422,6 +435,11 @@ func buildAccountsListETag(
 		AccountType: accountType,
 		Status:      status,
 		Search:      search,
+		GroupID:     groupID,
+		PrivacyMode: privacyMode,
+		NetworkStatus: networkStatus,
+		ExitIP:      exitIP,
+		CapacityStatus: capacityStatus,
 		Lite:        lite,
 		Items:       items,
 	}
@@ -2074,7 +2092,7 @@ func (h *AccountHandler) BatchRefreshTier(c *gin.Context) {
 	accounts := make([]*service.Account, 0)
 
 	if len(req.AccountIDs) == 0 {
-		allAccounts, _, err := h.adminService.ListAccounts(ctx, 1, 10000, "gemini", "oauth", "", "", 0, "", "", "", "name", "asc")
+		allAccounts, _, err := h.adminService.ListAccounts(ctx, 1, 10000, "gemini", "oauth", "", "", 0, "", "", "", "", "name", "asc")
 		if err != nil {
 			response.ErrorFrom(c, err)
 			return

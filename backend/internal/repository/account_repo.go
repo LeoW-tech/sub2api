@@ -502,10 +502,10 @@ func (r *accountRepository) Delete(ctx context.Context, id int64) error {
 }
 
 func (r *accountRepository) List(ctx context.Context, params pagination.PaginationParams) ([]service.Account, *pagination.PaginationResult, error) {
-	return r.ListWithFilters(ctx, params, "", "", "", "", 0, "", "", "")
+	return r.ListWithFilters(ctx, params, "", "", "", "", 0, "", "", "", "", nil)
 }
 
-func (r *accountRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP string) ([]service.Account, *pagination.PaginationResult, error) {
+func (r *accountRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, accountIDs []int64) ([]service.Account, *pagination.PaginationResult, error) {
 	q := r.client.Account.Query()
 
 	if platform != "" {
@@ -602,6 +602,9 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 	}
 	if exitIP != "" {
 		q = q.Where(dbaccount.HasProxyWith(dbproxy.ExitIPEQ(exitIP)))
+	}
+	if len(accountIDs) > 0 {
+		q = q.Where(dbaccount.IDIn(accountIDs...))
 	}
 
 	total, err := q.Count(ctx)

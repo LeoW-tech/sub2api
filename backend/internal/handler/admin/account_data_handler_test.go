@@ -224,13 +224,13 @@ func TestExportDataPassesAccountFiltersAndSort(t *testing.T) {
 	require.Equal(t, "desc", adminSvc.lastListAccounts.sortOrder)
 }
 
-func TestAccountListPassesIPFilter(t *testing.T) {
+func TestAccountListPassesCapacityStatusAndIPFilter(t *testing.T) {
 	router, adminSvc := setupAccountDataRouter()
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(
 		http.MethodGet,
-		"/api/v1/admin/accounts?ip=203.0.113.10&search=keyword",
+		"/api/v1/admin/accounts?ip=203.0.113.10&capacity_status=concurrent&search=keyword",
 		nil,
 	)
 	router.ServeHTTP(rec, req)
@@ -238,7 +238,80 @@ func TestAccountListPassesIPFilter(t *testing.T) {
 
 	require.Equal(t, 1, adminSvc.lastListAccounts.calls)
 	require.Equal(t, "203.0.113.10", adminSvc.lastListAccounts.exitIP)
+	require.Equal(t, "concurrent", adminSvc.lastListAccounts.capacityStatus)
 	require.Equal(t, "keyword", adminSvc.lastListAccounts.search)
+}
+
+func TestExportDataPassesCapacityStatusFilter(t *testing.T) {
+	router, adminSvc := setupAccountDataRouter()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/admin/accounts/data?capacity_status=concurrent&search=keyword",
+		nil,
+	)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	require.Equal(t, 1, adminSvc.lastListAccounts.calls)
+	require.Equal(t, "concurrent", adminSvc.lastListAccounts.capacityStatus)
+	require.Equal(t, "keyword", adminSvc.lastListAccounts.search)
+}
+
+func TestAccountListRejectsInvalidCapacityStatusFilter(t *testing.T) {
+	router, _ := setupAccountDataRouter()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/admin/accounts?capacity_status=busy",
+		nil,
+	)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestExportDataRejectsInvalidCapacityStatusFilter(t *testing.T) {
+	router, _ := setupAccountDataRouter()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/admin/accounts/data?capacity_status=busy",
+		nil,
+	)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestAccountListETagChangesWhenCapacityStatusChanges(t *testing.T) {
+	router, adminSvc := setupAccountDataRouter()
+	adminSvc.accounts = []service.Account{
+		{ID: 1, Name: "acc-1", Status: service.StatusActive},
+	}
+
+	withCapacity := httptest.NewRecorder()
+	withCapacityReq := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/admin/accounts?capacity_status=concurrent",
+		nil,
+	)
+	router.ServeHTTP(withCapacity, withCapacityReq)
+	require.Equal(t, http.StatusOK, withCapacity.Code)
+
+	withoutCapacity := httptest.NewRecorder()
+	withoutCapacityReq := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/admin/accounts",
+		nil,
+	)
+	router.ServeHTTP(withoutCapacity, withoutCapacityReq)
+	require.Equal(t, http.StatusOK, withoutCapacity.Code)
+
+	require.NotEmpty(t, withCapacity.Header().Get("ETag"))
+	require.NotEmpty(t, withoutCapacity.Header().Get("ETag"))
+	require.NotEqual(t, withCapacity.Header().Get("ETag"), withoutCapacity.Header().Get("ETag"))
 }
 
 func TestExportDataSelectedIDsOverrideFilters(t *testing.T) {

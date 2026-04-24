@@ -28,6 +28,8 @@ type stubConcurrencyCacheForTest struct {
 	usersLoadBatch map[int64]*UserLoadInfo
 	usersLoadErr   error
 	cleanupErr     error
+	activeAccountIDs    []int64
+	activeAccountIDsErr error
 
 	// 记录调用
 	releasedAccountIDs []int64
@@ -56,6 +58,12 @@ func (c *stubConcurrencyCacheForTest) GetAccountConcurrencyBatch(_ context.Conte
 		result[accountID] = c.concurrency
 	}
 	return result, nil
+}
+func (c *stubConcurrencyCacheForTest) ListActiveAccountIDs(_ context.Context) ([]int64, error) {
+	if c.activeAccountIDsErr != nil {
+		return nil, c.activeAccountIDsErr
+	}
+	return append([]int64(nil), c.activeAccountIDs...), nil
 }
 func (c *stubConcurrencyCacheForTest) IncrementAccountWaitCount(_ context.Context, _ int64, _ int) (bool, error) {
 	return c.waitAllowed, c.waitErr
@@ -227,6 +235,35 @@ func TestGetAccountsLoadBatch_ReturnsCorrectData(t *testing.T) {
 	result, err := svc.GetAccountsLoadBatch(context.Background(), accounts)
 	require.NoError(t, err)
 	require.Equal(t, expected, result)
+}
+
+func TestListActiveAccountIDs_NilCache(t *testing.T) {
+	svc := &ConcurrencyService{cache: nil}
+	ids, err := svc.ListActiveAccountIDs(context.Background())
+	require.NoError(t, err)
+	require.Nil(t, ids)
+}
+
+func TestListActiveAccountIDs_DelegatesToCache(t *testing.T) {
+	cache := &stubConcurrencyCacheForTest{
+		activeAccountIDs: []int64{3, 9, 15},
+	}
+	svc := NewConcurrencyService(cache)
+
+	ids, err := svc.ListActiveAccountIDs(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, []int64{3, 9, 15}, ids)
+}
+
+func TestListActiveAccountIDs_CacheError(t *testing.T) {
+	cache := &stubConcurrencyCacheForTest{
+		activeAccountIDsErr: errors.New("redis unavailable"),
+	}
+	svc := NewConcurrencyService(cache)
+
+	ids, err := svc.ListActiveAccountIDs(context.Background())
+	require.Error(t, err)
+	require.Nil(t, ids)
 }
 
 func TestGetAccountsLoadBatch_NilCache(t *testing.T) {

@@ -70,7 +70,7 @@ func (r *crsSyncTestAccountRepo) Delete(context.Context, int64) error { panic("u
 func (r *crsSyncTestAccountRepo) List(context.Context, pagination.PaginationParams) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected")
 }
-func (r *crsSyncTestAccountRepo) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string, string, int64, string, string, string) ([]Account, *pagination.PaginationResult, error) {
+func (r *crsSyncTestAccountRepo) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string, string, int64, string, string, string, string, []int64) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected")
 }
 func (r *crsSyncTestAccountRepo) ListByGroup(context.Context, int64) ([]Account, error) {

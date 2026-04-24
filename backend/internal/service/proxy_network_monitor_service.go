@@ -216,7 +216,7 @@ func (s *ProxyNetworkMonitorService) countNetworkPausedOfflineAccounts(ctx conte
 	page := 1
 	totalCount := 0
 	for {
-		accounts, total, err := s.adminService.ListAccounts(ctx, page, proxyNetworkMonitorPageSize, "", "", "", "", 0, "", ProxyNetworkStatusOffline, "", "id", "asc")
+		accounts, total, err := s.adminService.ListAccounts(ctx, page, proxyNetworkMonitorPageSize, "", "", "", "", 0, "", ProxyNetworkStatusOffline, "", "", "id", "asc")
 		if err != nil {
 			return 0, err
 		}

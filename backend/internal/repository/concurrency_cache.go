@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/redis/go-redis/v9"
@@ -230,6 +232,17 @@ func accountWaitKey(accountID int64) string {
 	return fmt.Sprintf("%s%d", accountWaitKeyPrefix, accountID)
 }
 
+func parseAccountSlotKeyID(key string) (int64, bool) {
+	if len(key) <= len(accountSlotKeyPrefix) || !strings.HasPrefix(key, accountSlotKeyPrefix) {
+		return 0, false
+	}
+	accountID, err := strconv.ParseInt(strings.TrimPrefix(key, accountSlotKeyPrefix), 10, 64)
+	if err != nil || accountID <= 0 {
+		return 0, false
+	}
+	return accountID, true
+}
+
 // Account slot operations
 
 func (c *concurrencyCache) AcquireAccountSlot(ctx context.Context, accountID int64, maxConcurrency int, requestID string) (bool, error) {
@@ -292,6 +305,67 @@ func (c *concurrencyCache) GetAccountConcurrencyBatch(ctx context.Context, accou
 		result[cmd.accountID] = int(cmd.zcardCmd.Val())
 	}
 	return result, nil
+}
+
+func (c *concurrencyCache) ListActiveAccountIDs(ctx context.Context) ([]int64, error) {
+	const scanCount = 200
+	now, err := c.rdb.Time(ctx).Result()
+	if err != nil {
+		return nil, fmt.Errorf("redis TIME: %w", err)
+	}
+	cutoffTime := now.Unix() - int64(c.slotTTLSeconds)
+
+	var cursor uint64
+	activeIDs := make(map[int64]struct{})
+	for {
+		keys, nextCursor, err := c.rdb.Scan(ctx, cursor, accountSlotKeyPrefix+"*", scanCount).Result()
+		if err != nil {
+			return nil, fmt.Errorf("scan active account IDs: %w", err)
+		}
+		if len(keys) > 0 {
+			pipe := c.rdb.Pipeline()
+			type accountCmd struct {
+				accountID int64
+				zcardCmd  *redis.IntCmd
+			}
+			cmds := make([]accountCmd, 0, len(keys))
+			for _, key := range keys {
+				accountID, ok := parseAccountSlotKeyID(key)
+				if !ok {
+					continue
+				}
+				pipe.ZRemRangeByScore(ctx, key, "-inf", strconv.FormatInt(cutoffTime, 10))
+				cmds = append(cmds, accountCmd{
+					accountID: accountID,
+					zcardCmd:  pipe.ZCard(ctx, key),
+				})
+			}
+			if len(cmds) > 0 {
+				if _, err := pipe.Exec(ctx); err != nil && !errors.Is(err, redis.Nil) {
+					return nil, fmt.Errorf("pipeline exec active account IDs: %w", err)
+				}
+				for _, cmd := range cmds {
+					if cmd.zcardCmd.Val() > 0 {
+						activeIDs[cmd.accountID] = struct{}{}
+					}
+				}
+			}
+		}
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
+
+	if len(activeIDs) == 0 {
+		return []int64{}, nil
+	}
+	ids := make([]int64, 0, len(activeIDs))
+	for accountID := range activeIDs {
+		ids = append(ids, accountID)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	return ids, nil
 }
 
 // User slot operations

@@ -121,6 +121,33 @@ func (s *ConcurrencyCacheSuite) TestAccountSlot_MaxZero() {
 	require.False(s.T(), ok, "expected acquire to fail with max=0")
 }
 
+func (s *ConcurrencyCacheSuite) TestListActiveAccountIDs_FiltersExpiredAndEmptySlots() {
+	activeAccountID := int64(101)
+	expiredAccountID := int64(102)
+	activeReqID := "active-req"
+	expiredReqID := "expired-req"
+
+	ok, err := s.cache.AcquireAccountSlot(s.ctx, activeAccountID, 5, activeReqID)
+	require.NoError(s.T(), err)
+	require.True(s.T(), ok)
+
+	expiredKey := fmt.Sprintf("%s%d", accountSlotKeyPrefix, expiredAccountID)
+	expiredScore := float64(time.Now().Add(-2 * testSlotTTL).Unix())
+	err = s.rdb.ZAdd(s.ctx, expiredKey, redis.Z{
+		Score:  expiredScore,
+		Member: expiredReqID,
+	}).Err()
+	require.NoError(s.T(), err)
+
+	ids, err := s.cache.ListActiveAccountIDs(s.ctx)
+	require.NoError(s.T(), err)
+	require.ElementsMatch(s.T(), []int64{activeAccountID}, ids)
+
+	cur, err := s.cache.GetAccountConcurrency(s.ctx, expiredAccountID)
+	require.NoError(s.T(), err)
+	require.Zero(s.T(), cur)
+}
+
 func (s *ConcurrencyCacheSuite) TestUserSlot_AcquireAndRelease() {
 	userID := int64(42)
 	reqID1, reqID2 := "req1", "req2"
