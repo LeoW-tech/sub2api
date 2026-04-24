@@ -34,18 +34,18 @@ type stubAdminService struct {
 		groupIDs  []int64
 	}
 	lastListAccounts struct {
-		platform      string
-		accountType   string
-		status        string
-		search        string
-		groupID       int64
-		privacyMode   string
-		networkStatus string
-		exitIP        string
+		platform       string
+		accountType    string
+		status         string
+		search         string
+		groupID        int64
+		privacyMode    string
+		networkStatus  string
+		exitIP         string
 		capacityStatus string
-		sortBy        string
-		sortOrder     string
-		calls         int
+		sortBy         string
+		sortOrder      string
+		calls          int
 	}
 	lastListUsers struct {
 		page      int

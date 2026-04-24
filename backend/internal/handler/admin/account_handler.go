@@ -413,35 +413,35 @@ func buildAccountsListETag(
 	lite bool,
 ) string {
 	payload := struct {
-		Total       int64                    `json:"total"`
-		Page        int                      `json:"page"`
-		PageSize    int                      `json:"page_size"`
-		Platform    string                   `json:"platform"`
-		AccountType string                   `json:"type"`
-		Status      string                   `json:"status"`
-		Search      string                   `json:"search"`
-		GroupID     int64                    `json:"group_id"`
-		PrivacyMode string                   `json:"privacy_mode"`
-		NetworkStatus string                 `json:"network_status"`
-		ExitIP      string                   `json:"ip"`
-		CapacityStatus string                `json:"capacity_status"`
-		Lite        bool                     `json:"lite"`
-		Items       []AccountWithConcurrency `json:"items"`
+		Total          int64                    `json:"total"`
+		Page           int                      `json:"page"`
+		PageSize       int                      `json:"page_size"`
+		Platform       string                   `json:"platform"`
+		AccountType    string                   `json:"type"`
+		Status         string                   `json:"status"`
+		Search         string                   `json:"search"`
+		GroupID        int64                    `json:"group_id"`
+		PrivacyMode    string                   `json:"privacy_mode"`
+		NetworkStatus  string                   `json:"network_status"`
+		ExitIP         string                   `json:"ip"`
+		CapacityStatus string                   `json:"capacity_status"`
+		Lite           bool                     `json:"lite"`
+		Items          []AccountWithConcurrency `json:"items"`
 	}{
-		Total:       total,
-		Page:        page,
-		PageSize:    pageSize,
-		Platform:    platform,
-		AccountType: accountType,
-		Status:      status,
-		Search:      search,
-		GroupID:     groupID,
-		PrivacyMode: privacyMode,
-		NetworkStatus: networkStatus,
-		ExitIP:      exitIP,
+		Total:          total,
+		Page:           page,
+		PageSize:       pageSize,
+		Platform:       platform,
+		AccountType:    accountType,
+		Status:         status,
+		Search:         search,
+		GroupID:        groupID,
+		PrivacyMode:    privacyMode,
+		NetworkStatus:  networkStatus,
+		ExitIP:         exitIP,
 		CapacityStatus: capacityStatus,
-		Lite:        lite,
-		Items:       items,
+		Lite:           lite,
+		Items:          items,
 	}
 	raw, err := json.Marshal(payload)
 	if err != nil {

@@ -14,20 +14,20 @@ import (
 
 // stubConcurrencyCacheForTest 用于并发服务单元测试的缓存桩
 type stubConcurrencyCacheForTest struct {
-	acquireResult  bool
-	acquireErr     error
-	releaseErr     error
-	concurrency    int
-	concurrencyErr error
-	waitAllowed    bool
-	waitErr        error
-	waitCount      int
-	waitCountErr   error
-	loadBatch      map[int64]*AccountLoadInfo
-	loadBatchErr   error
-	usersLoadBatch map[int64]*UserLoadInfo
-	usersLoadErr   error
-	cleanupErr     error
+	acquireResult       bool
+	acquireErr          error
+	releaseErr          error
+	concurrency         int
+	concurrencyErr      error
+	waitAllowed         bool
+	waitErr             error
+	waitCount           int
+	waitCountErr        error
+	loadBatch           map[int64]*AccountLoadInfo
+	loadBatchErr        error
+	usersLoadBatch      map[int64]*UserLoadInfo
+	usersLoadErr        error
+	cleanupErr          error
 	activeAccountIDs    []int64
 	activeAccountIDsErr error
 
@@ -63,7 +63,10 @@ func (c *stubConcurrencyCacheForTest) ListActiveAccountIDs(_ context.Context) ([
 	if c.activeAccountIDsErr != nil {
 		return nil, c.activeAccountIDsErr
 	}
-	return append([]int64(nil), c.activeAccountIDs...), nil
+	if c.activeAccountIDs == nil {
+		return nil, nil
+	}
+	return append([]int64{}, c.activeAccountIDs...), nil
 }
 func (c *stubConcurrencyCacheForTest) IncrementAccountWaitCount(_ context.Context, _ int64, _ int) (bool, error) {
 	return c.waitAllowed, c.waitErr

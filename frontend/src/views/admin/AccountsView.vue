@@ -1181,6 +1181,7 @@ const refreshAccountsIncrementally = async () => {
         platform?: string;
         type?: string;
         status?: string;
+        capacity_status?: string;
         privacy_mode?: string;
         group?: string;
         search?: string;

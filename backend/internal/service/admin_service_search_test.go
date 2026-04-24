@@ -233,7 +233,7 @@ func TestAdminService_ListAccounts_WithCapacityStatus(t *testing.T) {
 			activeAccountIDs: []int64{8, 11},
 		}
 		svc := &adminServiceImpl{
-			accountRepo:         repo,
+			accountRepo:        repo,
 			concurrencyService: NewConcurrencyService(cache),
 		}
 
@@ -251,7 +251,7 @@ func TestAdminService_ListAccounts_WithCapacityStatus(t *testing.T) {
 			activeAccountIDs: []int64{},
 		}
 		svc := &adminServiceImpl{
-			accountRepo:         repo,
+			accountRepo:        repo,
 			concurrencyService: NewConcurrencyService(cache),
 		}
 
@@ -268,7 +268,7 @@ func TestAdminService_ListAccounts_WithCapacityStatus(t *testing.T) {
 			activeAccountIDsErr: context.DeadlineExceeded,
 		}
 		svc := &adminServiceImpl{
-			accountRepo:         repo,
+			accountRepo:        repo,
 			concurrencyService: NewConcurrencyService(cache),
 		}
 

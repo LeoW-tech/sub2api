@@ -2050,11 +2050,14 @@ func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int,
 	var accountIDs []int64
 	if strings.TrimSpace(capacityStatus) == AccountCapacityStatusConcurrentFilter {
 		if s.concurrencyService == nil {
-			return []Account{}, 0, nil
+			return nil, 0, fmt.Errorf("concurrency service unavailable")
 		}
 		ids, err := s.concurrencyService.ListActiveAccountIDs(ctx)
 		if err != nil {
 			return nil, 0, fmt.Errorf("list active concurrent accounts: %w", err)
+		}
+		if ids == nil {
+			return nil, 0, fmt.Errorf("concurrency service unavailable")
 		}
 		if len(ids) == 0 {
 			return []Account{}, 0, nil

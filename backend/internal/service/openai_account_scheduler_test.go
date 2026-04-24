@@ -79,6 +79,10 @@ func (c schedulerTestConcurrencyCache) ReleaseAccountSlot(ctx context.Context, a
 	return nil
 }
 
+func (c schedulerTestConcurrencyCache) ListActiveAccountIDs(ctx context.Context) ([]int64, error) {
+	return []int64{}, nil
+}
+
 func (c schedulerTestConcurrencyCache) GetAccountsLoadBatch(ctx context.Context, accounts []AccountWithConcurrency) (map[int64]*AccountLoadInfo, error) {
 	if c.loadBatchErr != nil {
 		return nil, c.loadBatchErr
