@@ -245,6 +245,50 @@ func (r *accountRepository) GetByIDs(ctx context.Context, ids []int64) ([]*servi
 	return out, nil
 }
 
+// ListSoftDeletedIDs returns the subset of ids that currently point to soft-deleted rows.
+// It is intentionally kept as an implementation detail for workflows that need to
+// distinguish soft-deleted accounts from missing accounts.
+func (r *accountRepository) ListSoftDeletedIDs(ctx context.Context, ids []int64) ([]int64, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	uniqueIDs := make([]int64, 0, len(ids))
+	seen := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		uniqueIDs = append(uniqueIDs, id)
+	}
+	if len(uniqueIDs) == 0 {
+		return nil, nil
+	}
+
+	rows, err := r.sql.QueryContext(ctx, "SELECT id FROM accounts WHERE id = ANY($1) AND deleted_at IS NOT NULL", pq.Array(uniqueIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := make([]int64, 0)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ExistsByID 检查指定 ID 的账号是否存在。
 // 相比 GetByID，此方法性能更优，因为：
 //   - 使用 Exist() 方法生成 SELECT EXISTS 查询，只返回布尔值
