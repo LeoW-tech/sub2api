@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -113,6 +114,46 @@ func (p *proxyNetworkMonitorProberStub) ProbeProxy(ctx context.Context, proxyURL
 	}
 }
 
+type proxyNetworkMonitorNotifierStub struct {
+	mu       sync.Mutex
+	messages []string
+	sendErr  error
+}
+
+func (s *proxyNetworkMonitorNotifierStub) SendText(ctx context.Context, text string) error {
+	s.mu.Lock()
+	s.messages = append(s.messages, text)
+	s.mu.Unlock()
+	return s.sendErr
+}
+
+func (s *proxyNetworkMonitorNotifierStub) callsCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.messages)
+}
+
+func (s *proxyNetworkMonitorNotifierStub) lastMessage() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.messages) == 0 {
+		return ""
+	}
+	return s.messages[len(s.messages)-1]
+}
+
+type proxyNetworkMonitorAdminServiceStub struct {
+	AdminService
+	listAccountsFn func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error)
+}
+
+func (s *proxyNetworkMonitorAdminServiceStub) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
+	if s.listAccountsFn == nil {
+		panic("unexpected ListAccounts call")
+	}
+	return s.listAccountsFn(ctx, page, pageSize, platform, accountType, status, search, groupID, privacyMode, networkStatus, exitIP, capacityStatus, sortBy, sortOrder)
+}
+
 func TestProxyNetworkMonitorService_DefaultInterval(t *testing.T) {
 	require.Equal(t, 5*time.Minute, proxyNetworkMonitorInterval)
 }
@@ -171,4 +212,70 @@ func TestProxyNetworkMonitorService_RunFullScan_PreventsOverlap(t *testing.T) {
 	summary, err := svc.RunFullScan(context.Background())
 	require.ErrorIs(t, err, ErrProxyNetworkScanRunning)
 	require.Nil(t, summary)
+}
+
+func TestProxyNetworkMonitorService_NotifySummary_SkipsWhenNoPausedOfflineAccounts(t *testing.T) {
+	adminSvc := &proxyNetworkMonitorAdminServiceStub{
+		listAccountsFn: func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
+			require.Equal(t, ProxyNetworkStatusOffline, networkStatus)
+			return []Account{
+				{ID: 1, NetworkAutoPaused: false, Schedulable: false},
+				{ID: 2, NetworkAutoPaused: true, Schedulable: true},
+			}, 2, nil
+		},
+	}
+	notifier := &proxyNetworkMonitorNotifierStub{}
+	svc := NewProxyNetworkMonitorService(adminSvc, nil, notifier)
+
+	svc.notifySummary(context.Background(), &ProxyNetworkScanSummary{
+		Total:   3,
+		Online:  2,
+		Offline: 1,
+		Errors:  0,
+	})
+
+	require.Equal(t, 0, notifier.callsCount())
+}
+
+func TestProxyNetworkMonitorService_NotifySummary_SendsWhenPausedOfflineAccountsPresent(t *testing.T) {
+	adminSvc := &proxyNetworkMonitorAdminServiceStub{
+		listAccountsFn: func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
+			require.Equal(t, ProxyNetworkStatusOffline, networkStatus)
+			return []Account{
+				{ID: 1, NetworkAutoPaused: true, Schedulable: false},
+				{ID: 2, NetworkAutoPaused: false, Schedulable: false},
+				{ID: 3, NetworkAutoPaused: true, Schedulable: false},
+			}, 3, nil
+		},
+	}
+	notifier := &proxyNetworkMonitorNotifierStub{}
+	svc := NewProxyNetworkMonitorService(adminSvc, nil, notifier)
+
+	svc.notifySummary(context.Background(), &ProxyNetworkScanSummary{
+		Total:   8,
+		Online:  5,
+		Offline: 3,
+		Errors:  1,
+	})
+
+	require.Equal(t, 1, notifier.callsCount())
+	require.Contains(t, notifier.lastMessage(), "网络检查完成")
+	require.Contains(t, notifier.lastMessage(), "代理总数：8")
+	require.Contains(t, notifier.lastMessage(), "网络异常且保持关闭调度的账号：2")
+}
+
+func TestProxyNetworkMonitorService_NotifySummary_SkipsWhenPausedOfflineCountFails(t *testing.T) {
+	adminSvc := &proxyNetworkMonitorAdminServiceStub{
+		listAccountsFn: func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
+			return nil, 0, errors.New("list accounts failed")
+		},
+	}
+	notifier := &proxyNetworkMonitorNotifierStub{}
+	svc := NewProxyNetworkMonitorService(adminSvc, nil, notifier)
+
+	svc.notifySummary(context.Background(), &ProxyNetworkScanSummary{
+		Total: 1,
+	})
+
+	require.Equal(t, 0, notifier.callsCount())
 }

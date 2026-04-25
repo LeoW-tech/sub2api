@@ -29,10 +29,14 @@ type ProxyNetworkScanSummary struct {
 	Errors     int
 }
 
+type proxyNetworkMonitorNotifier interface {
+	SendText(ctx context.Context, text string) error
+}
+
 type ProxyNetworkMonitorService struct {
 	adminService AdminService
 	proxyRepo    ProxyRepository
-	telegram     *TelegramNotificationService
+	notifier     proxyNetworkMonitorNotifier
 
 	stopCh   chan struct{}
 	stopOnce sync.Once
@@ -42,11 +46,11 @@ type ProxyNetworkMonitorService struct {
 	lastSummary atomic.Pointer[ProxyNetworkScanSummary]
 }
 
-func NewProxyNetworkMonitorService(adminService AdminService, proxyRepo ProxyRepository, telegram *TelegramNotificationService) *ProxyNetworkMonitorService {
+func NewProxyNetworkMonitorService(adminService AdminService, proxyRepo ProxyRepository, notifier proxyNetworkMonitorNotifier) *ProxyNetworkMonitorService {
 	return &ProxyNetworkMonitorService{
 		adminService: adminService,
 		proxyRepo:    proxyRepo,
-		telegram:     telegram,
+		notifier:     notifier,
 		stopCh:       make(chan struct{}),
 	}
 }
@@ -237,12 +241,15 @@ func (s *ProxyNetworkMonitorService) countNetworkPausedOfflineAccounts(ctx conte
 }
 
 func (s *ProxyNetworkMonitorService) notifySummary(ctx context.Context, summary *ProxyNetworkScanSummary) {
-	if s == nil || s.telegram == nil || summary == nil {
+	if s == nil || s.notifier == nil || summary == nil {
 		return
 	}
 	pausedCount, err := s.countNetworkPausedOfflineAccounts(ctx)
 	if err != nil {
 		slog.Warn("proxy_network_monitor.count_paused_offline_accounts_failed", "error", err)
+		return
+	}
+	if pausedCount == 0 {
 		return
 	}
 
@@ -254,7 +261,7 @@ func (s *ProxyNetworkMonitorService) notifySummary(ctx context.Context, summary 
 		summary.Errors,
 		pausedCount,
 	)
-	if err := s.telegram.SendText(ctx, message); err != nil {
+	if err := s.notifier.SendText(ctx, message); err != nil {
 		slog.Warn("proxy_network_monitor.telegram_notify_failed", "error", err)
 	}
 }
