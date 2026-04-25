@@ -315,6 +315,7 @@ const baseSettingsResponse = {
   totp_enabled: false,
   totp_encryption_key_configured: false,
   default_balance: 0,
+  affiliate_rebate_rate: 20,
   default_concurrency: 1,
   default_subscriptions: [],
   site_name: "Sub2API",
@@ -490,6 +491,118 @@ async function openEmailTab(wrapper: ReturnType<typeof mountView>) {
   await emailTabButton?.trigger("click");
   await flushPromises();
 }
+
+describe("admin SettingsView affiliate rebate rate controls", () => {
+  beforeEach(() => {
+    getSettings.mockReset();
+    updateSettings.mockReset();
+    getWebSearchEmulationConfig.mockReset();
+    updateWebSearchEmulationConfig.mockReset();
+    getAdminApiKey.mockReset();
+    getOverloadCooldownSettings.mockReset();
+    getStreamTimeoutSettings.mockReset();
+    getRectifierSettings.mockReset();
+    getBetaPolicySettings.mockReset();
+    getGroups.mockReset();
+    listProxies.mockReset();
+    getProviders.mockReset();
+    updateProvider.mockReset();
+    createProvider.mockReset();
+    deleteProvider.mockReset();
+    fetchPublicSettings.mockReset();
+    adminSettingsFetch.mockReset();
+    showError.mockReset();
+    showSuccess.mockReset();
+    localeRef.value = "zh-CN";
+
+    getSettings.mockResolvedValue({ ...baseSettingsResponse });
+    updateSettings.mockImplementation(async (payload) => ({
+      ...baseSettingsResponse,
+      ...payload,
+    }));
+    getWebSearchEmulationConfig.mockResolvedValue({
+      enabled: false,
+      providers: [],
+    });
+    updateWebSearchEmulationConfig.mockResolvedValue({
+      enabled: false,
+      providers: [],
+    });
+    getAdminApiKey.mockResolvedValue({
+      exists: false,
+      masked_key: "",
+    });
+    getOverloadCooldownSettings.mockResolvedValue({
+      enabled: true,
+      cooldown_minutes: 10,
+    });
+    getStreamTimeoutSettings.mockResolvedValue({
+      enabled: true,
+      action: "temp_unsched",
+      temp_unsched_minutes: 5,
+      threshold_count: 3,
+      threshold_window_minutes: 10,
+    });
+    getRectifierSettings.mockResolvedValue({
+      enabled: true,
+      thinking_signature_enabled: true,
+      thinking_budget_enabled: true,
+      apikey_signature_enabled: false,
+      apikey_signature_patterns: [],
+    });
+    getBetaPolicySettings.mockResolvedValue({
+      rules: [],
+    });
+    getGroups.mockResolvedValue([]);
+    listProxies.mockResolvedValue({
+      items: [],
+    });
+    getProviders.mockResolvedValue({
+      data: [],
+    });
+    fetchPublicSettings.mockResolvedValue(undefined);
+    adminSettingsFetch.mockResolvedValue(undefined);
+  });
+
+  it("loads affiliate rebate rate from backend payload and clamps it before save", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      affiliate_rebate_rate: 37.5,
+    });
+    updateSettings.mockImplementationOnce(async (payload) => ({
+      ...baseSettingsResponse,
+      affiliate_rebate_rate: payload.affiliate_rebate_rate,
+      ...payload,
+    }));
+
+    const wrapper = mountView();
+    await flushPromises();
+    await openUsersTab(wrapper);
+
+    const affiliateInput = wrapper.get('input[placeholder="20"]');
+    expect((affiliateInput.element as HTMLInputElement).value).toBe("37.5");
+
+    await affiliateInput.setValue("135");
+    await wrapper.get("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledTimes(1);
+    expect(updateSettings.mock.calls[0]?.[0]?.affiliate_rebate_rate).toBe(100);
+  });
+
+  it("falls back to the default affiliate rebate rate when legacy payload omits the field", async () => {
+    const legacySettings = { ...baseSettingsResponse } as Record<string, unknown>;
+    delete legacySettings.affiliate_rebate_rate;
+    getSettings.mockResolvedValueOnce(legacySettings);
+
+    const wrapper = mountView();
+    await flushPromises();
+    await openUsersTab(wrapper);
+
+    const affiliateInput = wrapper.get('input[placeholder="20"]');
+    expect((affiliateInput.element as HTMLInputElement).value).toBe("20");
+  });
+});
 
 describe("admin SettingsView payment visible method controls", () => {
   beforeEach(() => {

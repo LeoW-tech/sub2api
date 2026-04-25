@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -52,6 +53,42 @@ type defaultSubGroupReaderStub struct {
 	byID  map[int64]*Group
 	errBy map[int64]error
 	calls []int64
+}
+
+type settingGetAllRepoStub struct {
+	values map[string]string
+}
+
+func (s *settingGetAllRepoStub) Get(ctx context.Context, key string) (*Setting, error) {
+	panic("unexpected Get call")
+}
+
+func (s *settingGetAllRepoStub) GetValue(ctx context.Context, key string) (string, error) {
+	panic("unexpected GetValue call")
+}
+
+func (s *settingGetAllRepoStub) Set(ctx context.Context, key, value string) error {
+	panic("unexpected Set call")
+}
+
+func (s *settingGetAllRepoStub) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
+	panic("unexpected GetMultiple call")
+}
+
+func (s *settingGetAllRepoStub) SetMultiple(ctx context.Context, settings map[string]string) error {
+	panic("unexpected SetMultiple call")
+}
+
+func (s *settingGetAllRepoStub) GetAll(ctx context.Context) (map[string]string, error) {
+	out := make(map[string]string, len(s.values))
+	for key, value := range s.values {
+		out[key] = value
+	}
+	return out, nil
+}
+
+func (s *settingGetAllRepoStub) Delete(ctx context.Context, key string) error {
+	panic("unexpected Delete call")
 }
 
 func (s *defaultSubGroupReaderStub) GetByID(ctx context.Context, id int64) (*Group, error) {
@@ -241,6 +278,102 @@ func TestSettingService_UpdateSettings_PaymentVisibleMethodsAndAdvancedScheduler
 	require.Equal(t, "true", repo.updates[SettingPaymentVisibleMethodAlipayEnabled])
 	require.Equal(t, "false", repo.updates[SettingPaymentVisibleMethodWxpayEnabled])
 	require.Equal(t, "true", repo.updates[openAIAdvancedSchedulerSettingKey])
+}
+
+func TestSettingService_UpdateSettings_AffiliateRebateRate_ClampsAndSerializes(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name  string
+		input float64
+		want  string
+	}{
+		{name: "below min", input: -5, want: "0.00000000"},
+		{name: "above max", input: 135.5, want: "100.00000000"},
+		{name: "nan falls back to default", input: math.NaN(), want: "20.00000000"},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			repo := &settingUpdateRepoStub{}
+			svc := NewSettingService(repo, &config.Config{})
+
+			err := svc.UpdateSettings(context.Background(), &SystemSettings{
+				AffiliateRebateRate: tc.input,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.want, repo.updates[SettingKeyAffiliateRebateRate])
+		})
+	}
+}
+
+func TestSettingService_GetAllSettings_AffiliateRebateRate_ClampsAndFallsBack(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name   string
+		values map[string]string
+		want   float64
+	}{
+		{
+			name:   "missing key falls back to default",
+			values: map[string]string{},
+			want:   AffiliateRebateRateDefault,
+		},
+		{
+			name: "invalid value falls back to default",
+			values: map[string]string{
+				SettingKeyAffiliateRebateRate: "not-a-number",
+			},
+			want: AffiliateRebateRateDefault,
+		},
+		{
+			name: "nan falls back to default",
+			values: map[string]string{
+				SettingKeyAffiliateRebateRate: "NaN",
+			},
+			want: AffiliateRebateRateDefault,
+		},
+		{
+			name: "below min clamps to zero",
+			values: map[string]string{
+				SettingKeyAffiliateRebateRate: "-12.5",
+			},
+			want: AffiliateRebateRateMin,
+		},
+		{
+			name: "above max clamps to one hundred",
+			values: map[string]string{
+				SettingKeyAffiliateRebateRate: "999",
+			},
+			want: AffiliateRebateRateMax,
+		},
+		{
+			name: "valid value is preserved",
+			values: map[string]string{
+				SettingKeyAffiliateRebateRate: "37.25",
+			},
+			want: 37.25,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			svc := NewSettingService(&settingGetAllRepoStub{
+				values: tc.values,
+			}, &config.Config{})
+
+			settings, err := svc.GetAllSettings(context.Background())
+			require.NoError(t, err)
+			require.Equal(t, tc.want, settings.AffiliateRebateRate)
+		})
+	}
 }
 
 func TestSettingService_UpdateSettings_RejectsInvalidPaymentVisibleMethodSource(t *testing.T) {
