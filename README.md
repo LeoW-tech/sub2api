@@ -388,13 +388,13 @@ Build and run from source code for development or customization.
 git clone https://github.com/Wei-Shaw/sub2api.git
 cd sub2api
 
-# 2. Install pnpm (if not already installed)
-npm install -g pnpm
+# 2. Use pnpm via Corepack
+corepack enable
 
 # 3. Build frontend
 cd frontend
-pnpm install
-pnpm run build
+corepack pnpm install
+corepack pnpm run build
 # Output will be in ../backend/internal/web/dist/
 
 # 4. Build backend with embedded frontend
@@ -514,7 +514,7 @@ go run ./cmd/server
 
 # Frontend (with hot reload)
 cd frontend
-pnpm run dev
+corepack pnpm run dev
 ```
 
 #### Code Generation

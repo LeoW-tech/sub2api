@@ -399,13 +399,13 @@ rm -rf data/ postgres_data/ redis_data/
 git clone https://github.com/Wei-Shaw/sub2api.git
 cd sub2api
 
-# 2. 安装 pnpm（如果还没有安装）
-npm install -g pnpm
+# 2. 通过 Corepack 使用 pnpm
+corepack enable
 
 # 3. 编译前端
 cd frontend
-pnpm install
-pnpm run build
+corepack pnpm install
+corepack pnpm run build
 # 构建产物输出到 ../backend/internal/web/dist/
 
 # 4. 编译后端（嵌入前端）
@@ -577,7 +577,7 @@ go run ./cmd/server
 
 # 前端（支持热重载）
 cd frontend
-pnpm run dev
+corepack pnpm run dev
 ```
 
 #### 代码生成

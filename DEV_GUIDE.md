@@ -38,7 +38,7 @@
 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.7
 
 # pnpm (前端包管理)
-npm install -g pnpm
+corepack enable
 ```
 
 ## 三、CI/CD 流水线
@@ -69,7 +69,7 @@ cd backend && go test -tags=integration ./...
 cd backend && golangci-lint run ./...
 
 # 前端依赖安装（必须用 pnpm）
-cd frontend && pnpm install
+cd frontend && corepack pnpm install
 
 # 前端安全审计（不要直接运行 npm audit）
 cd frontend && npm run audit
@@ -86,7 +86,7 @@ cd frontend && npm run audit
 **解决**：
 ```bash
 cd frontend
-pnpm install  # 更新 pnpm-lock.yaml
+corepack pnpm install  # 更新 pnpm-lock.yaml
 git add pnpm-lock.yaml
 git commit -m "chore: update pnpm-lock.yaml"
 ```
@@ -101,7 +101,7 @@ git commit -m "chore: update pnpm-lock.yaml"
 ```bash
 cd frontend
 rm -rf node_modules  # 或 PowerShell: Remove-Item -Recurse -Force node_modules
-pnpm install
+corepack pnpm install
 ```
 
 ---
@@ -304,13 +304,13 @@ git rebase upstream/main
 ```bash
 # 安装依赖（必须用 pnpm）
 cd frontend
-pnpm install
+corepack pnpm install
 
 # 开发服务器
-pnpm dev
+corepack pnpm dev
 
 # 构建
-pnpm build
+corepack pnpm build
 ```
 
 ### 后端操作

@@ -387,13 +387,13 @@ rm -rf data/ postgres_data/ redis_data/
 git clone https://github.com/Wei-Shaw/sub2api.git
 cd sub2api
 
-# 2. pnpm をインストール（未インストールの場合）
-npm install -g pnpm
+# 2. Corepack 経由で pnpm を使う
+corepack enable
 
 # 3. フロントエンドをビルド
 cd frontend
-pnpm install
-pnpm run build
+corepack pnpm install
+corepack pnpm run build
 # 出力先: ../backend/internal/web/dist/
 
 # 4. フロントエンドを組み込んだバックエンドをビルド
@@ -513,7 +513,7 @@ go run ./cmd/server
 
 # フロントエンド（ホットリロード付き）
 cd frontend
-pnpm run dev
+corepack pnpm run dev
 ```
 
 #### コード生成
