@@ -8,6 +8,11 @@ const {
   getSettings,
   updateSettings,
   sendTestTelegram,
+  listAffiliateUsers,
+  lookupAffiliateUsers,
+  updateAffiliateUserSettings,
+  clearAffiliateUserSettings,
+  batchSetAffiliateRate,
   getWebSearchEmulationConfig,
   updateWebSearchEmulationConfig,
   getAdminApiKey,
@@ -29,6 +34,11 @@ const {
   getSettings: vi.fn(),
   updateSettings: vi.fn(),
   sendTestTelegram: vi.fn(),
+  listAffiliateUsers: vi.fn(),
+  lookupAffiliateUsers: vi.fn(),
+  updateAffiliateUserSettings: vi.fn(),
+  clearAffiliateUserSettings: vi.fn(),
+  batchSetAffiliateRate: vi.fn(),
   getWebSearchEmulationConfig: vi.fn(),
   updateWebSearchEmulationConfig: vi.fn(),
   getAdminApiKey: vi.fn(),
@@ -87,6 +97,23 @@ vi.mock("@/stores", () => ({
     showInfo: vi.fn(),
     fetchPublicSettings,
   }),
+}));
+
+vi.mock("@/api/admin/affiliates", () => ({
+  affiliatesAPI: {
+    listUsers: listAffiliateUsers,
+    lookupUsers: lookupAffiliateUsers,
+    updateUserSettings: updateAffiliateUserSettings,
+    clearUserSettings: clearAffiliateUserSettings,
+    batchSetRate: batchSetAffiliateRate,
+  },
+  default: {
+    listUsers: listAffiliateUsers,
+    lookupUsers: lookupAffiliateUsers,
+    updateUserSettings: updateAffiliateUserSettings,
+    clearUserSettings: clearAffiliateUserSettings,
+    batchSetRate: batchSetAffiliateRate,
+  },
 }));
 
 vi.mock("@/stores/adminSettings", () => ({
@@ -316,6 +343,7 @@ const baseSettingsResponse = {
   totp_encryption_key_configured: false,
   default_balance: 0,
   affiliate_rebate_rate: 20,
+  affiliate_enabled: false,
   default_concurrency: 1,
   default_subscriptions: [],
   site_name: "Sub2API",
@@ -482,6 +510,16 @@ async function openUsersTab(wrapper: ReturnType<typeof mountView>) {
   await flushPromises();
 }
 
+async function openFeaturesTab(wrapper: ReturnType<typeof mountView>) {
+  const featuresTabButton = wrapper
+    .findAll("button")
+    .find((node) => node.text().includes("admin.settings.tabs.features"));
+
+  expect(featuresTabButton).toBeDefined();
+  await featuresTabButton?.trigger("click");
+  await flushPromises();
+}
+
 async function openEmailTab(wrapper: ReturnType<typeof mountView>) {
   const emailTabButton = wrapper
     .findAll("button")
@@ -560,6 +598,14 @@ describe("admin SettingsView affiliate rebate rate controls", () => {
     getProviders.mockResolvedValue({
       data: [],
     });
+    listAffiliateUsers.mockResolvedValue({
+      items: [],
+      total: 0,
+    });
+    lookupAffiliateUsers.mockResolvedValue([]);
+    updateAffiliateUserSettings.mockResolvedValue(undefined);
+    clearAffiliateUserSettings.mockResolvedValue(undefined);
+    batchSetAffiliateRate.mockResolvedValue(undefined);
     fetchPublicSettings.mockResolvedValue(undefined);
     adminSettingsFetch.mockResolvedValue(undefined);
   });
@@ -567,6 +613,7 @@ describe("admin SettingsView affiliate rebate rate controls", () => {
   it("loads affiliate rebate rate from backend payload and clamps it before save", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,
+      affiliate_enabled: true,
       affiliate_rebate_rate: 37.5,
     });
     updateSettings.mockImplementationOnce(async (payload) => ({
@@ -577,7 +624,7 @@ describe("admin SettingsView affiliate rebate rate controls", () => {
 
     const wrapper = mountView();
     await flushPromises();
-    await openUsersTab(wrapper);
+    await openFeaturesTab(wrapper);
 
     const affiliateInput = wrapper.get('input[placeholder="20"]');
     expect((affiliateInput.element as HTMLInputElement).value).toBe("37.5");
@@ -592,12 +639,13 @@ describe("admin SettingsView affiliate rebate rate controls", () => {
 
   it("falls back to the default affiliate rebate rate when legacy payload omits the field", async () => {
     const legacySettings = { ...baseSettingsResponse } as Record<string, unknown>;
+    legacySettings.affiliate_enabled = true;
     delete legacySettings.affiliate_rebate_rate;
     getSettings.mockResolvedValueOnce(legacySettings);
 
     const wrapper = mountView();
     await flushPromises();
-    await openUsersTab(wrapper);
+    await openFeaturesTab(wrapper);
 
     const affiliateInput = wrapper.get('input[placeholder="20"]');
     expect((affiliateInput.element as HTMLInputElement).value).toBe("20");
