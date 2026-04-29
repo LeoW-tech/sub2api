@@ -188,7 +188,15 @@
         <AccountBulkActionsBar
           :selected-ids="selIds"
           :testing-activate="bulkTestingActivate"
-          v-on="bulkActionBarListeners"
+          @delete="handleBulkDelete"
+          @reset-status="handleBulkResetStatus"
+          @refresh-token="handleBulkRefreshToken"
+          @edit-selected="openBulkEditSelected"
+          @edit-filtered="openBulkEditFiltered"
+          @test-activate="handleBulkTestActivate"
+          @clear="clearSelection"
+          @select-page="selectPage"
+          @toggle-schedulable="handleBulkToggleSchedulable"
         />
         <div
           ref="accountTableRef"
@@ -551,6 +559,7 @@
       :account-ids="selIds"
       :selected-platforms="selPlatforms"
       :selected-types="selTypes"
+      :target="bulkEditTarget ?? undefined"
       :proxies="proxies"
       :groups="groups"
       @close="showBulkEdit = false"
@@ -678,6 +687,32 @@ const groups = ref<AdminGroup[]>([]);
 const ipOptions = ref<ProxyIPOption[]>([]);
 const accountTableRef = ref<HTMLElement | null>(null);
 const dataTableRef = ref<InstanceType<typeof DataTable> | null>(null);
+type AccountBulkEditTarget =
+  | {
+      mode: "selected";
+      accountIds: number[];
+      selectedPlatforms: AccountPlatform[];
+      selectedTypes: AccountType[];
+    }
+  | {
+      mode: "filtered";
+      filters: {
+        platform?: string;
+        type?: string;
+        status?: string;
+        capacity_status?: string;
+        group?: string;
+        privacy_mode?: string;
+        network_status?: string;
+        ip?: string;
+        search?: string;
+        sort_by?: string;
+        sort_order?: AccountSortOrder;
+      };
+      previewCount: number;
+      selectedPlatforms: AccountPlatform[];
+      selectedTypes: AccountType[];
+    };
 const selPlatforms = computed<AccountPlatform[]>(() => {
   const platforms = new Set(
     accounts.value.filter((a) => isSelected(a.id)).map((a) => a.platform),
@@ -697,6 +732,7 @@ const showImportData = ref(false);
 const showExportDataDialog = ref(false);
 const includeProxyOnExport = ref(true);
 const showBulkEdit = ref(false);
+const bulkEditTarget = ref<AccountBulkEditTarget | null>(null);
 const showTempUnsched = ref(false);
 const showDeleteDialog = ref(false);
 const showReAuth = ref(false);
@@ -1774,21 +1810,63 @@ const handleBulkToggleSchedulable = async (schedulable: boolean) => {
     appStore.showError(t("common.error"));
   }
 };
-const openBulkEdit = () => {
+const buildBulkEditFilterSnapshot = () => {
+  const rawParams = toRaw(params) as Record<string, unknown>;
+  return {
+    platform: typeof rawParams.platform === "string" ? rawParams.platform : "",
+    type: typeof rawParams.type === "string" ? rawParams.type : "",
+    status: typeof rawParams.status === "string" ? rawParams.status : "",
+    capacity_status:
+      typeof rawParams.capacity_status === "string" ? rawParams.capacity_status : "",
+    group: typeof rawParams.group === "string" ? rawParams.group : "",
+    privacy_mode:
+      typeof rawParams.privacy_mode === "string" ? rawParams.privacy_mode : "",
+    network_status:
+      typeof rawParams.network_status === "string" ? rawParams.network_status : "",
+    ip: typeof rawParams.ip === "string" ? rawParams.ip : "",
+    search: typeof rawParams.search === "string" ? rawParams.search : "",
+    sort_by: sortState.sort_by,
+    sort_order: sortState.sort_order,
+  };
+};
+
+const collectSelectionMetadata = (rows: Account[]) => {
+  const selectedPlatforms = Array.from(
+    new Set(rows.map((account) => account.platform)),
+  );
+  const selectedTypes = Array.from(new Set(rows.map((account) => account.type)));
+  return { selectedPlatforms, selectedTypes };
+};
+
+const openBulkEditSelected = () => {
+  bulkEditTarget.value = {
+    mode: "selected",
+    accountIds: [...selIds.value],
+    selectedPlatforms: [...selPlatforms.value],
+    selectedTypes: [...selTypes.value],
+  };
   showBulkEdit.value = true;
 };
-const bulkActionBarListeners = {
-  delete: handleBulkDelete,
-  "reset-status": handleBulkResetStatus,
-  "refresh-token": handleBulkRefreshToken,
-  "test-activate": handleBulkTestActivate,
-  edit: openBulkEdit,
-  clear: clearSelection,
-  "select-page": selectPage,
-  "toggle-schedulable": handleBulkToggleSchedulable,
+
+const openBulkEditFiltered = async () => {
+  const filters = buildBulkEditFilterSnapshot();
+  const preview = await adminAPI.accounts.list(1, 100, filters);
+  const { selectedPlatforms, selectedTypes } = collectSelectionMetadata(
+    preview.items,
+  );
+  bulkEditTarget.value = {
+    mode: "filtered",
+    filters,
+    previewCount: preview.total,
+    selectedPlatforms,
+    selectedTypes,
+  };
+  showBulkEdit.value = true;
 };
+
 const handleBulkUpdated = () => {
   showBulkEdit.value = false;
+  bulkEditTarget.value = null;
   clearSelection();
   reload();
 };
