@@ -140,6 +140,21 @@ func mustCreateProxy(t *testing.T, client *dbent.Client, p *service.Proxy) *serv
 		SetHost(p.Host).
 		SetPort(p.Port).
 		SetStatus(p.Status)
+	if p.NetworkStatus != "" {
+		create.SetNetworkStatus(p.NetworkStatus)
+	}
+	if p.NetworkCheckedAt != nil {
+		create.SetNetworkCheckedAt(*p.NetworkCheckedAt)
+	}
+	if p.NetworkErrorMessage != "" {
+		create.SetNetworkErrorMessage(p.NetworkErrorMessage)
+	}
+	if p.ExitIP != "" {
+		create.SetExitIP(p.ExitIP)
+	}
+	if p.ExitIPCheckedAt != nil {
+		create.SetExitIPCheckedAt(*p.ExitIPCheckedAt)
+	}
 	if p.Username != "" {
 		create.SetUsername(p.Username)
 	}

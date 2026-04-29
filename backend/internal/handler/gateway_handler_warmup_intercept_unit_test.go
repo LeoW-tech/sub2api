@@ -136,6 +136,9 @@ func (f *fakeConcurrencyCache) GetAccountConcurrencyBatch(_ context.Context, acc
 	}
 	return result, nil
 }
+func (f *fakeConcurrencyCache) ListActiveAccountIDs(context.Context) ([]int64, error) {
+	return nil, nil
+}
 func (f *fakeConcurrencyCache) CleanupExpiredAccountSlots(context.Context, int64) error { return nil }
 func (f *fakeConcurrencyCache) CleanupStaleProcessSlots(context.Context, string) error  { return nil }
 
