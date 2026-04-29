@@ -648,7 +648,8 @@ export type AccountType =
   | "setup-token"
   | "apikey"
   | "upstream"
-  | "bedrock";
+  | "bedrock"
+  | "service_account";
 export type OAuthAddMethod = "oauth" | "setup-token";
 export type ProxyProtocol = "http" | "https" | "socks5" | "socks5h";
 

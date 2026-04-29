@@ -233,10 +233,15 @@ func accountWaitKey(accountID int64) string {
 }
 
 func parseAccountSlotKeyID(key string) (int64, bool) {
-	if len(key) <= len(accountSlotKeyPrefix) || !strings.HasPrefix(key, accountSlotKeyPrefix) {
+	idx := strings.LastIndex(key, accountSlotKeyPrefix)
+	if idx < 0 {
 		return 0, false
 	}
-	accountID, err := strconv.ParseInt(strings.TrimPrefix(key, accountSlotKeyPrefix), 10, 64)
+	accountIDText := key[idx+len(accountSlotKeyPrefix):]
+	if accountIDText == "" || strings.Contains(accountIDText, ":") {
+		return 0, false
+	}
+	accountID, err := strconv.ParseInt(accountIDText, 10, 64)
 	if err != nil || accountID <= 0 {
 		return 0, false
 	}
