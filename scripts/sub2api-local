@@ -212,7 +212,7 @@ load_runtime() {
   export RUNTIME_DATA_DIR="$ENV_DIR/data"
   export RUNTIME_POSTGRES_DIR="$ENV_DIR/postgres_data"
   export RUNTIME_REDIS_DIR="$ENV_DIR/redis_data"
-  export COMPOSE_PROJECT_NAME="sub2api_${env_name}"
+  export COMPOSE_PROJECT_NAME="$(compose_project_name "$env_name")"
 
   mkdir -p "$RUNTIME_DATA_DIR" "$RUNTIME_POSTGRES_DIR" "$RUNTIME_REDIS_DIR"
 }
@@ -232,6 +232,12 @@ image_exists() {
   image="$(env_value SUB2API_IMAGE)"
   [[ -n "$image" ]] || die "环境文件缺少 SUB2API_IMAGE: $ENV_FILE"
   docker image inspect "$image" >/dev/null 2>&1
+}
+
+compose_project_name() {
+  local env_name="$1"
+  local configured="${SUB2API_COMPOSE_PROJECT_NAME:-$(env_value SUB2API_COMPOSE_PROJECT_NAME)}"
+  printf '%s\n' "${configured:-sub2api_${env_name}}"
 }
 
 runtime_compose_files() {
