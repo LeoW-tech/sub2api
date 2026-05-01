@@ -1727,10 +1727,7 @@ const handleBulkTestActivate = async () => {
     if (result.activated_ids.length > 0) {
       updateStatusInList(result.activated_ids, "active");
     }
-    if (result.deactivated_ids.length > 0) {
-      updateStatusInList(result.deactivated_ids, "inactive");
-    }
-    if (result.activated_ids.length > 0 || result.deactivated_ids.length > 0) {
+    if (result.activated_ids.length > 0) {
       enterAutoRefreshSilentWindow();
     }
 

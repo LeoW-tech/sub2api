@@ -17,13 +17,15 @@ import (
 
 const (
 	accountBulkTestActivateDefaultModel      = "gpt-5.4"
-	accountBulkTestActivateConcurrency       = 80
+	accountBulkTestActivateConcurrency       = 20
 	accountBulkTestActivateSchedule          = "0 */6 * * *"
 	accountBulkTestActivatePageSize          = 200
 	accountBulkTestActivateManualTimeout     = 45 * time.Minute
 	accountBulkTestActivateScheduledTimeout  = 120 * time.Minute
 	accountBulkTestActivateFinalizeTimeout   = 30 * time.Second
 	accountBulkTestActivateNotifyTimeout     = 20 * time.Second
+	accountBulkTestActivateRetryDelay        = 2 * time.Second
+	accountBulkTestActivateMaxAttempts       = 2
 	accountBulkTestActivateOverlapSkipReason = "上一轮仍在运行，跳过本轮执行"
 )
 
@@ -37,31 +39,34 @@ const (
 )
 
 type AccountBulkTestActivateSummary struct {
-	Trigger        string  `json:"trigger"`
-	ModelID        string  `json:"model_id"`
-	RequestedTotal int     `json:"requested_total"`
-	Total          int     `json:"total"`
-	Processed      int     `json:"processed"`
-	Remaining      int     `json:"remaining"`
-	Success        int     `json:"success"`
-	Failed         int     `json:"failed"`
-	Skipped        int     `json:"skipped"`
-	Activated      int     `json:"activated"`
-	Deactivated    int     `json:"deactivated"`
-	TimedOut       bool    `json:"timed_out"`
-	RunSkipped     bool    `json:"run_skipped"`
-	DurationMs     int64   `json:"duration_ms"`
-	ErrorMessage   string  `json:"error_message,omitempty"`
-	SuccessIDs     []int64 `json:"success_ids"`
-	FailedIDs      []int64 `json:"failed_ids"`
-	ActivatedIDs   []int64 `json:"activated_ids"`
-	DeactivatedIDs []int64 `json:"deactivated_ids"`
+	RunID          int64                            `json:"run_id,omitempty"`
+	Trigger        string                           `json:"trigger"`
+	ModelID        string                           `json:"model_id"`
+	RequestedTotal int                              `json:"requested_total"`
+	Total          int                              `json:"total"`
+	Processed      int                              `json:"processed"`
+	Remaining      int                              `json:"remaining"`
+	Success        int                              `json:"success"`
+	Failed         int                              `json:"failed"`
+	Skipped        int                              `json:"skipped"`
+	Activated      int                              `json:"activated"`
+	Deactivated    int                              `json:"deactivated"`
+	TimedOut       bool                             `json:"timed_out"`
+	RunSkipped     bool                             `json:"run_skipped"`
+	DurationMs     int64                            `json:"duration_ms"`
+	ErrorMessage   string                           `json:"error_message,omitempty"`
+	SuccessIDs     []int64                          `json:"success_ids"`
+	FailedIDs      []int64                          `json:"failed_ids"`
+	ActivatedIDs   []int64                          `json:"activated_ids"`
+	DeactivatedIDs []int64                          `json:"deactivated_ids"`
+	Results        []*AccountBulkTestActivateResult `json:"results,omitempty"`
 }
 
 type AccountBulkTestActivateService struct {
 	accountRepo    AccountRepository
 	accountTestSvc accountBulkTestRunner
 	telegram       accountBulkTestActivateNotifier
+	auditRepo      AccountBulkTestActivateAuditRepository
 	cfg            *config.Config
 
 	cron      *cron.Cron
@@ -76,6 +81,7 @@ type AccountBulkTestActivateService struct {
 	scheduledTimeoutOverride time.Duration
 	finalizeTimeoutOverride  time.Duration
 	notifyTimeoutOverride    time.Duration
+	retryDelayOverride       time.Duration
 }
 
 func NewAccountBulkTestActivateService(
@@ -190,6 +196,11 @@ func (s *AccountBulkTestActivateService) execute(ctx context.Context, accountIDs
 		FailedIDs:      append([]int64(nil), resolution.missingIDs...),
 		ActivatedIDs:   make([]int64, 0, len(resolution.accounts)),
 		DeactivatedIDs: make([]int64, 0, len(resolution.accounts)),
+		Results:        make([]*AccountBulkTestActivateResult, 0, len(resolution.accounts)),
+	}
+	runStartedAt := time.Now()
+	if auditRun := s.createAuditRun(ctx, summary, runStartedAt); auditRun != nil {
+		summary.RunID = auditRun.ID
 	}
 
 	logger.LegacyPrintf(
@@ -206,6 +217,8 @@ func (s *AccountBulkTestActivateService) execute(ctx context.Context, accountIDs
 	if len(resolution.accounts) == 0 {
 		summary.Failed = len(summary.FailedIDs)
 		summary.Remaining = accountBulkTestActivateRemaining(summary)
+		summary.DurationMs = time.Since(runStartedAt).Milliseconds()
+		s.finishAuditRun(ctx, summary, runStartedAt)
 		s.logSummary("completed", summary)
 		s.notifySummary(ctx, summary)
 		return summary, nil
@@ -227,7 +240,6 @@ func (s *AccountBulkTestActivateService) execute(ctx context.Context, accountIDs
 		index         int
 		processed     int
 		testedSuccess []int64
-		testedFailed  []int64
 	)
 	workerCount := execCfg.concurrency
 	if workerCount > len(ids) {
@@ -253,17 +265,17 @@ func (s *AccountBulkTestActivateService) execute(ctx context.Context, accountIDs
 			index++
 			mu.Unlock()
 
-			result, err := s.accountTestSvc.RunTestBackground(ctx, accountID, accountBulkTestActivateDefaultModel)
-			success := err == nil && result != nil && strings.EqualFold(strings.TrimSpace(result.Status), "success")
+			testResult := s.runAccountTestWithRetry(ctx, accountID, originalStatus[accountID])
+			success := strings.EqualFold(strings.TrimSpace(testResult.Status), "success")
 
 			mu.Lock()
 			processed++
+			summary.Results = append(summary.Results, testResult)
 			if success {
 				summary.SuccessIDs = append(summary.SuccessIDs, accountID)
 				testedSuccess = append(testedSuccess, accountID)
 			} else {
 				summary.FailedIDs = append(summary.FailedIDs, accountID)
-				testedFailed = append(testedFailed, accountID)
 			}
 			mu.Unlock()
 		}
@@ -284,11 +296,6 @@ func (s *AccountBulkTestActivateService) execute(ctx context.Context, accountIDs
 			summary.ActivatedIDs = append(summary.ActivatedIDs, accountID)
 		}
 	}
-	for _, accountID := range testedFailed {
-		if strings.EqualFold(originalStatus[accountID], StatusActive) {
-			summary.DeactivatedIDs = append(summary.DeactivatedIDs, accountID)
-		}
-	}
 
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		summary.TimedOut = errors.Is(ctxErr, context.DeadlineExceeded)
@@ -305,7 +312,11 @@ func (s *AccountBulkTestActivateService) execute(ctx context.Context, accountIDs
 	summary.Activated = len(summary.ActivatedIDs)
 	summary.Deactivated = len(summary.DeactivatedIDs)
 	summary.Remaining = accountBulkTestActivateRemaining(summary)
+	summary.DurationMs = time.Since(runStartedAt).Milliseconds()
 	s.accountBulkTestActivateSortSummary(summary)
+	s.accountBulkTestActivateSortResults(summary.Results)
+	s.saveAuditResults(finalizeCtx, summary)
+	s.finishAuditRun(finalizeCtx, summary, runStartedAt)
 	s.logSummary("completed", summary)
 	s.notifySummary(ctx, summary)
 	return summary, nil
@@ -336,6 +347,65 @@ func (s *AccountBulkTestActivateService) runScheduled() {
 		s.logSummary("failed", failedSummary)
 		s.notifySummary(context.Background(), failedSummary)
 		return
+	}
+}
+
+func (s *AccountBulkTestActivateService) runAccountTestWithRetry(ctx context.Context, accountID int64, originalStatus string) *AccountBulkTestActivateResult {
+	startedAt := time.Now()
+	maxAttempts := s.maxAttempts()
+	var (
+		lastResult *ScheduledTestResult
+		lastErr    error
+		category   string
+		lastMsg    string
+		attempts   int
+	)
+
+	for attempts < maxAttempts {
+		attempts++
+		result, err := s.accountTestSvc.RunTestBackground(accountTestSuppressStatusMutation(ctx), accountID, accountBulkTestActivateDefaultModel)
+		lastResult = result
+		lastErr = err
+		if err == nil && result != nil && strings.EqualFold(strings.TrimSpace(result.Status), "success") {
+			finishedAt := time.Now()
+			return &AccountBulkTestActivateResult{
+				AccountID:       accountID,
+				OriginalStatus:  originalStatus,
+				Status:          "success",
+				Action:          accountBulkTestActivateAction(originalStatus, true),
+				Attempts:        attempts,
+				FailureCategory: category,
+				ErrorMessage:    lastMsg,
+				LatencyMs:       accountBulkTestActivateLatency(startedAt, finishedAt, result),
+				StartedAt:       startedAt,
+				FinishedAt:      finishedAt,
+			}
+		}
+
+		msg := accountBulkTestActivateResultErrorMessage(result, err)
+		lastMsg = msg
+		category = accountBulkTestActivateClassifyFailure(msg)
+		if attempts >= maxAttempts || !accountBulkTestActivateShouldRetryFailure(category, msg) {
+			break
+		}
+		if !s.sleepBeforeRetry(ctx) {
+			break
+		}
+	}
+
+	finishedAt := time.Now()
+	errMsg := accountBulkTestActivateResultErrorMessage(lastResult, lastErr)
+	return &AccountBulkTestActivateResult{
+		AccountID:       accountID,
+		OriginalStatus:  originalStatus,
+		Status:          "failed",
+		Action:          accountBulkTestActivateAction(originalStatus, false),
+		Attempts:        attempts,
+		FailureCategory: category,
+		ErrorMessage:    errMsg,
+		LatencyMs:       accountBulkTestActivateLatency(startedAt, finishedAt, lastResult),
+		StartedAt:       startedAt,
+		FinishedAt:      finishedAt,
 	}
 }
 
@@ -371,7 +441,7 @@ func (s *AccountBulkTestActivateService) resolveAccounts(ctx context.Context, ac
 			},
 			"",
 			"",
-			"",
+			"needs_recovery",
 			"",
 			0,
 			"",
@@ -556,6 +626,192 @@ func (s *AccountBulkTestActivateService) accountBulkTestActivateSortSummary(summ
 	sort.Slice(summary.FailedIDs, func(i, j int) bool { return summary.FailedIDs[i] < summary.FailedIDs[j] })
 	sort.Slice(summary.ActivatedIDs, func(i, j int) bool { return summary.ActivatedIDs[i] < summary.ActivatedIDs[j] })
 	sort.Slice(summary.DeactivatedIDs, func(i, j int) bool { return summary.DeactivatedIDs[i] < summary.DeactivatedIDs[j] })
+}
+
+func (s *AccountBulkTestActivateService) accountBulkTestActivateSortResults(results []*AccountBulkTestActivateResult) {
+	sort.Slice(results, func(i, j int) bool {
+		if results[i] == nil {
+			return false
+		}
+		if results[j] == nil {
+			return true
+		}
+		return results[i].AccountID < results[j].AccountID
+	})
+}
+
+func (s *AccountBulkTestActivateService) createAuditRun(ctx context.Context, summary *AccountBulkTestActivateSummary, startedAt time.Time) *AccountBulkTestActivateRun {
+	if s == nil || s.auditRepo == nil || summary == nil {
+		return nil
+	}
+	run, err := s.auditRepo.CreateRun(ctx, &AccountBulkTestActivateRun{
+		Trigger:        summary.Trigger,
+		ModelID:        summary.ModelID,
+		RequestedTotal: summary.RequestedTotal,
+		Total:          summary.Total,
+		Skipped:        summary.Skipped,
+		StartedAt:      startedAt,
+	})
+	if err != nil {
+		logger.LegacyPrintf("service.account_bulk_test_activate", "[AccountBulkTestActivate] audit create run failed: %v", err)
+		return nil
+	}
+	return run
+}
+
+func (s *AccountBulkTestActivateService) saveAuditResults(ctx context.Context, summary *AccountBulkTestActivateSummary) {
+	if s == nil || s.auditRepo == nil || summary == nil || summary.RunID <= 0 || len(summary.Results) == 0 {
+		return
+	}
+	results := make([]*AccountBulkTestActivateResult, 0, len(summary.Results))
+	for _, result := range summary.Results {
+		if result == nil {
+			continue
+		}
+		copyResult := *result
+		copyResult.RunID = summary.RunID
+		results = append(results, &copyResult)
+	}
+	if err := s.auditRepo.SaveResults(ctx, results); err != nil {
+		logger.LegacyPrintf("service.account_bulk_test_activate", "[AccountBulkTestActivate] audit save results failed: %v", err)
+	}
+}
+
+func (s *AccountBulkTestActivateService) finishAuditRun(ctx context.Context, summary *AccountBulkTestActivateSummary, startedAt time.Time) {
+	if s == nil || s.auditRepo == nil || summary == nil || summary.RunID <= 0 {
+		return
+	}
+	finishedAt := time.Now()
+	run := &AccountBulkTestActivateRun{
+		ID:             summary.RunID,
+		Trigger:        summary.Trigger,
+		ModelID:        summary.ModelID,
+		RequestedTotal: summary.RequestedTotal,
+		Total:          summary.Total,
+		Processed:      summary.Processed,
+		Remaining:      summary.Remaining,
+		Success:        summary.Success,
+		Failed:         summary.Failed,
+		Skipped:        summary.Skipped,
+		Activated:      summary.Activated,
+		Deactivated:    summary.Deactivated,
+		TimedOut:       summary.TimedOut,
+		RunSkipped:     summary.RunSkipped,
+		DurationMs:     time.Since(startedAt).Milliseconds(),
+		ErrorMessage:   summary.ErrorMessage,
+		StartedAt:      startedAt,
+		FinishedAt:     &finishedAt,
+	}
+	if err := s.auditRepo.FinishRun(ctx, run); err != nil {
+		logger.LegacyPrintf("service.account_bulk_test_activate", "[AccountBulkTestActivate] audit finish run failed: %v", err)
+	}
+}
+
+func (s *AccountBulkTestActivateService) maxAttempts() int {
+	return accountBulkTestActivateMaxAttempts
+}
+
+func (s *AccountBulkTestActivateService) sleepBeforeRetry(ctx context.Context) bool {
+	delay := accountBulkTestActivateRetryDelay
+	if s != nil && s.retryDelayOverride != 0 {
+		delay = s.retryDelayOverride
+	}
+	if delay <= 0 {
+		return ctx.Err() == nil
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
+}
+
+func accountBulkTestActivateResultErrorMessage(result *ScheduledTestResult, runErr error) string {
+	if runErr != nil {
+		return strings.TrimSpace(runErr.Error())
+	}
+	if result == nil {
+		return "account test failed"
+	}
+	if msg := strings.TrimSpace(result.ErrorMessage); msg != "" {
+		return msg
+	}
+	if !strings.EqualFold(strings.TrimSpace(result.Status), "success") {
+		return "account test failed"
+	}
+	return ""
+}
+
+func accountBulkTestActivateClassifyFailure(msg string) string {
+	lower := strings.ToLower(strings.TrimSpace(msg))
+	switch {
+	case lower == "":
+		return "unknown"
+	case strings.Contains(lower, "401") ||
+		strings.Contains(lower, "unauthorized") ||
+		strings.Contains(lower, "token_invalidated") ||
+		strings.Contains(lower, "token has been invalidated") ||
+		strings.Contains(lower, "invalid_api_key") ||
+		strings.Contains(lower, "invalid api key") ||
+		strings.Contains(lower, "no access token") ||
+		strings.Contains(lower, "no api key"):
+		return "auth"
+	case strings.Contains(lower, "429") ||
+		strings.Contains(lower, "rate limit") ||
+		strings.Contains(lower, "usage limit") ||
+		strings.Contains(lower, "quota"):
+		return "rate_limit"
+	case strings.Contains(lower, "timeout") ||
+		strings.Contains(lower, "temporarily unavailable") ||
+		strings.Contains(lower, "connection reset") ||
+		strings.Contains(lower, "connection refused") ||
+		strings.Contains(lower, "unexpected eof") ||
+		strings.Contains(lower, "eof") ||
+		strings.Contains(lower, "request failed") ||
+		strings.Contains(lower, "stream read error") ||
+		strings.Contains(lower, "stream ended") ||
+		strings.Contains(lower, "502") ||
+		strings.Contains(lower, "503") ||
+		strings.Contains(lower, "529") ||
+		strings.Contains(lower, "overloaded") ||
+		strings.Contains(lower, "please retry later") ||
+		strings.Contains(lower, "504"):
+		return "transient"
+	default:
+		return "unknown"
+	}
+}
+
+func accountBulkTestActivateShouldRetryFailure(category, msg string) bool {
+	switch category {
+	case "transient":
+		return true
+	case "rate_limit":
+		lower := strings.ToLower(strings.TrimSpace(msg))
+		return strings.Contains(lower, "temporarily") || strings.Contains(lower, "retry") || strings.Contains(lower, "overloaded")
+	default:
+		return false
+	}
+}
+
+func accountBulkTestActivateAction(originalStatus string, success bool) string {
+	if success && !strings.EqualFold(originalStatus, StatusActive) {
+		return "activate"
+	}
+	return "noop"
+}
+
+func accountBulkTestActivateLatency(startedAt, finishedAt time.Time, result *ScheduledTestResult) int64 {
+	if result != nil && result.LatencyMs > 0 {
+		return result.LatencyMs
+	}
+	if finishedAt.Before(startedAt) {
+		return 0
+	}
+	return finishedAt.Sub(startedAt).Milliseconds()
 }
 
 func (s *AccountBulkTestActivateService) formatSummaryMessage(summary *AccountBulkTestActivateSummary) string {

@@ -516,6 +516,8 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 	}
 	if status != "" {
 		switch status {
+		case "needs_recovery":
+			q = q.Where(dbaccount.StatusIn("inactive", service.StatusError))
 		case service.StatusActive:
 			q = q.Where(
 				dbaccount.StatusEQ(status),

@@ -55,6 +55,25 @@ const (
 	defaultOpenAIImageTestPrompt = "Generate a cute orange cat astronaut sticker on a clean pastel background."
 )
 
+type accountTestContextKey string
+
+const accountTestSuppressStatusMutationKey accountTestContextKey = "account_test_suppress_status_mutation"
+
+func accountTestSuppressStatusMutation(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, accountTestSuppressStatusMutationKey, true)
+}
+
+func accountTestShouldSuppressStatusMutation(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	suppress, _ := ctx.Value(accountTestSuppressStatusMutationKey).(bool)
+	return suppress
+}
+
 // isOpenAIImageModel checks if the model is an OpenAI image generation model (e.g. gpt-image-2).
 func isOpenAIImageModel(model string) bool {
 	return strings.HasPrefix(strings.ToLower(model), "gpt-image-")
@@ -308,7 +327,7 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 		errMsg := fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body))
 
 		// 403 表示账号被上游封禁，标记为 error 状态
-		if resp.StatusCode == http.StatusForbidden {
+		if resp.StatusCode == http.StatusForbidden && !accountTestShouldSuppressStatusMutation(ctx) {
 			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
 		}
 
@@ -378,7 +397,7 @@ func (s *AccountTestService) testClaudeVertexServiceAccountConnection(c *gin.Con
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		errMsg := fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body))
-		if resp.StatusCode == http.StatusForbidden {
+		if resp.StatusCode == http.StatusForbidden && !accountTestShouldSuppressStatusMutation(ctx) {
 			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
 		}
 		return s.sendErrorAndEnd(c, errMsg)
@@ -612,11 +631,11 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		if resp.StatusCode == http.StatusTooManyRequests {
+		if resp.StatusCode == http.StatusTooManyRequests && !accountTestShouldSuppressStatusMutation(ctx) {
 			s.reconcileOpenAI429State(ctx, account, resp.Header, body)
 		}
 		// 401 Unauthorized: 标记账号为永久错误
-		if resp.StatusCode == http.StatusUnauthorized && s.accountRepo != nil {
+		if resp.StatusCode == http.StatusUnauthorized && s.accountRepo != nil && !accountTestShouldSuppressStatusMutation(ctx) {
 			errMsg := fmt.Sprintf("Authentication failed (401): %s", string(body))
 			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
 		}
@@ -724,13 +743,13 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 			mergeAccountExtra(account, updates)
 		}
 		// 探测如返回 429,主动同步限流状态,避免后续短时间内继续选中。
-		if resp.StatusCode == http.StatusTooManyRequests {
+		if resp.StatusCode == http.StatusTooManyRequests && !accountTestShouldSuppressStatusMutation(ctx) {
 			s.reconcileOpenAI429State(ctx, account, resp.Header, body)
 		}
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		if resp.StatusCode == http.StatusUnauthorized && s.accountRepo != nil {
+		if resp.StatusCode == http.StatusUnauthorized && s.accountRepo != nil && !accountTestShouldSuppressStatusMutation(ctx) {
 			errMsg := fmt.Sprintf("Authentication failed (401): %s", string(body))
 			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
 		}

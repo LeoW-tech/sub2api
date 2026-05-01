@@ -28,7 +28,7 @@ func TestAccountBulkTestActivateService_ExecutionConfig_UsesLockedParameters(t *
 	require.False(t, scheduledCfg.detachCaller)
 }
 
-func TestAccountBulkTestActivateService_Execute_UpdatesStatusesSymmetrically(t *testing.T) {
+func TestAccountBulkTestActivateService_Execute_ActivatesSuccessesWithoutDeactivatingFailures(t *testing.T) {
 	accountRepo := &accountRepoStubForBulkTestActivate{
 		accountsByID: map[int64]*Account{
 			1: {ID: 1, Status: "inactive"},
@@ -55,12 +55,133 @@ func TestAccountBulkTestActivateService_Execute_UpdatesStatusesSymmetrically(t *
 	require.Equal(t, 2, summary.Failed)
 	require.Equal(t, 0, summary.Skipped)
 	require.Equal(t, []int64{1}, summary.ActivatedIDs)
-	require.Equal(t, []int64{2}, summary.DeactivatedIDs)
-	require.Len(t, accountRepo.bulkUpdates, 2)
+	require.Empty(t, summary.DeactivatedIDs)
+	require.Len(t, accountRepo.bulkUpdates, 1)
 	require.Equal(t, StatusActive, *accountRepo.bulkUpdates[0].status)
 	require.Equal(t, []int64{1}, accountRepo.bulkUpdates[0].ids)
-	require.Equal(t, "inactive", *accountRepo.bulkUpdates[1].status)
-	require.Equal(t, []int64{2}, accountRepo.bulkUpdates[1].ids)
+}
+
+func TestAccountBulkTestActivateService_Execute_RetriesRetryableFailuresWithinRun(t *testing.T) {
+	accountRepo := &accountRepoStubForBulkTestActivate{
+		accountsByID: map[int64]*Account{
+			1: {ID: 1, Status: "inactive"},
+		},
+	}
+	accountTestSvc := &accountTestServiceStubForBulkTestActivate{
+		resultSequences: map[int64][]*ScheduledTestResult{
+			1: {
+				{Status: "failed", ErrorMessage: "API returned 503: upstream unavailable"},
+				{Status: "success"},
+			},
+		},
+	}
+
+	svc := NewAccountBulkTestActivateService(accountRepo, accountTestSvc, nil, nil)
+	svc.retryDelayOverride = -1
+	summary, err := svc.Execute(context.Background(), []int64{1}, AccountBulkTestActivateTriggerManual)
+
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Success)
+	require.Equal(t, 0, summary.Failed)
+	require.Equal(t, []int64{1}, summary.SuccessIDs)
+	require.Equal(t, []int64{1}, summary.ActivatedIDs)
+	require.Equal(t, []int64{1, 1}, accountTestSvc.calls())
+	require.Len(t, summary.Results, 1)
+	require.Equal(t, int64(1), summary.Results[0].AccountID)
+	require.Equal(t, "success", summary.Results[0].Status)
+	require.Equal(t, 2, summary.Results[0].Attempts)
+	require.Equal(t, "transient", summary.Results[0].FailureCategory)
+	require.Equal(t, "activate", summary.Results[0].Action)
+}
+
+func TestAccountBulkTestActivateService_Execute_RetriesOverloaded529FailuresWithinRun(t *testing.T) {
+	accountRepo := &accountRepoStubForBulkTestActivate{
+		accountsByID: map[int64]*Account{
+			1: {ID: 1, Status: "inactive"},
+		},
+	}
+	accountTestSvc := &accountTestServiceStubForBulkTestActivate{
+		resultSequences: map[int64][]*ScheduledTestResult{
+			1: {
+				{Status: "failed", ErrorMessage: "API returned 529: overloaded, please retry later"},
+				{Status: "success"},
+			},
+		},
+	}
+
+	svc := NewAccountBulkTestActivateService(accountRepo, accountTestSvc, nil, nil)
+	svc.retryDelayOverride = -1
+	summary, err := svc.Execute(context.Background(), []int64{1}, AccountBulkTestActivateTriggerManual)
+
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Success)
+	require.Equal(t, 0, summary.Failed)
+	require.Equal(t, []int64{1, 1}, accountTestSvc.calls())
+	require.Len(t, summary.Results, 1)
+	require.Equal(t, "transient", summary.Results[0].FailureCategory)
+	require.Equal(t, 2, summary.Results[0].Attempts)
+	require.Equal(t, []int64{1}, summary.ActivatedIDs)
+}
+
+func TestAccountBulkTestActivateService_Execute_DoesNotRetryAuthFailures(t *testing.T) {
+	accountRepo := &accountRepoStubForBulkTestActivate{
+		accountsByID: map[int64]*Account{
+			1: {ID: 1, Status: "inactive"},
+		},
+	}
+	accountTestSvc := &accountTestServiceStubForBulkTestActivate{
+		resultSequences: map[int64][]*ScheduledTestResult{
+			1: {
+				{Status: "failed", ErrorMessage: "Authentication failed (401): token_invalidated"},
+				{Status: "success"},
+			},
+		},
+	}
+
+	svc := NewAccountBulkTestActivateService(accountRepo, accountTestSvc, nil, nil)
+	summary, err := svc.Execute(context.Background(), []int64{1}, AccountBulkTestActivateTriggerManual)
+
+	require.NoError(t, err)
+	require.Equal(t, 0, summary.Success)
+	require.Equal(t, 1, summary.Failed)
+	require.Equal(t, []int64{1}, summary.FailedIDs)
+	require.Equal(t, []int64{1}, accountTestSvc.calls())
+	require.Len(t, summary.Results, 1)
+	require.Equal(t, "auth", summary.Results[0].FailureCategory)
+	require.Equal(t, 1, summary.Results[0].Attempts)
+	require.Equal(t, "noop", summary.Results[0].Action)
+	require.Empty(t, accountRepo.bulkUpdates)
+}
+
+func TestAccountBulkTestActivateService_Execute_RecordsAuditRunAndResults(t *testing.T) {
+	accountRepo := &accountRepoStubForBulkTestActivate{
+		accountsByID: map[int64]*Account{
+			1: {ID: 1, Status: "inactive"},
+			2: {ID: 2, Status: StatusActive},
+		},
+	}
+	accountTestSvc := &accountTestServiceStubForBulkTestActivate{
+		results: map[int64]*ScheduledTestResult{
+			1: {Status: "success"},
+			2: {Status: "failed", ErrorMessage: "Request failed: unexpected EOF"},
+		},
+	}
+	auditRepo := &bulkTestActivateAuditRepoStub{}
+
+	svc := NewAccountBulkTestActivateService(accountRepo, accountTestSvc, nil, nil)
+	svc.auditRepo = auditRepo
+	svc.retryDelayOverride = -1
+
+	summary, err := svc.Execute(context.Background(), []int64{1, 2}, AccountBulkTestActivateTriggerManual)
+
+	require.NoError(t, err)
+	require.NotZero(t, summary.RunID)
+	require.Equal(t, summary.RunID, auditRepo.createdRun.ID)
+	require.Equal(t, "manual", auditRepo.createdRun.Trigger)
+	require.Len(t, auditRepo.savedResults, 2)
+	require.Equal(t, summary.RunID, auditRepo.savedResults[0].RunID)
+	require.Equal(t, summary.RunID, auditRepo.savedResults[1].RunID)
+	require.ElementsMatch(t, []int64{1, 2}, []int64{auditRepo.savedResults[0].AccountID, auditRepo.savedResults[1].AccountID})
 }
 
 func TestAccountBulkTestActivateService_Execute_ManualDetachedFromCallerContext(t *testing.T) {
@@ -89,6 +210,29 @@ func TestAccountBulkTestActivateService_Execute_ManualDetachedFromCallerContext(
 	require.Contains(t, telegram.lastMessage(), "批量测试激活完成")
 	require.Contains(t, telegram.lastMessage(), "请求总数：1")
 	require.Contains(t, telegram.lastMessage(), "已处理：1")
+}
+
+func TestAccountBulkTestActivateService_Execute_SuppressesAccountTestStatusMutation(t *testing.T) {
+	accountRepo := &accountRepoStubForBulkTestActivate{
+		accountsByID: map[int64]*Account{
+			1: {ID: 1, Status: StatusActive},
+		},
+	}
+	accountTestSvc := &accountTestServiceStubForBulkTestActivate{
+		runFn: func(ctx context.Context, accountID int64, modelID string) (*ScheduledTestResult, error) {
+			require.Equal(t, int64(1), accountID)
+			require.Equal(t, accountBulkTestActivateDefaultModel, modelID)
+			require.True(t, accountTestShouldSuppressStatusMutation(ctx))
+			return &ScheduledTestResult{Status: "failed", ErrorMessage: "Authentication failed (401): token_invalidated"}, nil
+		},
+	}
+
+	svc := NewAccountBulkTestActivateService(accountRepo, accountTestSvc, nil, nil)
+	summary, err := svc.Execute(context.Background(), []int64{1}, AccountBulkTestActivateTriggerManual)
+
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Failed)
+	require.Empty(t, accountRepo.bulkUpdates)
 }
 
 func TestAccountBulkTestActivateService_Execute_SkipsSoftDeletedAndFailsMissingIDs(t *testing.T) {
@@ -214,8 +358,8 @@ func TestAccountBulkTestActivateService_Execute_TimeoutReturnsPartialSummaryAndS
 	require.Equal(t, 0, summary.Remaining)
 	require.Contains(t, summary.ErrorMessage, context.DeadlineExceeded.Error())
 	require.Equal(t, []int64{1}, summary.ActivatedIDs)
-	require.Equal(t, []int64{2}, summary.DeactivatedIDs)
-	require.Len(t, accountRepo.bulkUpdates, 2)
+	require.Empty(t, summary.DeactivatedIDs)
+	require.Len(t, accountRepo.bulkUpdates, 1)
 	require.Contains(t, telegram.lastMessage(), "批量测试激活部分完成（超时）")
 }
 
@@ -320,16 +464,23 @@ func (s *accountRepoStubForBulkTestActivate) BulkUpdate(_ context.Context, ids [
 }
 
 type accountTestServiceStubForBulkTestActivate struct {
-	mu      sync.Mutex
-	results map[int64]*ScheduledTestResult
-	errors  map[int64]error
-	runFn   func(ctx context.Context, accountID int64, modelID string) (*ScheduledTestResult, error)
-	called  []int64
+	mu              sync.Mutex
+	results         map[int64]*ScheduledTestResult
+	resultSequences map[int64][]*ScheduledTestResult
+	errors          map[int64]error
+	runFn           func(ctx context.Context, accountID int64, modelID string) (*ScheduledTestResult, error)
+	called          []int64
+	callCounts      map[int64]int
 }
 
 func (s *accountTestServiceStubForBulkTestActivate) RunTestBackground(ctx context.Context, accountID int64, modelID string) (*ScheduledTestResult, error) {
 	s.mu.Lock()
 	s.called = append(s.called, accountID)
+	if s.callCounts == nil {
+		s.callCounts = make(map[int64]int)
+	}
+	callIndex := s.callCounts[accountID]
+	s.callCounts[accountID]++
 	s.mu.Unlock()
 
 	if s.runFn != nil {
@@ -341,6 +492,12 @@ func (s *accountTestServiceStubForBulkTestActivate) RunTestBackground(ctx contex
 	if err, ok := s.errors[accountID]; ok {
 		return nil, err
 	}
+	if sequence := s.resultSequences[accountID]; len(sequence) > 0 {
+		if callIndex < len(sequence) {
+			return sequence[callIndex], nil
+		}
+		return sequence[len(sequence)-1], nil
+	}
 	if result, ok := s.results[accountID]; ok {
 		return result, nil
 	}
@@ -351,6 +508,36 @@ func (s *accountTestServiceStubForBulkTestActivate) calls() []int64 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]int64(nil), s.called...)
+}
+
+type bulkTestActivateAuditRepoStub struct {
+	createdRun   *AccountBulkTestActivateRun
+	finishedRuns []*AccountBulkTestActivateRun
+	savedResults []*AccountBulkTestActivateResult
+}
+
+func (s *bulkTestActivateAuditRepoStub) CreateRun(_ context.Context, run *AccountBulkTestActivateRun) (*AccountBulkTestActivateRun, error) {
+	copyRun := *run
+	copyRun.ID = 123
+	s.createdRun = &copyRun
+	return &copyRun, nil
+}
+
+func (s *bulkTestActivateAuditRepoStub) SaveResults(_ context.Context, results []*AccountBulkTestActivateResult) error {
+	for _, result := range results {
+		if result == nil {
+			continue
+		}
+		copyResult := *result
+		s.savedResults = append(s.savedResults, &copyResult)
+	}
+	return nil
+}
+
+func (s *bulkTestActivateAuditRepoStub) FinishRun(_ context.Context, run *AccountBulkTestActivateRun) error {
+	copyRun := *run
+	s.finishedRuns = append(s.finishedRuns, &copyRun)
+	return nil
 }
 
 type bulkTestActivateNotifierStub struct {

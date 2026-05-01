@@ -2,11 +2,13 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/gin-gonic/gin"
@@ -196,4 +198,125 @@ func TestAccountTestService_TestAccountConnection_OpenAICompactAPIKeyDefaultBase
 	require.NoError(t, err)
 	require.Equal(t, "https://api.openai.com/v1/responses/compact", upstream.lastReq.URL.String())
 	<-updateCalls
+}
+
+func TestAccountTestService_OpenAICompact401SuppressesPermanentErrorWhenContextRequestsProbeOnly(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	updateCalls := make(chan map[string]any, 1)
+	account := Account{
+		ID:          5,
+		Name:        "openai-compact-oauth",
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"access_token": "oauth-token",
+		},
+	}
+	repo := &compactStatusMutationRepo{
+		snapshotUpdateAccountRepo: snapshotUpdateAccountRepo{
+			stubOpenAIAccountRepo: stubOpenAIAccountRepo{accounts: []Account{account}},
+			updateExtraCalls:      updateCalls,
+		},
+	}
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusUnauthorized,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"error":"bad token"}`)),
+	}}
+	svc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+	}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/5/test", bytes.NewReader(nil))
+	c.Request = c.Request.WithContext(accountTestSuppressStatusMutation(c.Request.Context()))
+
+	err := svc.TestAccountConnection(c, account.ID, "gpt-5.4", "", AccountTestModeCompact)
+	require.Error(t, err)
+	require.Zero(t, repo.setErrorID)
+	require.Empty(t, repo.setErrorMsg)
+	require.Zero(t, repo.rateLimitedID)
+	require.Contains(t, rec.Body.String(), `"type":"error"`)
+	select {
+	case <-updateCalls:
+	case <-time.After(time.Second):
+		t.Fatal("expected compact probe snapshot update")
+	}
+}
+
+func TestAccountTestService_OpenAICompact429SuppressesRateLimitWhenContextRequestsProbeOnly(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	updateCalls := make(chan map[string]any, 1)
+	account := Account{
+		ID:          6,
+		Name:        "openai-compact-oauth",
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"access_token": "oauth-token",
+		},
+	}
+	repo := &compactStatusMutationRepo{
+		snapshotUpdateAccountRepo: snapshotUpdateAccountRepo{
+			stubOpenAIAccountRepo: stubOpenAIAccountRepo{accounts: []Account{account}},
+			updateExtraCalls:      updateCalls,
+		},
+	}
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusTooManyRequests,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"error":{"type":"usage_limit_reached","resets_at":1777283883}}`)),
+	}}
+	svc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+	}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/6/test", bytes.NewReader(nil))
+	c.Request = c.Request.WithContext(accountTestSuppressStatusMutation(c.Request.Context()))
+
+	err := svc.TestAccountConnection(c, account.ID, "gpt-5.4", "", AccountTestModeCompact)
+	require.Error(t, err)
+	require.Zero(t, repo.rateLimitedID)
+	require.Zero(t, repo.setErrorID)
+	require.Contains(t, rec.Body.String(), `"type":"error"`)
+	select {
+	case <-updateCalls:
+	case <-time.After(time.Second):
+		t.Fatal("expected compact probe snapshot update")
+	}
+}
+
+type compactStatusMutationRepo struct {
+	snapshotUpdateAccountRepo
+	setErrorID    int64
+	setErrorMsg   string
+	rateLimitedID int64
+}
+
+func (r *compactStatusMutationRepo) SetError(_ context.Context, id int64, errorMsg string) error {
+	r.setErrorID = id
+	r.setErrorMsg = errorMsg
+	return nil
+}
+
+func (r *compactStatusMutationRepo) SetRateLimited(_ context.Context, id int64, _ time.Time) error {
+	r.rateLimitedID = id
+	return nil
+}
+
+func (r *compactStatusMutationRepo) ClearError(_ context.Context, _ int64) error {
+	return nil
 }

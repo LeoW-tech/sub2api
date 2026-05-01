@@ -73,7 +73,7 @@ vi.mock("vue-i18n", async () => {
     useI18n: () => ({
       t: (key: string, params?: Record<string, number>) => {
         if (key === "admin.accounts.bulkTestActivateSummary") {
-          return `测试成功 ${params?.success ?? 0} 个，测试失败 ${params?.failed ?? 0} 个，新增启用 ${params?.activated ?? 0} 个，新增禁用 ${params?.deactivated ?? 0} 个`;
+          return `测试成功 ${params?.success ?? 0} 个，测试失败 ${params?.failed ?? 0} 个，新增启用 ${params?.activated ?? 0} 个；失败账号不会自动停用`;
         }
         const messages: Record<string, string> = {
           "common.confirm": "确认",
@@ -298,11 +298,11 @@ describe("AccountsView bulk test activate", () => {
       success: 1,
       failed: 2,
       activated: 1,
-      deactivated: 1,
+      deactivated: 0,
       success_ids: [1],
       failed_ids: [2, 3],
       activated_ids: [1],
-      deactivated_ids: [2],
+      deactivated_ids: [],
     });
 
     const wrapper = mountView();
@@ -313,12 +313,12 @@ describe("AccountsView bulk test activate", () => {
 
     expect(accountsRef.value).toEqual([
       { id: 1, name: "Account 1", status: "active", schedulable: false },
-      { id: 2, name: "Account 2", status: "inactive", schedulable: false },
+      { id: 2, name: "Account 2", status: "active", schedulable: false },
       { id: 3, name: "Account 3", status: "inactive", schedulable: true },
     ]);
     expect(setSelectedIdsMock).toHaveBeenCalledWith([2, 3]);
     expect(showErrorMock).toHaveBeenCalledWith(
-      "测试成功 1 个，测试失败 2 个，新增启用 1 个，新增禁用 1 个",
+      "测试成功 1 个，测试失败 2 个，新增启用 1 个；失败账号不会自动停用",
     );
   });
 
@@ -344,7 +344,7 @@ describe("AccountsView bulk test activate", () => {
     await flushPromises();
 
     expect(showSuccessMock).toHaveBeenCalledWith(
-      "测试成功 4 个，测试失败 0 个，新增启用 4 个，新增禁用 0 个",
+      "测试成功 4 个，测试失败 0 个，新增启用 4 个；失败账号不会自动停用",
     );
     expect(clearSelectionMock).toHaveBeenCalled();
     expect(setSelectedIdsMock).not.toHaveBeenCalled();

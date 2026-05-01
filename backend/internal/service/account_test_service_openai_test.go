@@ -272,6 +272,34 @@ func TestAccountTestService_OpenAI429WithoutResetSignalDoesNotMutateRuntimeState
 	require.Nil(t, account.RateLimitResetAt)
 }
 
+func TestAccountTestService_OpenAI429SuppressesRateLimitWhenContextRequestsProbeOnly(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, _ := newTestContext()
+	ctx.Request = ctx.Request.WithContext(accountTestSuppressStatusMutation(ctx.Request.Context()))
+
+	resp := newJSONResponse(http.StatusTooManyRequests, `{"error":{"type":"usage_limit_reached","message":"limit reached","resets_at":1777283883}}`)
+
+	repo := &openAIAccountTestRepo{}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
+	account := &Account{
+		ID:          82,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "test-token"},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	require.Error(t, err)
+	require.Zero(t, repo.rateLimitedID)
+	require.Zero(t, repo.clearedErrorID)
+	require.Zero(t, repo.setErrorID)
+	require.Equal(t, StatusActive, account.Status)
+	require.Nil(t, account.RateLimitResetAt)
+}
+
 func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx, _ := newTestContext()
@@ -296,5 +324,34 @@ func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
 	require.Contains(t, repo.setErrorMsg, "Authentication failed (401)")
 	require.Zero(t, repo.rateLimitedID)
 	require.Zero(t, repo.clearedErrorID)
+	require.Nil(t, account.RateLimitResetAt)
+}
+
+func TestAccountTestService_OpenAI401SuppressesPermanentErrorWhenContextRequestsProbeOnly(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, _ := newTestContext()
+	ctx.Request = ctx.Request.WithContext(accountTestSuppressStatusMutation(ctx.Request.Context()))
+
+	resp := newJSONResponse(http.StatusUnauthorized, `{"error":"bad token"}`)
+
+	repo := &openAIAccountTestRepo{}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
+	account := &Account{
+		ID:          81,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "test-token"},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	require.Error(t, err)
+	require.Zero(t, repo.setErrorID)
+	require.Empty(t, repo.setErrorMsg)
+	require.Zero(t, repo.rateLimitedID)
+	require.Zero(t, repo.clearedErrorID)
+	require.Equal(t, StatusActive, account.Status)
 	require.Nil(t, account.RateLimitResetAt)
 }

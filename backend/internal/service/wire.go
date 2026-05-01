@@ -354,8 +354,15 @@ func ProvideTelegramNotificationService(settingService *SettingService) *Telegra
 	return NewTelegramNotificationService(settingService)
 }
 
-func ProvideAccountBulkTestActivateService(accountRepo AccountRepository, accountTestSvc *AccountTestService, telegram *TelegramNotificationService, cfg *config.Config) *AccountBulkTestActivateService {
+func ProvideAccountBulkTestActivateService(
+	accountRepo AccountRepository,
+	accountTestSvc *AccountTestService,
+	telegram *TelegramNotificationService,
+	auditRepo AccountBulkTestActivateAuditRepository,
+	cfg *config.Config,
+) *AccountBulkTestActivateService {
 	svc := NewAccountBulkTestActivateService(accountRepo, accountTestSvc, telegram, cfg)
+	svc.auditRepo = auditRepo
 	svc.Start()
 	return svc
 }

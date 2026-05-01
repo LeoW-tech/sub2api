@@ -2947,7 +2947,7 @@ export default {
           "Partially completed: {success} succeeded, {failed} failed",
       },
       bulkTestActivateSummary:
-        "Test succeeded for {success} account(s), failed for {failed}, newly activated {activated}, newly deactivated {deactivated}",
+        "Test succeeded for {success} account(s), failed for {failed}, newly activated {activated}; failed accounts are not automatically deactivated",
       bulkTestActivateTimeout:
         "Request timed out. The bulk test may still be running in the background, so please refresh and check again shortly.",
       bulkEdit: {

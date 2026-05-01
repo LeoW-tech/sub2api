@@ -451,6 +451,7 @@ export async function bulkUpdate(
 }
 
 export interface BulkTestActivateResult {
+  run_id?: number;
   trigger: string;
   model_id: string;
   total: number;
@@ -462,6 +463,16 @@ export interface BulkTestActivateResult {
   failed_ids: number[];
   activated_ids: number[];
   deactivated_ids: number[];
+  results?: Array<{
+    account_id: number;
+    original_status: string;
+    status: string;
+    action: string;
+    attempts: number;
+    failure_category?: string;
+    error_message?: string;
+    latency_ms: number;
+  }>;
 }
 
 export async function bulkTestActivate(

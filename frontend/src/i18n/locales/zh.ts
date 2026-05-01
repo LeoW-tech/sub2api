@@ -2979,7 +2979,7 @@ export default {
         partialSuccess: "操作部分完成：{success} 成功，{failed} 失败",
       },
       bulkTestActivateSummary:
-        "测试成功 {success} 个，测试失败 {failed} 个，新增启用 {activated} 个，新增禁用 {deactivated} 个",
+        "测试成功 {success} 个，测试失败 {failed} 个，新增启用 {activated} 个；失败账号不会自动停用",
       bulkTestActivateTimeout:
         "请求超时，批量测试仍可能在后台继续执行，请稍后刷新查看结果。",
       bulkEdit: {
