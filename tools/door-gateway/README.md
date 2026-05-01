@@ -48,7 +48,8 @@ cp tools/door-gateway/doors.example.json ~/door-gateway.json
   "sources": [
     {
       "name": "nomad",
-      "url": "https://do02n.no-mad-sub.one/link/your-token?clash=3&extend=1"
+      "url": "https://do02n.no-mad-sub.one/link/your-token?clash=3&extend=1",
+      "key_strategy": "name"
     },
     {
       "name": "trojanflare",
@@ -65,6 +66,7 @@ cp tools/door-gateway/doors.example.json ~/door-gateway.json
   - `url`: 远端 Clash/Mihomo 订阅地址
   - `path`: 本地 YAML 路径。适合测试或本机已落盘配置；`path` 与 `url` 二选一
   - `enabled`: 可选，默认 `true`
+  - `key_strategy`: 可选，默认 `fingerprint`。设为 `name` 时按节点名称生成稳定 `door.key`，适合入口地址会轮换但节点名称稳定的订阅
 - `mihomo_binary`: 本机 Mihomo 内核路径
 - `worker_base_dir`: `door-gateway` 自动生成 worker 配置和日志的目录
 - `worker_bind_host`: Mihomo worker 监听地址，默认 `127.0.0.1`
@@ -81,11 +83,13 @@ cp tools/door-gateway/doors.example.json ~/door-gateway.json
 - 如果 Sub2API 运行在 Docker 中，且 `sub2api_export_host=host.docker.internal`，必须同时设置 `worker_bind_host=0.0.0.0`
 - 出于安全考虑，通常应继续保持 `controller_bind_host=127.0.0.1`
 
-`door-gateway` 会按 `source.name + 节点指纹(type/server/port/name)` 自动生成稳定 `door.key`，所以：
+`door-gateway` 默认会按 `source.name + 节点指纹(type/server/port/name)` 自动生成稳定 `door.key`，所以：
 
 - 同一订阅里节点内容不变时，`door.key` 保持稳定
 - 两条订阅里就算出现同名节点，也不会互相覆盖
 - 某个 source 被移除时，只会让这一组对应 doors 从 `/doors` 快照里消失
+
+如果订阅服务商会定期轮换节点内部地址，但节点名称保持稳定，可以给该 source 设置 `"key_strategy": "name"`，避免同一个节点在后续重启或重新导入 Sub2API 时变成新的代理记录。
 
 启动后，每扇门会拥有自己独立的 worker 目录、监听端口、控制端口和日志，不会去改你日常使用的 Clash Pro 通用门。
 

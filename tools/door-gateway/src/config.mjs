@@ -143,7 +143,7 @@ async function loadDoorsFromSources(sources, options) {
         continue
       }
 
-      const fingerprint = buildProxyFingerprint(proxy)
+      const fingerprint = buildProxyFingerprint(proxy, normalizedSource.keyStrategy)
       if (seenFingerprints.has(fingerprint)) {
         continue
       }
@@ -234,10 +234,19 @@ function normalizeSourceDefinition(source) {
 
   return {
     name: normalizedName,
+    keyStrategy: normalizeSourceKeyStrategy(source.key_strategy),
     enabled: source.enabled !== false,
     path: hasPath ? String(source.path).trim() : null,
     url: hasUrl ? String(source.url).trim() : null
   }
+}
+
+function normalizeSourceKeyStrategy(value) {
+  const normalized = String(value || 'fingerprint').trim().toLowerCase()
+  if (normalized === 'fingerprint' || normalized === 'name') {
+    return normalized
+  }
+  throw new Error(`source.key_strategy must be one of: fingerprint, name`)
 }
 
 function normalizeSourceName(value) {
@@ -275,7 +284,11 @@ export function parseSourceConfigText(text, label) {
   }
 }
 
-function buildProxyFingerprint(proxy) {
+function buildProxyFingerprint(proxy, strategy = 'fingerprint') {
+  if (strategy === 'name') {
+    return crypto.createHash('sha1').update(safeProxyName(proxy?.name)).digest('hex').slice(0, 12)
+  }
+
   const normalized = [
     String(proxy?.type || '').trim().toLowerCase(),
     String(proxy?.server || '').trim().toLowerCase(),

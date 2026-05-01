@@ -16,7 +16,8 @@
   "sources": [
     {
       "name": "nomad",
-      "url": "https://do02n.no-mad-sub.one/link/your-token?clash=3&extend=1"
+      "url": "https://do02n.no-mad-sub.one/link/your-token?clash=3&extend=1",
+      "key_strategy": "name"
     },
     {
       "name": "trojanflare",

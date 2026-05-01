@@ -370,6 +370,63 @@ test('startWorker closes parent log file descriptors after spawn', async (t) => 
   assert.deepEqual(closed, opened.map((item) => item.fd))
 })
 
+test('startWorker seeds Country.mmdb from existing worker directories', async (t) => {
+  const workerBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'door-runtime-mmdb-'))
+  t.after(() => {
+    fs.rmSync(workerBaseDir, { recursive: true, force: true })
+  })
+
+  const existingWorkerDir = path.join(workerBaseDir, 'door-existing')
+  const newWorkerDir = path.join(workerBaseDir, 'door-new')
+  fs.mkdirSync(existingWorkerDir, { recursive: true })
+  fs.writeFileSync(path.join(existingWorkerDir, 'Country.mmdb'), 'mmdb-data', 'utf8')
+
+  const child = {
+    pid: 6001,
+    exitCode: null,
+    once() {},
+    kill() {
+      this.exitCode = 0
+    }
+  }
+
+  const runtime = new DoorRuntime(
+    {
+      mihomoBinary: '/usr/bin/fake-mihomo',
+      workerBaseDir,
+      sub2apiExportHost: 'host.docker.internal',
+      healthcheckIntervalMs: 60_000,
+      doors: []
+    },
+    {
+      startupTimeoutMs: 10,
+      spawnImpl() {
+        return child
+      },
+      probePort: async () => ({ ok: true })
+    }
+  )
+
+  await runtime.startWorker(withDoorCredential({
+    key: 'door-new',
+    name: 'New Door',
+    protocol: 'http',
+    listen_host: '127.0.0.1',
+    listen_port: 58080,
+    socks_port: 59080,
+    controller_host: '127.0.0.1',
+    controller_port: 60080,
+    worker_dir: newWorkerDir,
+    enabled: true,
+    upstream_proxy: { name: 'New Door', type: 'http', server: '127.0.0.1', port: 8080 }
+  }))
+
+  assert.equal(
+    fs.readFileSync(path.join(newWorkerDir, 'Country.mmdb'), 'utf8'),
+    'mmdb-data'
+  )
+})
+
 test('runHealthUpdate skips overlapping health checks', async () => {
   const runtime = new DoorRuntime({
     sub2apiExportHost: 'host.docker.internal',

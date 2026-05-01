@@ -46,6 +46,49 @@ function defaultSpawnImpl(command, args, options) {
   return spawn(command, args, options)
 }
 
+function hasUsableFile(filePath) {
+  try {
+    const stat = fs.statSync(filePath)
+    return stat.isFile() && stat.size > 0
+  } catch {
+    return false
+  }
+}
+
+function seedCountryMmdb(workerBaseDir, workerDir) {
+  const targetPath = path.join(workerDir, 'Country.mmdb')
+  if (hasUsableFile(targetPath)) {
+    return false
+  }
+
+  let entries
+  try {
+    entries = fs.readdirSync(workerBaseDir, { withFileTypes: true })
+  } catch {
+    return false
+  }
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue
+    }
+
+    const candidatePath = path.join(workerBaseDir, entry.name, 'Country.mmdb')
+    if (candidatePath === targetPath || !hasUsableFile(candidatePath)) {
+      continue
+    }
+
+    try {
+      fs.copyFileSync(candidatePath, targetPath)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  return false
+}
+
 function waitForExit(child, timeoutMs = 3000) {
   return new Promise((resolve) => {
     if (!child || child.exitCode !== null) {
@@ -220,6 +263,7 @@ export class DoorRuntime {
 
   async startWorker(door) {
     fs.mkdirSync(door.worker_dir, { recursive: true })
+    seedCountryMmdb(this.config.workerBaseDir, door.worker_dir)
 
     const configPath = path.join(door.worker_dir, 'config.yaml')
     fs.writeFileSync(configPath, buildWorkerConfig(door), 'utf8')

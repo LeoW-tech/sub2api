@@ -216,6 +216,63 @@ test('loadConfigFromPath aggregates doors from multiple source files with stable
   assert.ok(sharedNodeDoors.some((door) => door.key.startsWith('trojanflare-')))
 })
 
+test('loadConfigFromPath supports name-based source keys for rotating subscription nodes', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'door-gateway-name-keys-'))
+  const sourceConfigPath = path.join(tempDir, 'source.yaml')
+  const gatewayConfigPath = path.join(tempDir, 'doors.json')
+
+  const writeSource = (serverSuffix) => fs.writeFileSync(
+    sourceConfigPath,
+    [
+      'proxies:',
+      '  - name: 🇭🇰 香港Z01',
+      '    type: ss',
+      `    server: hk01-${serverSuffix}.example.com`,
+      '    port: 443',
+      '    cipher: aes-256-gcm',
+      '    password: source-secret',
+      '  - name: 🇯🇵 日本Z01 | IEPL',
+      '    type: vmess',
+      `    server: jp01-${serverSuffix}.example.com`,
+      '    port: 8443',
+      '    uuid: source-uuid',
+      '    alterId: 0',
+      '    cipher: auto',
+      ''
+    ].join('\n'),
+    'utf8'
+  )
+
+  writeSource('a')
+  fs.writeFileSync(
+    gatewayConfigPath,
+    JSON.stringify(
+      {
+        api: { host: '127.0.0.1', port: 19080 },
+        mihomo_binary: '/Applications/Clash Verge.app/Contents/MacOS/verge-mihomo',
+        worker_base_dir: path.join(tempDir, 'workers'),
+        sources: [{ name: 'nomad-foxmail', path: './source.yaml', key_strategy: 'name' }]
+      },
+      null,
+      2
+    ),
+    'utf8'
+  )
+
+  const firstLoad = await loadConfigFromPath(gatewayConfigPath)
+  writeSource('b')
+  const secondLoad = await loadConfigFromPath(gatewayConfigPath)
+
+  assert.deepEqual(
+    firstLoad.doors.map((door) => door.key),
+    secondLoad.doors.map((door) => door.key)
+  )
+  assert.equal(new Set(firstLoad.doors.map((door) => door.key)).size, 2)
+  assert.ok(firstLoad.doors.every((door) => door.key.startsWith('nomad-foxmail-')))
+  assert.equal(firstLoad.doors[0].upstream_proxy.server, 'hk01-a.example.com')
+  assert.equal(secondLoad.doors[0].upstream_proxy.server, 'hk01-b.example.com')
+})
+
 test('loadConfigFromPath fetches source configs from url and skips disabled sources', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'door-gateway-remote-source-'))
   const disabledSourcePath = path.join(tempDir, 'disabled.yaml')
@@ -441,6 +498,47 @@ test('loadConfigFromPath validates startup timeout config', async () => {
   await assert.rejects(
     loadConfigFromPath(gatewayConfigPath),
     /config.startup_timeout_ms must be a positive integer/
+  )
+})
+
+test('loadConfigFromPath validates source key strategy config', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'door-gateway-key-strategy-'))
+  const sourceConfigPath = path.join(tempDir, 'source.yaml')
+  const gatewayConfigPath = path.join(tempDir, 'doors.json')
+
+  fs.writeFileSync(
+    sourceConfigPath,
+    [
+      'proxies:',
+      '  - name: Strategy Door',
+      '    type: ss',
+      '    server: strategy.example.com',
+      '    port: 443',
+      '    cipher: aes-256-gcm',
+      '    password: strategy-secret',
+      ''
+    ].join('\n'),
+    'utf8'
+  )
+
+  fs.writeFileSync(
+    gatewayConfigPath,
+    JSON.stringify(
+      {
+        api: { host: '127.0.0.1', port: 19080 },
+        mihomo_binary: '/Applications/Clash Verge.app/Contents/MacOS/verge-mihomo',
+        worker_base_dir: path.join(tempDir, 'workers'),
+        sources: [{ name: 'invalid', path: './source.yaml', key_strategy: 'server' }]
+      },
+      null,
+      2
+    ),
+    'utf8'
+  )
+
+  await assert.rejects(
+    loadConfigFromPath(gatewayConfigPath),
+    /source.key_strategy must be one of: fingerprint, name/
   )
 })
 
