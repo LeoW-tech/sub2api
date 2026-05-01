@@ -112,15 +112,35 @@ async function resolveDoors(parsed, options) {
     throw new Error('config.doors or config.sources must provide at least one door')
   }
 
+  const excludedDoorKeys = normalizeExcludedDoorKeys(parsed.excluded_door_keys)
+  const activeDoors = resolvedDoors.filter((door) => !excludedDoorKeys.has(door.key))
+  if (activeDoors.length === 0) {
+    throw new Error('all resolved doors are excluded')
+  }
+
   const keySet = new Set()
-  for (const door of resolvedDoors) {
+  for (const door of activeDoors) {
     if (keySet.has(door.key)) {
       throw new Error(`duplicate door key: ${door.key}`)
     }
     keySet.add(door.key)
   }
 
-  return resolvedDoors
+  return activeDoors
+}
+
+function normalizeExcludedDoorKeys(value) {
+  if (value === undefined || value === null) {
+    return new Set()
+  }
+  if (!Array.isArray(value)) {
+    throw new Error('config.excluded_door_keys must be an array')
+  }
+  return new Set(
+    value
+      .map((item) => String(item || '').trim())
+      .filter(Boolean)
+  )
 }
 
 async function loadDoorsFromSources(sources, options) {

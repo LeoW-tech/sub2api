@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import http from 'node:http'
+import crypto from 'node:crypto'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
@@ -438,6 +439,104 @@ test('loadConfigFromPath preserves legacy doors and appends generated source doo
   assert.match(config.doors[2].key, /^extra-/)
 })
 
+test('loadConfigFromPath excludes configured door keys without shifting remaining ports', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'door-gateway-excluded-doors-'))
+  const legacySourcePath = path.join(tempDir, 'legacy.yaml')
+  const extraSourcePath = path.join(tempDir, 'extra.yaml')
+  const gatewayConfigPath = path.join(tempDir, 'doors.json')
+  const extraSgKey = `extra-${crypto.createHash('sha1').update('Extra SG').digest('hex').slice(0, 12)}`
+  const extraUsKey = `extra-${crypto.createHash('sha1').update('Extra US').digest('hex').slice(0, 12)}`
+
+  fs.writeFileSync(
+    legacySourcePath,
+    [
+      'proxies:',
+      '  - name: Legacy JP',
+      '    type: ss',
+      '    server: legacy-jp.example.com',
+      '    port: 443',
+      '    cipher: aes-256-gcm',
+      '    password: legacy-jp-secret',
+      '  - name: Legacy HK',
+      '    type: ss',
+      '    server: legacy-hk.example.com',
+      '    port: 443',
+      '    cipher: aes-256-gcm',
+      '    password: legacy-hk-secret',
+      ''
+    ].join('\n'),
+    'utf8'
+  )
+
+  fs.writeFileSync(
+    extraSourcePath,
+    [
+      'proxies:',
+      '  - name: Extra SG',
+      '    type: trojan',
+      '    server: extra-sg.example.com',
+      '    port: 443',
+      '    password: extra-sg-secret',
+      '  - name: Extra US',
+      '    type: trojan',
+      '    server: extra-us.example.com',
+      '    port: 443',
+      '    password: extra-us-secret',
+      ''
+    ].join('\n'),
+    'utf8'
+  )
+
+  fs.writeFileSync(
+    gatewayConfigPath,
+    JSON.stringify(
+      {
+        api: { host: '127.0.0.1', port: 19080 },
+        mihomo_binary: '/Applications/Clash Verge.app/Contents/MacOS/verge-mihomo',
+        source_config_path: './legacy.yaml',
+        worker_base_dir: path.join(tempDir, 'workers'),
+        worker_port_start: 58080,
+        worker_socks_port_start: 59080,
+        controller_port_start: 60080,
+        excluded_door_keys: ['door-legacy-hk', extraSgKey],
+        doors: [
+          {
+            key: 'door-legacy-jp',
+            name: 'Legacy JP',
+            proxy_name: 'Legacy JP'
+          },
+          {
+            key: 'door-legacy-hk',
+            name: 'Legacy HK',
+            proxy_name: 'Legacy HK'
+          }
+        ],
+        sources: [
+          {
+            name: 'extra',
+            path: './extra.yaml',
+            key_strategy: 'name'
+          }
+        ]
+      },
+      null,
+      2
+    ),
+    'utf8'
+  )
+
+  const config = await loadConfigFromPath(gatewayConfigPath)
+
+  assert.deepEqual(
+    config.doors.map((door) => door.key),
+    ['door-legacy-jp', extraUsKey]
+  )
+  assert.deepEqual(
+    config.doors.map((door) => door.listen_port),
+    [58080, 58083]
+  )
+})
+
 test('loadConfigFromPath validates startup timeout config', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'door-gateway-startup-timeout-'))
   const sourceConfigPath = path.join(tempDir, 'source.yaml')
@@ -498,6 +597,61 @@ test('loadConfigFromPath validates startup timeout config', async () => {
   await assert.rejects(
     loadConfigFromPath(gatewayConfigPath),
     /config.startup_timeout_ms must be a positive integer/
+  )
+})
+
+test('loadConfigFromPath validates excluded door keys config', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'door-gateway-invalid-exclusions-'))
+  const sourceConfigPath = path.join(tempDir, 'source.yaml')
+  const gatewayConfigPath = path.join(tempDir, 'doors.json')
+
+  fs.writeFileSync(
+    sourceConfigPath,
+    [
+      'proxies:',
+      '  - name: Excluded Door',
+      '    type: ss',
+      '    server: excluded.example.com',
+      '    port: 443',
+      '    cipher: aes-256-gcm',
+      '    password: excluded-secret',
+      ''
+    ].join('\n'),
+    'utf8'
+  )
+
+  const baseConfig = {
+    api: { host: '127.0.0.1', port: 19080 },
+    mihomo_binary: '/Applications/Clash Verge.app/Contents/MacOS/verge-mihomo',
+    source_config_path: './source.yaml',
+    worker_base_dir: path.join(tempDir, 'workers'),
+    doors: [
+      {
+        key: 'door-excluded',
+        name: 'Excluded Door',
+        proxy_name: 'Excluded Door'
+      }
+    ]
+  }
+
+  fs.writeFileSync(
+    gatewayConfigPath,
+    JSON.stringify({ ...baseConfig, excluded_door_keys: 'door-excluded' }, null, 2),
+    'utf8'
+  )
+  await assert.rejects(
+    loadConfigFromPath(gatewayConfigPath),
+    /config.excluded_door_keys must be an array/
+  )
+
+  fs.writeFileSync(
+    gatewayConfigPath,
+    JSON.stringify({ ...baseConfig, excluded_door_keys: ['door-excluded'] }, null, 2),
+    'utf8'
+  )
+  await assert.rejects(
+    loadConfigFromPath(gatewayConfigPath),
+    /all resolved doors are excluded/
   )
 })
 
