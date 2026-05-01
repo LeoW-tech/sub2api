@@ -58,10 +58,25 @@ export async function loadConfigFromPath(configPath) {
     api: parsed.api,
     sub2apiExportHost: parsed.sub2api_export_host || 'host.docker.internal',
     healthcheckIntervalMs: parsed.healthcheck_interval_ms || 30000,
+    startupTimeoutMs: parsePositiveInteger(
+      parsed.startup_timeout_ms,
+      'config.startup_timeout_ms',
+      15000
+    ),
     mihomoBinary: path.resolve(configDir, parsed.mihomo_binary),
     workerBaseDir,
     doors
   }
+}
+
+function parsePositiveInteger(value, label, defaultValue) {
+  if (value === undefined || value === null) {
+    return defaultValue
+  }
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`${label} must be a positive integer`)
+  }
+  return value
 }
 
 async function resolveDoors(parsed, options) {

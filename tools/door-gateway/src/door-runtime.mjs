@@ -49,7 +49,7 @@ function defaultSpawnImpl(command, args, options) {
 function waitForExit(child, timeoutMs = 3000) {
   return new Promise((resolve) => {
     if (!child || child.exitCode !== null) {
-      resolve()
+      resolve(true)
       return
     }
 
@@ -57,13 +57,31 @@ function waitForExit(child, timeoutMs = 3000) {
     const finish = () => {
       if (!settled) {
         settled = true
-        resolve()
+        resolve(true)
       }
     }
 
     child.once('exit', finish)
-    setTimeout(finish, timeoutMs).unref()
+    setTimeout(() => {
+      if (!settled) {
+        settled = true
+        resolve(false)
+      }
+    }, timeoutMs)
   })
+}
+
+async function terminateChild(child, timeoutMs = 3000) {
+  if (!child || child.exitCode !== null) {
+    return
+  }
+
+  child.kill('SIGTERM')
+  const exited = await waitForExit(child, timeoutMs)
+  if (!exited && child.exitCode === null) {
+    child.kill('SIGKILL')
+    await waitForExit(child, timeoutMs)
+  }
 }
 
 export class DoorRuntime {
@@ -71,12 +89,15 @@ export class DoorRuntime {
     this.config = config
     this.states = new Map()
     this.healthTimer = null
+    this.healthUpdateInFlight = false
     this.workers = new Map()
     this.restartLocks = new Set()
     this.isStopping = false
     this.spawnImpl = dependencies.spawnImpl || defaultSpawnImpl
     this.probePort = dependencies.probePort || probePort
-    this.startupTimeoutMs = dependencies.startupTimeoutMs || 15000
+    this.fsImpl = dependencies.fsImpl || fs
+    this.startupTimeoutMs = dependencies.startupTimeoutMs ?? config.startupTimeoutMs ?? 15000
+    this.shutdownTimeoutMs = dependencies.shutdownTimeoutMs ?? 3000
   }
 
   buildExportPayload() {
@@ -112,7 +133,21 @@ export class DoorRuntime {
     }))
   }
 
-  async updateHealthOnce() {
+  async runHealthUpdate(options = {}) {
+    if (this.healthUpdateInFlight) {
+      return
+    }
+
+    this.healthUpdateInFlight = true
+    try {
+      await this.updateHealthOnce(options)
+    } finally {
+      this.healthUpdateInFlight = false
+    }
+  }
+
+  async updateHealthOnce(options = {}) {
+    const recoverMissingWorkers = options.recoverMissingWorkers !== false
     for (const door of this.config.doors) {
       if (door.enabled === false) {
         this.states.set(door.key, {
@@ -126,7 +161,19 @@ export class DoorRuntime {
 
       const child = this.workers.get(door.key)
       if ((!child || child.exitCode !== null) && !this.isStopping) {
-        await this.ensureWorkerRunning(door)
+        if (recoverMissingWorkers) {
+          await this.ensureWorkerRunning(door)
+        } else {
+          if (!this.states.has(door.key)) {
+            this.states.set(door.key, {
+              online: false,
+              last_checked_at: nowISO(),
+              last_error: 'worker not running',
+              pid: null
+            })
+          }
+          continue
+        }
       }
 
       const result = await this.probePort(door.probe_host || door.listen_host, door.listen_port)
@@ -150,12 +197,22 @@ export class DoorRuntime {
     for (const door of this.config.doors) {
       if (door.enabled === false) continue
 
-      await this.startWorker(door)
+      try {
+        await this.startWorker(door)
+      } catch (error) {
+        console.error(`[door-gateway] worker failed to start: ${door.key}`, error)
+        this.states.set(door.key, {
+          online: false,
+          last_checked_at: nowISO(),
+          last_error: error.message,
+          pid: null
+        })
+      }
     }
 
-    await this.updateHealthOnce()
+    await this.runHealthUpdate({ recoverMissingWorkers: false })
     this.healthTimer = setInterval(() => {
-      this.updateHealthOnce().catch((error) => {
+      this.runHealthUpdate().catch((error) => {
         console.error('[door-gateway] health update failed', error)
       })
     }, this.config.healthcheckIntervalMs)
@@ -169,26 +226,32 @@ export class DoorRuntime {
 
     const stdoutPath = path.join(door.worker_dir, 'stdout.log')
     const stderrPath = path.join(door.worker_dir, 'stderr.log')
-    const stdout = fs.openSync(stdoutPath, 'a')
-    const stderr = fs.openSync(stderrPath, 'a')
+    const stdout = this.fsImpl.openSync(stdoutPath, 'a')
+    const stderr = this.fsImpl.openSync(stderrPath, 'a')
 
-    const child = this.spawnImpl(
-      this.config.mihomoBinary,
-      [
-        '-d',
-        door.worker_dir,
-        '-f',
-        configPath,
-        '-ext-ctl',
-        `${door.controller_host || '127.0.0.1'}:${door.controller_port}`,
-        '-secret',
-        door.secret
-      ],
-      {
-        detached: false,
-        stdio: ['ignore', stdout, stderr]
-      }
-    )
+    let child
+    try {
+      child = this.spawnImpl(
+        this.config.mihomoBinary,
+        [
+          '-d',
+          door.worker_dir,
+          '-f',
+          configPath,
+          '-ext-ctl',
+          `${door.controller_host || '127.0.0.1'}:${door.controller_port}`,
+          '-secret',
+          door.secret
+        ],
+        {
+          detached: false,
+          stdio: ['ignore', stdout, stderr]
+        }
+      )
+    } finally {
+      this.fsImpl.closeSync(stdout)
+      this.fsImpl.closeSync(stderr)
+    }
 
     child.once('exit', (code, signal) => {
       const current = this.workers.get(door.key)
@@ -220,7 +283,7 @@ export class DoorRuntime {
         pid: child.pid || null
       })
     } catch (error) {
-      child.kill('SIGTERM')
+      await terminateChild(child, this.shutdownTimeoutMs)
       this.workers.delete(door.key)
       throw error
     }
@@ -285,8 +348,7 @@ export class DoorRuntime {
     try {
       const current = this.workers.get(door.key)
       if (current && current.exitCode === null) {
-        current.kill('SIGTERM')
-        await waitForExit(current)
+        await terminateChild(current, this.shutdownTimeoutMs)
       }
 
       this.workers.delete(door.key)

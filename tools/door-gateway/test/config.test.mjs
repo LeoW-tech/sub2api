@@ -381,6 +381,69 @@ test('loadConfigFromPath preserves legacy doors and appends generated source doo
   assert.match(config.doors[2].key, /^extra-/)
 })
 
+test('loadConfigFromPath validates startup timeout config', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'door-gateway-startup-timeout-'))
+  const sourceConfigPath = path.join(tempDir, 'source.yaml')
+  const gatewayConfigPath = path.join(tempDir, 'doors.json')
+
+  fs.writeFileSync(
+    sourceConfigPath,
+    [
+      'proxies:',
+      '  - name: Timeout Door',
+      '    type: ss',
+      '    server: timeout.example.com',
+      '    port: 443',
+      '    cipher: aes-256-gcm',
+      '    password: timeout-secret',
+      ''
+    ].join('\n'),
+    'utf8'
+  )
+
+  const baseConfig = {
+    api: { host: '127.0.0.1', port: 19080 },
+    mihomo_binary: '/Applications/Clash Verge.app/Contents/MacOS/verge-mihomo',
+    source_config_path: './source.yaml',
+    worker_base_dir: path.join(tempDir, 'workers'),
+    doors: [
+      {
+        key: 'door-timeout',
+        name: 'Timeout Door',
+        proxy_name: 'Timeout Door'
+      }
+    ]
+  }
+
+  fs.writeFileSync(
+    gatewayConfigPath,
+    JSON.stringify({ ...baseConfig, startup_timeout_ms: 45000 }, null, 2),
+    'utf8'
+  )
+  const validConfig = await loadConfigFromPath(gatewayConfigPath)
+  assert.equal(validConfig.startupTimeoutMs, 45000)
+
+  fs.writeFileSync(
+    gatewayConfigPath,
+    JSON.stringify({ ...baseConfig, startup_timeout_ms: -1 }, null, 2),
+    'utf8'
+  )
+  await assert.rejects(
+    loadConfigFromPath(gatewayConfigPath),
+    /config.startup_timeout_ms must be a positive integer/
+  )
+
+  fs.writeFileSync(
+    gatewayConfigPath,
+    JSON.stringify({ ...baseConfig, startup_timeout_ms: '45000' }, null, 2),
+    'utf8'
+  )
+  await assert.rejects(
+    loadConfigFromPath(gatewayConfigPath),
+    /config.startup_timeout_ms must be a positive integer/
+  )
+})
+
 test('buildWorkerConfig emits a single-proxy Mihomo config for one door', () => {
   const configText = buildWorkerConfig({
     name: '🇭🇰 香港W10 | IEPL',

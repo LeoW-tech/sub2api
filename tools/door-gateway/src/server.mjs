@@ -10,8 +10,6 @@ function sendJSON(res, statusCode, payload) {
 const config = await loadConfig()
 const runtime = new DoorRuntime(config)
 
-await runtime.start()
-
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || '127.0.0.1'}`)
 
@@ -50,6 +48,10 @@ server.listen(config.api.port, config.api.host, () => {
   console.log(
     `[door-gateway] api listening on http://${config.api.host}:${config.api.port} (config: ${config.configPath})`
   )
+})
+
+runtime.start().catch((error) => {
+  console.error('[door-gateway] startup failed', error)
 })
 
 const shutdown = async () => {
