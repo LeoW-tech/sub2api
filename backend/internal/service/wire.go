@@ -368,9 +368,7 @@ func ProvideAccountBulkTestActivateService(
 }
 
 func ProvideProxyNetworkMonitorService(adminService AdminService, proxyRepo ProxyRepository, telegram *TelegramNotificationService) *ProxyNetworkMonitorService {
-	svc := NewProxyNetworkMonitorService(adminService, proxyRepo, telegram)
-	svc.Start()
-	return svc
+	return NewProxyNetworkMonitorService(adminService, proxyRepo, telegram)
 }
 
 func ProvideAccountInitialProbeService(

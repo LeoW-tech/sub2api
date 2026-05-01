@@ -666,6 +666,19 @@ func TestLoadDefaultUsageCleanupConfig(t *testing.T) {
 	}
 }
 
+func TestLoadDefaultProxyNetworkMonitorConfig(t *testing.T) {
+	resetViperWithJWTSecret(t)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+
+	if cfg.ProxyNetworkMonitor.Enabled {
+		t.Fatalf("ProxyNetworkMonitor.Enabled = true, want false")
+	}
+}
+
 func TestValidateUsageCleanupConfigEnabled(t *testing.T) {
 	resetViperWithJWTSecret(t)
 

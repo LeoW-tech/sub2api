@@ -279,3 +279,29 @@ func TestProxyNetworkMonitorService_NotifySummary_SkipsWhenPausedOfflineCountFai
 
 	require.Equal(t, 0, notifier.callsCount())
 }
+
+func TestProvideProxyNetworkMonitorService_DoesNotAutoStart(t *testing.T) {
+	accountRepo := &proxyNetworkAccountRepoStub{}
+	proxyRepo := &proxyNetworkMonitorProxyRepoStub{
+		proxies: map[int64]*Proxy{
+			1: {ID: 1, Name: "proxy-1", Protocol: "http", Host: "127.0.0.1", Port: 8081},
+		},
+	}
+	adminSvc := &adminServiceImpl{
+		accountRepo: accountRepo,
+		proxyRepo:   proxyRepo,
+		proxyProber: &proxyNetworkMonitorProberStub{},
+	}
+
+	svc := ProvideProxyNetworkMonitorService(adminSvc, proxyRepo, nil)
+	require.NotNil(t, svc)
+	t.Cleanup(func() {
+		svc.Stop()
+	})
+
+	time.Sleep(50 * time.Millisecond)
+	require.Nil(t, svc.LastSummary(), "provider 不应自动启动网络扫描任务")
+	require.Empty(t, proxyRepo.updated, "provider 不应在构造时触发代理状态更新")
+	require.Empty(t, accountRepo.resumedProxyIDs, "provider 不应在构造时触发账号恢复")
+	require.Empty(t, accountRepo.pausedProxyIDs, "provider 不应在构造时触发账号暂停")
+}
