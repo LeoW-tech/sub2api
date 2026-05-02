@@ -68,6 +68,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { adminAPI } from '@/api/admin'
 import { useClipboard } from '@/composables/useClipboard'
 import { useAppStore } from '@/stores'
+import { useAuthStore } from '@/stores/auth'
 import { extractApiErrorMessage } from '@/utils/apiError'
 
 const route = useRoute()
@@ -75,6 +76,7 @@ const router = useRouter()
 const { t } = useI18n()
 const { copyToClipboard } = useClipboard()
 const appStore = useAppStore()
+const authStore = useAuthStore()
 const completingOpenAI = ref(false)
 
 const code = computed(() => (route.query.code as string) || '')
@@ -111,7 +113,9 @@ onMounted(async () => {
       state: state.value
     })
     appStore.showSuccess(t('auth.oauth.openaiCompleteSuccess'))
-    await router.replace('/admin/accounts')
+    if (authStore.isAuthenticated) {
+      await router.replace('/admin/accounts')
+    }
   } catch (err) {
     appStore.showError(
       extractApiErrorMessage(err, t('auth.oauth.openaiCompleteFailed'))

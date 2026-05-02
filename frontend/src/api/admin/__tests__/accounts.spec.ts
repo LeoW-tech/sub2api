@@ -86,11 +86,12 @@ describe("admin accounts api", () => {
     });
 
     expect(postMock).toHaveBeenCalledWith(
-      "/admin/openai/complete-pending-create",
+      "/auth/openai/complete-pending-create",
       {
         code: "oauth-code",
         state: "oauth-state",
       },
+      { skipAuthRedirect: true },
     );
     expect(account).toEqual({ id: 10, name: "OpenAI Plus" });
   });

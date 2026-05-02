@@ -271,6 +271,12 @@ func TestBackendModeAuthGuard(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
+			name:       "enabled_allows_openai_pending_create_completion",
+			enabled:    "true",
+			path:       "/api/v1/auth/openai/complete-pending-create",
+			wantStatus: http.StatusOK,
+		},
+		{
 			name:       "enabled_allows_provider_bind_login",
 			enabled:    "true",
 			path:       "/api/v1/auth/oauth/oidc/bind-login",

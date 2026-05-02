@@ -387,8 +387,9 @@ export async function completeOpenAIPendingCreate(
   payload: { code: string; state: string },
 ): Promise<Account> {
   const { data } = await apiClient.post<Account>(
-    "/admin/openai/complete-pending-create",
+    "/auth/openai/complete-pending-create",
     payload,
+    { skipAuthRedirect: true },
   );
   return data;
 }

@@ -7,6 +7,16 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResp
 import type { ApiResponse } from '@/types'
 import { getLocale } from '@/i18n'
 
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    skipAuthRedirect?: boolean
+  }
+
+  interface InternalAxiosRequestConfig {
+    skipAuthRedirect?: boolean
+  }
+}
+
 // ==================== Axios Instance Configuration ====================
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
@@ -121,6 +131,14 @@ apiClient.interceptors.response.use(
 
       // Validate `data` shape to avoid HTML error pages breaking our error handling.
       const apiData = (typeof data === 'object' && data !== null ? data : {}) as Record<string, any>
+      const structuredError = {
+        status,
+        code: apiData.code,
+        reason: apiData.reason,
+        error: apiData.error,
+        message: apiData.message || apiData.detail || error.message,
+        metadata: apiData.metadata,
+      }
 
       // Ops monitoring disabled: treat as feature-flagged 404, and proactively redirect away
       // from ops pages to avoid broken UI states.
@@ -151,6 +169,10 @@ apiClient.interceptors.response.use(
       // 401: Try to refresh the token if we have a refresh token
       // This handles TOKEN_EXPIRED, INVALID_TOKEN, TOKEN_REVOKED, etc.
       if (status === 401 && !originalRequest._retry) {
+        if (originalRequest.skipAuthRedirect) {
+          return Promise.reject(structuredError)
+        }
+
         const refreshToken = localStorage.getItem('refresh_token')
         const isAuthEndpoint =
           url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/refresh')
@@ -268,14 +290,7 @@ apiClient.interceptors.response.use(
       }
 
       // Return structured error
-      return Promise.reject({
-        status,
-        code: apiData.code,
-        reason: apiData.reason,
-        error: apiData.error,
-        message: apiData.message || apiData.detail || error.message,
-        metadata: apiData.metadata,
-      })
+      return Promise.reject(structuredError)
     }
 
     // Timeout / network error

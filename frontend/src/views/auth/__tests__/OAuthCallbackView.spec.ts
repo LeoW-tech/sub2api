@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import OAuthCallbackView from '@/views/auth/OAuthCallbackView.vue'
 
-const { routeState, replaceMock, showErrorMock, showSuccessMock, copyToClipboardMock, completeOpenAIPendingCreateMock } = vi.hoisted(() => ({
+const { routeState, replaceMock, showErrorMock, showSuccessMock, copyToClipboardMock, completeOpenAIPendingCreateMock, authState } = vi.hoisted(() => ({
   routeState: {
     query: {} as Record<string, unknown>,
   },
@@ -11,6 +11,9 @@ const { routeState, replaceMock, showErrorMock, showSuccessMock, copyToClipboard
   showSuccessMock: vi.fn(),
   copyToClipboardMock: vi.fn(),
   completeOpenAIPendingCreateMock: vi.fn(),
+  authState: {
+    isAuthenticated: true,
+  },
 }))
 
 vi.mock('vue-router', () => ({
@@ -31,6 +34,10 @@ vi.mock('@/stores', () => ({
     showError: (...args: any[]) => showErrorMock(...args),
     showSuccess: (...args: any[]) => showSuccessMock(...args),
   }),
+}))
+
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: () => authState,
 }))
 
 vi.mock('@/composables/useClipboard', () => ({
@@ -55,6 +62,7 @@ describe('OAuthCallbackView', () => {
     showSuccessMock.mockReset()
     copyToClipboardMock.mockReset()
     completeOpenAIPendingCreateMock.mockReset()
+    authState.isAuthenticated = true
   })
 
   it('renders localized callback copy actions', () => {
@@ -101,6 +109,27 @@ describe('OAuthCallbackView', () => {
     })
     expect(showSuccessMock).toHaveBeenCalled()
     expect(replaceMock).toHaveBeenCalledWith('/admin/accounts')
+  })
+
+  it('keeps the success callback visible when the current browser is not logged into admin', async () => {
+    authState.isAuthenticated = false
+    routeState.query = {
+      admin_oauth_provider: 'openai',
+      code: 'oauth-code',
+      state: 'oauth-state',
+    }
+    completeOpenAIPendingCreateMock.mockResolvedValueOnce({ id: 10 })
+
+    const wrapper = mount(OAuthCallbackView)
+    await flushPromises()
+
+    expect(completeOpenAIPendingCreateMock).toHaveBeenCalledWith({
+      code: 'oauth-code',
+      state: 'oauth-state',
+    })
+    expect(showSuccessMock).toHaveBeenCalled()
+    expect(replaceMock).not.toHaveBeenCalled()
+    expect(wrapper.find('input[value="oauth-code"]').exists()).toBe(true)
   })
 
   it('keeps the manual copy fallback visible when OpenAI pending completion fails', async () => {

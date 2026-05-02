@@ -104,6 +104,12 @@ func RegisterAuthRoutes(
 			}),
 			h.Auth.BindPendingOAuthLogin,
 		)
+		auth.POST("/openai/complete-pending-create",
+			rateLimiter.LimitWithOptions("openai-complete-pending-create", 20, time.Minute, middleware.RateLimitOptions{
+				FailureMode: middleware.RateLimitFailClose,
+			}),
+			h.Admin.OpenAIOAuth.CompletePendingCreate,
+		)
 		auth.POST("/oauth/linuxdo/complete-registration",
 			rateLimiter.LimitWithOptions("oauth-linuxdo-complete", 10, time.Minute, middleware.RateLimitOptions{
 				FailureMode: middleware.RateLimitFailClose,

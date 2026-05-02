@@ -49,6 +49,7 @@ func backendModeAllowsAuthPath(path string) bool {
 		"/auth/oauth/linuxdo/bind-login",
 		"/auth/oauth/wechat/bind-login",
 		"/auth/oauth/oidc/bind-login",
+		"/auth/openai/complete-pending-create",
 	} {
 		if strings.HasSuffix(path, suffix) {
 			return true

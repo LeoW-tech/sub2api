@@ -182,6 +182,56 @@ describe('API Client', () => {
         writable: true,
       })
     })
+
+    it('skipAuthRedirect=true 时 401 不跳转登录且保留当前回调页面', async () => {
+      localStorage.setItem('auth_token', 'stale-token')
+
+      const originalLocation = window.location
+      Object.defineProperty(window, 'location', {
+        value: {
+          ...originalLocation,
+          pathname: '/auth/callback',
+          href: '/auth/callback?code=oauth-code&state=oauth-state',
+        },
+        writable: true,
+      })
+
+      const adapter = vi.fn().mockRejectedValue({
+        response: {
+          status: 401,
+          data: { code: 'UNAUTHORIZED', message: 'Unauthorized' },
+        },
+        config: {
+          url: '/auth/openai/complete-pending-create',
+          headers: { Authorization: 'Bearer stale-token' },
+          skipAuthRedirect: true,
+        },
+        code: 'ERR_BAD_REQUEST',
+      })
+      apiClient.defaults.adapter = adapter
+
+      await expect(
+        apiClient.post(
+          '/auth/openai/complete-pending-create',
+          { code: 'oauth-code', state: 'oauth-state' },
+          { skipAuthRedirect: true },
+        ),
+      ).rejects.toEqual(
+        expect.objectContaining({
+          status: 401,
+          code: 'UNAUTHORIZED',
+          message: 'Unauthorized',
+        }),
+      )
+
+      expect(localStorage.getItem('auth_token')).toBe('stale-token')
+      expect(window.location.href).toBe('/auth/callback?code=oauth-code&state=oauth-state')
+
+      Object.defineProperty(window, 'location', {
+        value: originalLocation,
+        writable: true,
+      })
+    })
   })
 
   // --- 网络错误 ---

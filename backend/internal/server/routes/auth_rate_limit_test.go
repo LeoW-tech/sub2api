@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler"
+	adminhandler "github.com/Wei-Shaw/sub2api/internal/handler/admin"
 	servermiddleware "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -24,6 +25,9 @@ func newAuthRoutesTestRouter(redisClient *redis.Client) *gin.Engine {
 		&handler.Handlers{
 			Auth:    &handler.AuthHandler{},
 			Setting: &handler.SettingHandler{},
+			Admin: &handler.AdminHandlers{
+				OpenAIOAuth: &adminhandler.OpenAIOAuthHandler{},
+			},
 		},
 		servermiddleware.JWTAuthMiddleware(func(c *gin.Context) {
 			c.Next()
@@ -53,6 +57,7 @@ func TestAuthRoutesRateLimitFailCloseWhenRedisUnavailable(t *testing.T) {
 		"/api/v1/auth/login/2fa",
 		"/api/v1/auth/send-verify-code",
 		"/api/v1/auth/oauth/pending/send-verify-code",
+		"/api/v1/auth/openai/complete-pending-create",
 	}
 
 	for _, path := range paths {
