@@ -674,8 +674,8 @@ func TestLoadDefaultProxyNetworkMonitorConfig(t *testing.T) {
 		t.Fatalf("Load() error: %v", err)
 	}
 
-	if cfg.ProxyNetworkMonitor.Enabled {
-		t.Fatalf("ProxyNetworkMonitor.Enabled = true, want false")
+	if !cfg.ProxyNetworkMonitor.Enabled {
+		t.Fatalf("ProxyNetworkMonitor.Enabled = false, want true")
 	}
 }
 

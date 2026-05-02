@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -14,13 +15,123 @@ import (
 
 // ProxyHandler handles admin proxy management
 type ProxyHandler struct {
-	adminService service.AdminService
+	adminService        service.AdminService
+	settingService      *service.SettingService
+	proxyNetworkMonitor proxyNetworkMonitorController
+}
+
+type proxyNetworkMonitorController interface {
+	Start()
+	Stop()
+	IsRunning() bool
+	IsScanRunning() bool
+	IntervalSeconds() int
+	LastSummary() *service.ProxyNetworkScanSummary
 }
 
 // NewProxyHandler creates a new admin proxy handler
 func NewProxyHandler(adminService service.AdminService) *ProxyHandler {
 	return &ProxyHandler{
 		adminService: adminService,
+	}
+}
+
+func (h *ProxyHandler) SetNetworkMonitorDependencies(settingService *service.SettingService, monitor proxyNetworkMonitorController) {
+	h.settingService = settingService
+	h.proxyNetworkMonitor = monitor
+}
+
+type proxyNetworkMonitorSummaryResponse struct {
+	StartedAt  time.Time `json:"started_at"`
+	FinishedAt time.Time `json:"finished_at"`
+	Total      int       `json:"total"`
+	Online     int       `json:"online"`
+	Offline    int       `json:"offline"`
+	Errors     int       `json:"errors"`
+}
+
+type proxyNetworkMonitorStatusResponse struct {
+	Enabled         bool                                `json:"enabled"`
+	Running         bool                                `json:"running"`
+	ScanRunning     bool                                `json:"scan_running"`
+	IntervalSeconds int                                 `json:"interval_seconds"`
+	LastSummary     *proxyNetworkMonitorSummaryResponse `json:"last_summary"`
+}
+
+type updateProxyNetworkMonitorRequest struct {
+	Enabled *bool `json:"enabled"`
+}
+
+func (h *ProxyHandler) GetNetworkMonitorStatus(c *gin.Context) {
+	status, ok := h.networkMonitorStatus(c.Request.Context())
+	if !ok {
+		response.InternalError(c, "Network monitor is not available")
+		return
+	}
+	response.Success(c, status)
+}
+
+func (h *ProxyHandler) UpdateNetworkMonitorStatus(c *gin.Context) {
+	var req updateProxyNetworkMonitorRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if req.Enabled == nil {
+		response.BadRequest(c, "enabled is required")
+		return
+	}
+	if h.settingService == nil || h.proxyNetworkMonitor == nil {
+		response.InternalError(c, "Network monitor is not available")
+		return
+	}
+
+	enabled := *req.Enabled
+	if err := h.settingService.SetProxyNetworkMonitorEnabled(c.Request.Context(), enabled); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	if enabled {
+		h.proxyNetworkMonitor.Start()
+	} else {
+		h.proxyNetworkMonitor.Stop()
+	}
+
+	status, ok := h.networkMonitorStatus(c.Request.Context())
+	if !ok {
+		response.InternalError(c, "Network monitor is not available")
+		return
+	}
+	response.Success(c, status)
+}
+
+func (h *ProxyHandler) networkMonitorStatus(ctx context.Context) (*proxyNetworkMonitorStatusResponse, bool) {
+	if h == nil || h.settingService == nil || h.proxyNetworkMonitor == nil {
+		return nil, false
+	}
+
+	runtime := h.settingService.GetProxyNetworkMonitorRuntime(ctx)
+	return &proxyNetworkMonitorStatusResponse{
+		Enabled:         runtime.Enabled,
+		Running:         h.proxyNetworkMonitor.IsRunning(),
+		ScanRunning:     h.proxyNetworkMonitor.IsScanRunning(),
+		IntervalSeconds: h.proxyNetworkMonitor.IntervalSeconds(),
+		LastSummary:     proxyNetworkMonitorSummaryFromService(h.proxyNetworkMonitor.LastSummary()),
+	}, true
+}
+
+func proxyNetworkMonitorSummaryFromService(summary *service.ProxyNetworkScanSummary) *proxyNetworkMonitorSummaryResponse {
+	if summary == nil {
+		return nil
+	}
+	return &proxyNetworkMonitorSummaryResponse{
+		StartedAt:  summary.StartedAt,
+		FinishedAt: summary.FinishedAt,
+		Total:      summary.Total,
+		Online:     summary.Online,
+		Offline:    summary.Offline,
+		Errors:     summary.Errors,
 	}
 }
 

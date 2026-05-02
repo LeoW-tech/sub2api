@@ -7,6 +7,12 @@ import (
 	"github.com/google/wire"
 )
 
+func ProvideProxyHandler(adminService service.AdminService, settingService *service.SettingService, monitor *service.ProxyNetworkMonitorService) *admin.ProxyHandler {
+	handler := admin.NewProxyHandler(adminService)
+	handler.SetNetworkMonitorDependencies(settingService, monitor)
+	return handler
+}
+
 // ProvideAdminHandlers creates the AdminHandlers struct
 func ProvideAdminHandlers(
 	dashboardHandler *admin.DashboardHandler,
@@ -154,7 +160,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewOpenAIOAuthHandler,
 	admin.NewGeminiOAuthHandler,
 	admin.NewAntigravityOAuthHandler,
-	admin.NewProxyHandler,
+	ProvideProxyHandler,
 	admin.NewRedeemHandler,
 	admin.NewPromoHandler,
 	admin.NewSettingHandler,

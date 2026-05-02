@@ -367,8 +367,12 @@ func ProvideAccountBulkTestActivateService(
 	return svc
 }
 
-func ProvideProxyNetworkMonitorService(adminService AdminService, proxyRepo ProxyRepository, telegram *TelegramNotificationService) *ProxyNetworkMonitorService {
-	return NewProxyNetworkMonitorService(adminService, proxyRepo, telegram)
+func ProvideProxyNetworkMonitorService(adminService AdminService, proxyRepo ProxyRepository, telegram *TelegramNotificationService, settingService *SettingService) *ProxyNetworkMonitorService {
+	svc := NewProxyNetworkMonitorService(adminService, proxyRepo, telegram)
+	if settingService == nil || settingService.GetProxyNetworkMonitorRuntime(context.Background()).Enabled {
+		svc.Start()
+	}
+	return svc
 }
 
 func ProvideAccountInitialProbeService(

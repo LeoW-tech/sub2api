@@ -283,6 +283,10 @@ const (
 	// sidebar entry is hidden. Defaults to false (opt-in feature).
 	SettingKeyAvailableChannelsEnabled = "available_channels_enabled"
 
+	// SettingKeyProxyNetworkMonitorEnabled is a DB-backed soft switch for the proxy network
+	// monitor background loop. Missing legacy settings default to enabled.
+	SettingKeyProxyNetworkMonitorEnabled = "proxy_network_monitor_enabled"
+
 	// =========================
 	// Overload Cooldown (529)
 	// =========================

@@ -38,10 +38,11 @@ type ProxyNetworkMonitorService struct {
 	proxyRepo    ProxyRepository
 	notifier     proxyNetworkMonitorNotifier
 
-	stopCh   chan struct{}
-	stopOnce sync.Once
-	wg       sync.WaitGroup
+	mu     sync.Mutex
+	cancel context.CancelFunc
+	done   chan struct{}
 
+	running     atomic.Bool
 	scanRunning atomic.Bool
 	lastSummary atomic.Pointer[ProxyNetworkScanSummary]
 }
@@ -51,7 +52,6 @@ func NewProxyNetworkMonitorService(adminService AdminService, proxyRepo ProxyRep
 		adminService: adminService,
 		proxyRepo:    proxyRepo,
 		notifier:     notifier,
-		stopCh:       make(chan struct{}),
 	}
 }
 
@@ -60,10 +60,22 @@ func (s *ProxyNetworkMonitorService) Start() {
 		return
 	}
 
-	s.wg.Add(1)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.running.Load() {
+		return
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	s.cancel = cancel
+	s.done = done
+	s.running.Store(true)
+
 	go func() {
-		defer s.wg.Done()
-		s.runLoop()
+		defer close(done)
+		defer s.running.Store(false)
+		s.runLoop(ctx)
 	}()
 }
 
@@ -71,10 +83,19 @@ func (s *ProxyNetworkMonitorService) Stop() {
 	if s == nil {
 		return
 	}
-	s.stopOnce.Do(func() {
-		close(s.stopCh)
-	})
-	s.wg.Wait()
+
+	s.mu.Lock()
+	cancel := s.cancel
+	done := s.done
+	if cancel == nil || done == nil {
+		s.mu.Unlock()
+		return
+	}
+	s.cancel = nil
+	s.done = nil
+	cancel()
+	<-done
+	s.mu.Unlock()
 }
 
 func (s *ProxyNetworkMonitorService) LastSummary() *ProxyNetworkScanSummary {
@@ -82,6 +103,24 @@ func (s *ProxyNetworkMonitorService) LastSummary() *ProxyNetworkScanSummary {
 		return nil
 	}
 	return s.lastSummary.Load()
+}
+
+func (s *ProxyNetworkMonitorService) IsRunning() bool {
+	if s == nil {
+		return false
+	}
+	return s.running.Load()
+}
+
+func (s *ProxyNetworkMonitorService) IsScanRunning() bool {
+	if s == nil {
+		return false
+	}
+	return s.scanRunning.Load()
+}
+
+func (s *ProxyNetworkMonitorService) IntervalSeconds() int {
+	return int(proxyNetworkMonitorInterval / time.Second)
 }
 
 func (s *ProxyNetworkMonitorService) RunFullScan(ctx context.Context) (*ProxyNetworkScanSummary, error) {
@@ -158,11 +197,14 @@ func (s *ProxyNetworkMonitorService) RunFullScan(ctx context.Context) (*ProxyNet
 	return summary, nil
 }
 
-func (s *ProxyNetworkMonitorService) runLoop() {
+func (s *ProxyNetworkMonitorService) runLoop(ctx context.Context) {
 	run := func(trigger string) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		if ctx.Err() != nil {
+			return
+		}
+		scanCtx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 		defer cancel()
-		if _, err := s.RunFullScan(ctx); err != nil && !errors.Is(err, ErrProxyNetworkScanRunning) {
+		if _, err := s.RunFullScan(scanCtx); err != nil && !errors.Is(err, ErrProxyNetworkScanRunning) {
 			slog.Warn("proxy_network_monitor.full_scan_failed", "trigger", trigger, "error", err)
 		}
 	}
@@ -176,7 +218,7 @@ func (s *ProxyNetworkMonitorService) runLoop() {
 		select {
 		case <-ticker.C:
 			run("interval")
-		case <-s.stopCh:
+		case <-ctx.Done():
 			return
 		}
 	}

@@ -357,6 +357,8 @@ func registerProxyRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		proxies.GET("/ip-options", h.Admin.Proxy.GetIPOptions)
 		proxies.GET("/data", h.Admin.Proxy.ExportData)
 		proxies.POST("/data", h.Admin.Proxy.ImportData)
+		proxies.GET("/network-monitor", h.Admin.Proxy.GetNetworkMonitorStatus)
+		proxies.PUT("/network-monitor", h.Admin.Proxy.UpdateNetworkMonitorStatus)
 		proxies.GET("/:id", h.Admin.Proxy.GetByID)
 		proxies.POST("", h.Admin.Proxy.Create)
 		proxies.PUT("/:id", h.Admin.Proxy.Update)

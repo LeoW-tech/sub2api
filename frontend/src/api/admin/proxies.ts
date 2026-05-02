@@ -8,8 +8,10 @@ import type {
   Proxy,
   ProxyAccountSummary,
   ProxyIPOption,
+  ProxyNetworkMonitorStatus,
   ProxyQualityCheckResult,
   CreateProxyRequest,
+  UpdateProxyNetworkMonitorRequest,
   UpdateProxyRequest,
   PaginatedResponse,
   AdminDataPayload,
@@ -74,6 +76,24 @@ export async function getAllWithCount(): Promise<Proxy[]> {
 export async function getIPOptions(): Promise<ProxyIPOption[]> {
   const { data } = await apiClient.get<ProxyIPOption[]>(
     "/admin/proxies/ip-options",
+  );
+  return data;
+}
+
+export async function getNetworkMonitorStatus(): Promise<ProxyNetworkMonitorStatus> {
+  const { data } = await apiClient.get<ProxyNetworkMonitorStatus>(
+    "/admin/proxies/network-monitor",
+  );
+  return data;
+}
+
+export async function updateNetworkMonitor(
+  enabled: boolean,
+): Promise<ProxyNetworkMonitorStatus> {
+  const payload: UpdateProxyNetworkMonitorRequest = { enabled };
+  const { data } = await apiClient.put<ProxyNetworkMonitorStatus>(
+    "/admin/proxies/network-monitor",
+    payload,
   );
   return data;
 }
@@ -293,6 +313,8 @@ export const proxiesAPI = {
   getAll,
   getAllWithCount,
   getIPOptions,
+  getNetworkMonitorStatus,
+  updateNetworkMonitor,
   getById,
   create,
   update,

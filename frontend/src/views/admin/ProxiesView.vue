@@ -38,6 +38,28 @@
 
           <!-- Right: All action buttons -->
           <div class="flex flex-1 flex-wrap items-center justify-end gap-2">
+            <div class="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-dark-600 dark:bg-dark-800">
+              <div class="flex flex-col">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                  {{ t('admin.proxies.networkMonitor') }}
+                </span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ networkMonitorIntervalLabel }}
+                </span>
+              </div>
+              <span
+                class="badge"
+                :class="networkMonitorStatusBadgeClass"
+              >
+                {{ networkMonitorStatusLabel }}
+              </span>
+              <Toggle
+                :model-value="networkMonitorEnabled"
+                :disabled="networkMonitorLoading || networkMonitorUpdating"
+                :aria-label="t('admin.proxies.networkMonitor')"
+                @update:model-value="handleNetworkMonitorToggle"
+              />
+            </div>
             <button
               @click="loadProxies"
               :disabled="loading"
@@ -930,7 +952,13 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
-import type { Proxy, ProxyAccountSummary, ProxyProtocol, ProxyQualityCheckResult } from '@/types'
+import type {
+  Proxy,
+  ProxyAccountSummary,
+  ProxyNetworkMonitorStatus,
+  ProxyProtocol,
+  ProxyQualityCheckResult
+} from '@/types'
 import type { Column } from '@/components/common/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -941,6 +969,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ImportDataModal from '@/components/admin/proxy/ImportDataModal.vue'
 import Select from '@/components/common/Select.vue'
+import Toggle from '@/components/common/Toggle.vue'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import { useClipboard } from '@/composables/useClipboard'
@@ -993,10 +1022,38 @@ const editStatusOptions = computed(() => [
   { value: 'inactive', label: t('admin.accounts.status.inactive') }
 ])
 
+const networkMonitorIntervalLabel = computed(() => {
+  const seconds = networkMonitorIntervalSeconds.value
+  if (seconds > 0 && seconds % 60 === 0) {
+    return t('admin.proxies.networkMonitorIntervalMinutes', { minutes: seconds / 60 })
+  }
+  return t('admin.proxies.networkMonitorIntervalSeconds', { seconds })
+})
+
+const networkMonitorStatusLabel = computed(() => {
+  if (!networkMonitorEnabled.value) return t('admin.proxies.networkMonitorDisabled')
+  if (networkMonitorScanRunning.value) return t('admin.proxies.networkMonitorScanning')
+  if (networkMonitorRunning.value) return t('admin.proxies.networkMonitorRunning')
+  return t('admin.proxies.networkMonitorStopped')
+})
+
+const networkMonitorStatusBadgeClass = computed(() => {
+  if (!networkMonitorEnabled.value) return 'badge-gray'
+  if (networkMonitorScanRunning.value) return 'badge-warning'
+  if (networkMonitorRunning.value) return 'badge-success'
+  return 'badge-danger'
+})
+
 const proxies = ref<Proxy[]>([])
 const visiblePasswordIds = reactive(new Set<number>())
 const copyMenuProxyId = ref<number | null>(null)
 const loading = ref(false)
+const networkMonitorEnabled = ref(false)
+const networkMonitorRunning = ref(false)
+const networkMonitorScanRunning = ref(false)
+const networkMonitorIntervalSeconds = ref(300)
+const networkMonitorLoading = ref(false)
+const networkMonitorUpdating = ref(false)
 const searchQuery = ref('')
 const filters = reactive({
   protocol: '',
@@ -1161,6 +1218,56 @@ const loadProxies = async () => {
       loading.value = false
       abortController = null
     }
+  }
+}
+
+const loadNetworkMonitorStatus = async () => {
+  networkMonitorLoading.value = true
+  try {
+    const status = await adminAPI.proxies.getNetworkMonitorStatus()
+    applyNetworkMonitorStatus(status)
+  } catch (error) {
+    appStore.showError(t('admin.proxies.networkMonitorLoadFailed'))
+    console.error('Error loading proxy network monitor status:', error)
+  } finally {
+    networkMonitorLoading.value = false
+  }
+}
+
+const applyNetworkMonitorStatus = (status: ProxyNetworkMonitorStatus) => {
+  networkMonitorEnabled.value = status.enabled
+  networkMonitorRunning.value = status.running
+  networkMonitorScanRunning.value = status.scan_running
+  networkMonitorIntervalSeconds.value = status.interval_seconds
+}
+
+const handleNetworkMonitorToggle = async (enabled: boolean) => {
+  if (networkMonitorUpdating.value) return
+
+  const previousEnabled = networkMonitorEnabled.value
+  const previousRunning = networkMonitorRunning.value
+  const previousScanRunning = networkMonitorScanRunning.value
+  networkMonitorEnabled.value = enabled
+  networkMonitorRunning.value = enabled
+  networkMonitorUpdating.value = true
+  try {
+    const status = await adminAPI.proxies.updateNetworkMonitor(enabled)
+    applyNetworkMonitorStatus(status)
+    appStore.showSuccess(
+      status.enabled
+        ? t('admin.proxies.networkMonitorEnabled')
+        : t('admin.proxies.networkMonitorDisabledSuccess')
+    )
+  } catch (error: any) {
+    networkMonitorEnabled.value = previousEnabled
+    networkMonitorRunning.value = previousRunning
+    networkMonitorScanRunning.value = previousScanRunning
+    appStore.showError(
+      error.message || error.response?.data?.detail || t('admin.proxies.networkMonitorUpdateFailed')
+    )
+    console.error('Error updating proxy network monitor:', error)
+  } finally {
+    networkMonitorUpdating.value = false
   }
 }
 
@@ -1938,7 +2045,7 @@ function closeCopyMenu() {
 }
 
 onMounted(() => {
-  loadProxies()
+  void Promise.all([loadProxies(), loadNetworkMonitorStatus()])
   document.addEventListener('click', closeCopyMenu)
 })
 

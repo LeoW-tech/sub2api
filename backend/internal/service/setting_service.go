@@ -131,6 +131,10 @@ type AuthSourceDefaultSettings struct {
 	ForceEmailOnThirdPartySignup bool
 }
 
+type ProxyNetworkMonitorRuntimeSettings struct {
+	Enabled bool
+}
+
 type authSourceDefaultKeySet struct {
 	balance          string
 	concurrency      string
@@ -1749,6 +1753,30 @@ func (s *SettingService) UpdateAuthSourceDefaultSettings(ctx context.Context, se
 	return nil
 }
 
+func (s *SettingService) GetProxyNetworkMonitorRuntime(ctx context.Context) ProxyNetworkMonitorRuntimeSettings {
+	if s == nil || s.settingRepo == nil {
+		return ProxyNetworkMonitorRuntimeSettings{Enabled: true}
+	}
+
+	raw, err := s.settingRepo.GetValue(ctx, SettingKeyProxyNetworkMonitorEnabled)
+	if err != nil {
+		return ProxyNetworkMonitorRuntimeSettings{Enabled: true}
+	}
+	enabled, err := strconv.ParseBool(strings.TrimSpace(raw))
+	if err != nil {
+		return ProxyNetworkMonitorRuntimeSettings{Enabled: true}
+	}
+
+	return ProxyNetworkMonitorRuntimeSettings{Enabled: enabled}
+}
+
+func (s *SettingService) SetProxyNetworkMonitorEnabled(ctx context.Context, enabled bool) error {
+	if s == nil || s.settingRepo == nil {
+		return fmt.Errorf("setting service is not initialized")
+	}
+	return s.settingRepo.Set(ctx, SettingKeyProxyNetworkMonitorEnabled, strconv.FormatBool(enabled))
+}
+
 // InitializeDefaultSettings 初始化默认设置
 func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	// 检查是否已有设置
@@ -1880,6 +1908,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
+
+		// Proxy network monitor defaults to enabled for new installs.
+		SettingKeyProxyNetworkMonitorEnabled: "true",
 
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled: "false",

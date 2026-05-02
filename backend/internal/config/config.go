@@ -1750,7 +1750,7 @@ func setDefaults() {
 	viper.SetDefault("token_refresh.max_retries", 3)                   // 最多重试3次
 	viper.SetDefault("token_refresh.retry_backoff_seconds", 2)         // 重试退避基础2秒
 
-	viper.SetDefault("proxy_network_monitor.enabled", false)
+	viper.SetDefault("proxy_network_monitor.enabled", true)
 
 	// Gemini OAuth - configure via environment variables or config file
 	// GEMINI_OAUTH_CLIENT_ID and GEMINI_OAUTH_CLIENT_SECRET

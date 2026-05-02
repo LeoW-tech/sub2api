@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
 )
@@ -147,6 +148,10 @@ type proxyNetworkMonitorAdminServiceStub struct {
 	listAccountsFn func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error)
 }
 
+func (s *proxyNetworkMonitorAdminServiceStub) TestProxy(ctx context.Context, proxyID int64) (*ProxyTestResult, error) {
+	return &ProxyTestResult{Success: true}, nil
+}
+
 func (s *proxyNetworkMonitorAdminServiceStub) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
 	if s.listAccountsFn == nil {
 		panic("unexpected ListAccounts call")
@@ -280,28 +285,30 @@ func TestProxyNetworkMonitorService_NotifySummary_SkipsWhenPausedOfflineCountFai
 	require.Equal(t, 0, notifier.callsCount())
 }
 
-func TestProvideProxyNetworkMonitorService_DoesNotAutoStart(t *testing.T) {
-	accountRepo := &proxyNetworkAccountRepoStub{}
+func TestProvideProxyNetworkMonitorService_StartsByDefault(t *testing.T) {
 	proxyRepo := &proxyNetworkMonitorProxyRepoStub{
 		proxies: map[int64]*Proxy{
 			1: {ID: 1, Name: "proxy-1", Protocol: "http", Host: "127.0.0.1", Port: 8081},
 		},
 	}
-	adminSvc := &adminServiceImpl{
-		accountRepo: accountRepo,
-		proxyRepo:   proxyRepo,
-		proxyProber: &proxyNetworkMonitorProberStub{},
+	adminSvc := &proxyNetworkMonitorAdminServiceStub{
+		listAccountsFn: func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
+			return nil, 0, nil
+		},
 	}
+	settingService := NewSettingService(&settingRepoStub{
+		values: map[string]string{},
+	}, &config.Config{})
 
-	svc := ProvideProxyNetworkMonitorService(adminSvc, proxyRepo, nil)
+	svc := ProvideProxyNetworkMonitorService(adminSvc, proxyRepo, nil, settingService)
 	require.NotNil(t, svc)
 	t.Cleanup(func() {
 		svc.Stop()
 	})
 
-	time.Sleep(50 * time.Millisecond)
-	require.Nil(t, svc.LastSummary(), "provider 不应自动启动网络扫描任务")
-	require.Empty(t, proxyRepo.updated, "provider 不应在构造时触发代理状态更新")
-	require.Empty(t, accountRepo.resumedProxyIDs, "provider 不应在构造时触发账号恢复")
-	require.Empty(t, accountRepo.pausedProxyIDs, "provider 不应在构造时触发账号暂停")
+	require.True(t, svc.IsRunning())
+	require.Eventually(t, func() bool {
+		return svc.LastSummary() != nil
+	}, time.Second, 10*time.Millisecond)
+	require.Equal(t, 1, svc.LastSummary().Total)
 }

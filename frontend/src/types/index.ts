@@ -734,6 +734,27 @@ export interface ProxyQualityCheckResult {
   items: ProxyQualityCheckItem[];
 }
 
+export interface ProxyNetworkMonitorSummary {
+  started_at: string;
+  finished_at: string;
+  total: number;
+  online: number;
+  offline: number;
+  errors: number;
+}
+
+export interface ProxyNetworkMonitorStatus {
+  enabled: boolean;
+  running: boolean;
+  scan_running: boolean;
+  interval_seconds: number;
+  last_summary: ProxyNetworkMonitorSummary | null;
+}
+
+export interface UpdateProxyNetworkMonitorRequest {
+  enabled: boolean;
+}
+
 // Gemini credentials structure for OAuth and API Key authentication
 export interface GeminiCredentials {
   // API Key authentication
