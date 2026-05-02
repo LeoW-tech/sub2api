@@ -18,6 +18,7 @@ import type {
   AdminDataImportResult,
   CheckMixedChannelRequest,
   CheckMixedChannelResponse,
+  OpenAIPendingCreatePayload,
 } from "@/types";
 
 export interface AccountListFilters {
@@ -347,7 +348,11 @@ export async function resetTempUnschedulable(
  */
 export async function generateAuthUrl(
   endpoint: string,
-  config: { proxy_id?: number },
+  config: {
+    proxy_id?: number;
+    redirect_uri?: string;
+    pending_create?: OpenAIPendingCreatePayload;
+  },
 ): Promise<{ auth_url: string; session_id: string }> {
   const { data } = await apiClient.post<{
     auth_url: string;
@@ -374,6 +379,16 @@ export async function exchangeCode(
   const { data } = await apiClient.post<Record<string, unknown>>(
     endpoint,
     exchangeData,
+  );
+  return data;
+}
+
+export async function completeOpenAIPendingCreate(
+  payload: { code: string; state: string },
+): Promise<Account> {
+  const { data } = await apiClient.post<Account>(
+    "/admin/openai/complete-pending-create",
+    payload,
   );
   return data;
 }
@@ -824,6 +839,7 @@ export const accountsAPI = {
   getAvailableModels,
   generateAuthUrl,
   exchangeCode,
+  completeOpenAIPendingCreate,
   refreshOpenAIToken,
   batchCreate,
   batchUpdateCredentials,

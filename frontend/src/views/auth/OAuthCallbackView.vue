@@ -8,6 +8,12 @@
         <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
           {{ t('auth.oauth.callbackHint') }}
         </p>
+        <div
+          v-if="completingOpenAI"
+          class="mt-4 rounded border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200"
+        >
+          {{ t('auth.oauth.openaiCompleting') }}
+        </div>
 
         <div class="mt-6 space-y-4">
           <div>
@@ -56,19 +62,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { adminAPI } from '@/api/admin'
 import { useClipboard } from '@/composables/useClipboard'
 import { useAppStore } from '@/stores'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 const { copyToClipboard } = useClipboard()
 const appStore = useAppStore()
+const completingOpenAI = ref(false)
 
 const code = computed(() => (route.query.code as string) || '')
 const state = computed(() => (route.query.state as string) || '')
+const isOpenAIAdminCallback = computed(() => route.query.admin_oauth_provider === 'openai')
 const error = computed(
   () => (route.query.error as string) || (route.query.error_description as string) || ''
 )
@@ -87,6 +98,28 @@ watch(
   },
   { immediate: true }
 )
+
+onMounted(async () => {
+  if (!isOpenAIAdminCallback.value || !code.value || !state.value) {
+    return
+  }
+
+  completingOpenAI.value = true
+  try {
+    await adminAPI.accounts.completeOpenAIPendingCreate({
+      code: code.value,
+      state: state.value
+    })
+    appStore.showSuccess(t('auth.oauth.openaiCompleteSuccess'))
+    await router.replace('/admin/accounts')
+  } catch (err) {
+    appStore.showError(
+      extractApiErrorMessage(err, t('auth.oauth.openaiCompleteFailed'))
+    )
+  } finally {
+    completingOpenAI.value = false
+  }
+})
 
 const copy = (value: string) => {
   if (!value) return

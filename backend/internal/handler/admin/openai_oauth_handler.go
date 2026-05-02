@@ -32,8 +32,9 @@ func NewOpenAIOAuthHandler(openaiOAuthService *service.OpenAIOAuthService, admin
 
 // OpenAIGenerateAuthURLRequest represents the request for generating OpenAI auth URL
 type OpenAIGenerateAuthURLRequest struct {
-	ProxyID     *int64 `json:"proxy_id"`
-	RedirectURI string `json:"redirect_uri"`
+	ProxyID       *int64                            `json:"proxy_id"`
+	RedirectURI   string                            `json:"redirect_uri"`
+	PendingCreate *openai.OAuthPendingCreateAccount `json:"pending_create"`
 }
 
 // GenerateAuthURL generates OpenAI OAuth authorization URL
@@ -50,6 +51,7 @@ func (h *OpenAIOAuthHandler) GenerateAuthURL(c *gin.Context) {
 		req.ProxyID,
 		req.RedirectURI,
 		oauthPlatformFromPath(c),
+		req.PendingCreate,
 	)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -90,6 +92,37 @@ func (h *OpenAIOAuthHandler) ExchangeCode(c *gin.Context) {
 	}
 
 	response.Success(c, tokenInfo)
+}
+
+// OpenAICompletePendingCreateRequest represents an OpenAI OAuth callback that
+// should complete a pending account creation captured before authorization.
+type OpenAICompletePendingCreateRequest struct {
+	Code  string `json:"code" binding:"required"`
+	State string `json:"state" binding:"required"`
+}
+
+// CompletePendingCreate exchanges the callback code and creates the pending OpenAI account.
+// POST /api/v1/admin/openai/complete-pending-create
+func (h *OpenAIOAuthHandler) CompletePendingCreate(c *gin.Context) {
+	var req OpenAICompletePendingCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	result, err := h.openaiOAuthService.ExchangePendingCreateByState(c.Request.Context(), req.Code, req.State)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	account, err := h.createOpenAIAccountFromPendingCreate(c, result.TokenInfo, result.PendingCreate)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, dto.AccountFromService(account))
 }
 
 // OpenAIRefreshTokenRequest represents the request for refreshing OpenAI token
@@ -261,4 +294,59 @@ func (h *OpenAIOAuthHandler) CreateAccountFromOAuth(c *gin.Context) {
 	}
 
 	response.Success(c, dto.AccountFromService(account))
+}
+
+func (h *OpenAIOAuthHandler) createOpenAIAccountFromPendingCreate(c *gin.Context, tokenInfo *service.OpenAITokenInfo, pendingCreate *openai.OAuthPendingCreateAccount) (*service.Account, error) {
+	credentials := h.openaiOAuthService.BuildAccountCredentials(tokenInfo)
+	for key, value := range pendingCreate.CredentialOverrides {
+		credentials[key] = value
+	}
+
+	name := strings.TrimSpace(pendingCreate.Name)
+	if name == "" && tokenInfo.Email != "" {
+		name = tokenInfo.Email
+	}
+	if name == "" {
+		name = "OpenAI OAuth Account"
+	}
+
+	var notes *string
+	if strings.TrimSpace(pendingCreate.Notes) != "" {
+		n := pendingCreate.Notes
+		notes = &n
+	}
+
+	concurrency := pendingCreate.Concurrency
+	if concurrency <= 0 {
+		concurrency = 10
+	}
+	priority := pendingCreate.Priority
+	if priority <= 0 {
+		priority = 50
+	}
+
+	account, err := h.adminService.CreateAccount(c.Request.Context(), &service.CreateAccountInput{
+		Name:                  name,
+		Notes:                 notes,
+		Platform:              service.PlatformOpenAI,
+		Type:                  "oauth",
+		Credentials:           credentials,
+		Extra:                 pendingCreate.Extra,
+		ProxyID:               pendingCreate.ProxyID,
+		Concurrency:           concurrency,
+		Priority:              priority,
+		RateMultiplier:        pendingCreate.RateMultiplier,
+		LoadFactor:            pendingCreate.LoadFactor,
+		GroupIDs:              pendingCreate.GroupIDs,
+		ExpiresAt:             pendingCreate.ExpiresAt,
+		AutoPauseOnExpired:    pendingCreate.AutoPauseOnExpired,
+		SkipDefaultGroupBind:  len(pendingCreate.GroupIDs) == 0,
+		SkipMixedChannelCheck: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	h.adminService.ForceOpenAIPrivacy(c.Request.Context(), account)
+	return account, nil
 }

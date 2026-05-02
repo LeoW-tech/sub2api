@@ -29,6 +29,31 @@
 - stable 同时支持本机 `http://127.0.0.1:8080/` 和局域网 `http://<本机局域网IP>:8080/`
 - dev 默认仅本机访问 `http://127.0.0.1:8081/`
 
+## OpenAI OAuth 双机回调助手
+
+OpenAI/Codex OAuth 官方 client 的回调地址保持为 `http://localhost:1455/auth/callback`。如果你在 Mac 浏览器里授权 Linux 上的 sub2api 后台，`localhost` 会指向 Mac 自己，而不是 Linux，所以需要在 Mac 上启动一个本地回调助手：
+
+```bash
+node scripts/sub2api-oauth-callback-helper.mjs --target http://<Linux局域网IP>:8080
+```
+
+助手默认只监听 `127.0.0.1:1455`，收到 `/auth/callback?code=...&state=...` 后会重定向到：
+
+```text
+http://<Linux局域网IP>:8080/auth/callback?code=...&state=...&admin_oauth_provider=openai
+```
+
+可选参数：
+
+```bash
+node scripts/sub2api-oauth-callback-helper.mjs \
+  --target http://<Linux局域网IP>:8080 \
+  --host 127.0.0.1 \
+  --port 1455
+```
+
+也可以用环境变量 `SUB2API_OAUTH_CALLBACK_TARGET`、`SUB2API_OAUTH_CALLBACK_HOST`、`SUB2API_OAUTH_CALLBACK_PORT`。`--target` 必须和浏览器打开后台时的 origin 一致，例如都使用 `http://192.168.x.x:8080`。
+
 ## Git 约定
 
 - `origin` 指向你的 fork：`https://github.com/LeoW-tech/sub2api.git`

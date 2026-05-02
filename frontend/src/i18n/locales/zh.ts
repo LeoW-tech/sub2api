@@ -535,6 +535,9 @@ export default {
     oauth: {
       callbackTitle: "OAuth 回调",
       callbackHint: "按需将授权码和状态值复制回后台授权流程。",
+      openaiCompleting: "正在自动完成 OpenAI 账号添加...",
+      openaiCompleteSuccess: "OpenAI 账号已添加",
+      openaiCompleteFailed: "OpenAI 账号自动添加失败，请复制授权信息回添加账号弹窗继续。",
       code: "授权码",
       state: "状态",
       fullUrl: "完整URL",
@@ -3344,6 +3347,7 @@ export default {
         step1GenerateUrl: "点击下方按钮生成授权 URL",
         generateAuthUrl: "生成授权 URL",
         generating: "生成中...",
+        openAuthUrl: "打开授权链接",
         regenerate: "重新生成",
         step2OpenUrl: "在浏览器中打开 URL 并完成授权",
         openUrlDesc: "在新标签页中打开授权 URL，登录您的 Claude 账号并授权。",

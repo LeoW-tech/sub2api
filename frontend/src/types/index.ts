@@ -998,6 +998,21 @@ export interface CreateAccountRequest {
   confirm_mixed_channel_risk?: boolean;
 }
 
+export interface OpenAIPendingCreatePayload {
+  name: string;
+  notes?: string;
+  proxy_id?: number | null;
+  concurrency?: number;
+  load_factor?: number | null;
+  priority?: number;
+  rate_multiplier?: number;
+  group_ids?: number[];
+  expires_at?: number | null;
+  auto_pause_on_expired?: boolean;
+  extra?: Record<string, unknown>;
+  credential_overrides?: Record<string, unknown>;
+}
+
 export interface UpdateAccountRequest {
   name?: string;
   notes?: string | null;

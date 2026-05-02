@@ -42,7 +42,7 @@ type OpenAIAuthURLResult struct {
 }
 
 // GenerateAuthURL generates an OpenAI OAuth authorization URL
-func (s *OpenAIOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64, redirectURI, platform string) (*OpenAIAuthURLResult, error) {
+func (s *OpenAIOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64, redirectURI, platform string, pendingCreate *openai.OAuthPendingCreateAccount) (*OpenAIAuthURLResult, error) {
 	// Generate PKCE values
 	state, err := openai.GenerateState()
 	if err != nil {
@@ -83,12 +83,13 @@ func (s *OpenAIOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64
 
 	// Store session
 	session := &openai.OAuthSession{
-		State:        state,
-		CodeVerifier: codeVerifier,
-		ClientID:     clientID,
-		RedirectURI:  redirectURI,
-		ProxyURL:     proxyURL,
-		CreatedAt:    time.Now(),
+		State:         state,
+		CodeVerifier:  codeVerifier,
+		ClientID:      clientID,
+		RedirectURI:   redirectURI,
+		ProxyURL:      proxyURL,
+		CreatedAt:     time.Now(),
+		PendingCreate: pendingCreate,
 	}
 	s.sessionStore.Set(sessionID, session)
 
@@ -125,6 +126,51 @@ type OpenAITokenInfo struct {
 	PlanType              string `json:"plan_type,omitempty"`
 	SubscriptionExpiresAt string `json:"subscription_expires_at,omitempty"`
 	PrivacyMode           string `json:"privacy_mode,omitempty"`
+}
+
+// OpenAICompletePendingCreateExchangeResult contains token information and
+// account settings captured when the authorization URL was generated.
+type OpenAICompletePendingCreateExchangeResult struct {
+	TokenInfo     *OpenAITokenInfo
+	PendingCreate *openai.OAuthPendingCreateAccount
+}
+
+// ExchangePendingCreateByState exchanges an OAuth callback code using only the
+// callback state, then consumes the corresponding pending account-create session.
+func (s *OpenAIOAuthService) ExchangePendingCreateByState(ctx context.Context, code, state string) (*OpenAICompletePendingCreateExchangeResult, error) {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return nil, infraerrors.New(http.StatusBadRequest, "OPENAI_OAUTH_CODE_REQUIRED", "authorization code is required")
+	}
+	state = strings.TrimSpace(state)
+	if state == "" {
+		return nil, infraerrors.New(http.StatusBadRequest, "OPENAI_OAUTH_STATE_REQUIRED", "oauth state is required")
+	}
+
+	sessionID, session, ok := s.sessionStore.GetByState(state)
+	if !ok {
+		return nil, infraerrors.New(http.StatusBadRequest, "OPENAI_OAUTH_SESSION_NOT_FOUND", "session not found or expired")
+	}
+	if session.PendingCreate == nil {
+		return nil, infraerrors.New(http.StatusBadRequest, "OPENAI_OAUTH_PENDING_CREATE_NOT_FOUND", "pending account create session not found")
+	}
+	pendingCreate := session.PendingCreate
+
+	tokenInfo, err := s.ExchangeCode(ctx, &OpenAIExchangeCodeInput{
+		SessionID:   sessionID,
+		Code:        code,
+		State:       state,
+		RedirectURI: session.RedirectURI,
+		ProxyID:     pendingCreate.ProxyID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &OpenAICompletePendingCreateExchangeResult{
+		TokenInfo:     tokenInfo,
+		PendingCreate: pendingCreate,
+	}, nil
 }
 
 // ExchangeCode exchanges authorization code for tokens

@@ -41,12 +41,30 @@ const (
 
 // OAuthSession stores OAuth flow state for OpenAI
 type OAuthSession struct {
-	State        string    `json:"state"`
-	CodeVerifier string    `json:"code_verifier"`
-	ClientID     string    `json:"client_id,omitempty"`
-	ProxyURL     string    `json:"proxy_url,omitempty"`
-	RedirectURI  string    `json:"redirect_uri"`
-	CreatedAt    time.Time `json:"created_at"`
+	State         string                     `json:"state"`
+	CodeVerifier  string                     `json:"code_verifier"`
+	ClientID      string                     `json:"client_id,omitempty"`
+	ProxyURL      string                     `json:"proxy_url,omitempty"`
+	RedirectURI   string                     `json:"redirect_uri"`
+	CreatedAt     time.Time                  `json:"created_at"`
+	PendingCreate *OAuthPendingCreateAccount `json:"pending_create,omitempty"`
+}
+
+// OAuthPendingCreateAccount stores the account settings collected before the
+// browser leaves the admin UI for the OpenAI OAuth authorization page.
+type OAuthPendingCreateAccount struct {
+	Name                string         `json:"name"`
+	Notes               string         `json:"notes,omitempty"`
+	ProxyID             *int64         `json:"proxy_id,omitempty"`
+	Concurrency         int            `json:"concurrency"`
+	LoadFactor          *int           `json:"load_factor,omitempty"`
+	Priority            int            `json:"priority"`
+	RateMultiplier      *float64       `json:"rate_multiplier,omitempty"`
+	GroupIDs            []int64        `json:"group_ids,omitempty"`
+	ExpiresAt           *int64         `json:"expires_at,omitempty"`
+	AutoPauseOnExpired  *bool          `json:"auto_pause_on_expired,omitempty"`
+	Extra               map[string]any `json:"extra,omitempty"`
+	CredentialOverrides map[string]any `json:"credential_overrides,omitempty"`
 }
 
 // SessionStore manages OAuth sessions in memory
@@ -77,17 +95,39 @@ func (s *SessionStore) Set(sessionID string, session *OAuthSession) {
 
 // Get retrieves a session
 func (s *SessionStore) Get(sessionID string) (*OAuthSession, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	session, ok := s.sessions[sessionID]
 	if !ok {
 		return nil, false
 	}
 	// Check if expired
 	if time.Since(session.CreatedAt) > SessionTTL {
+		delete(s.sessions, sessionID)
 		return nil, false
 	}
 	return session, true
+}
+
+// GetByState retrieves a session by OAuth state and returns its session ID.
+func (s *SessionStore) GetByState(state string) (string, *OAuthSession, bool) {
+	state = strings.TrimSpace(state)
+	if state == "" {
+		return "", nil, false
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for sessionID, session := range s.sessions {
+		if time.Since(session.CreatedAt) > SessionTTL {
+			delete(s.sessions, sessionID)
+			continue
+		}
+		if session.State == state {
+			return sessionID, session, true
+		}
+	}
+	return "", nil, false
 }
 
 // Delete removes a session

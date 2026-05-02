@@ -104,3 +104,91 @@ func TestOpenAIOAuthService_ExchangeCode_StateMatch(t *testing.T) {
 	_, ok := svc.sessionStore.Get("sid")
 	require.False(t, ok)
 }
+
+func TestOpenAIOAuthService_ExchangePendingCreateByState_ValidationErrors(t *testing.T) {
+	client := &openaiOAuthClientStateStub{}
+	svc := NewOpenAIOAuthService(nil, client)
+	defer svc.Stop()
+
+	t.Run("code required", func(t *testing.T) {
+		svc.sessionStore.Set("sid-code", &openai.OAuthSession{
+			State:         "state-code",
+			CodeVerifier:  "verifier",
+			RedirectURI:   openai.DefaultRedirectURI,
+			CreatedAt:     time.Now(),
+			PendingCreate: &openai.OAuthPendingCreateAccount{Name: "OpenAI Plus"},
+		})
+
+		_, err := svc.ExchangePendingCreateByState(context.Background(), "", "state-code")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "authorization code is required")
+	})
+
+	t.Run("state not found", func(t *testing.T) {
+		_, err := svc.ExchangePendingCreateByState(context.Background(), "auth-code", "missing-state")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "session not found or expired")
+	})
+
+	t.Run("expired state", func(t *testing.T) {
+		svc.sessionStore.Set("sid-expired", &openai.OAuthSession{
+			State:         "state-expired",
+			CodeVerifier:  "verifier",
+			RedirectURI:   openai.DefaultRedirectURI,
+			CreatedAt:     time.Now().Add(-openai.SessionTTL - time.Minute),
+			PendingCreate: &openai.OAuthPendingCreateAccount{Name: "OpenAI Plus"},
+		})
+
+		_, err := svc.ExchangePendingCreateByState(context.Background(), "auth-code", "state-expired")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "session not found or expired")
+	})
+
+	t.Run("pending create required", func(t *testing.T) {
+		svc.sessionStore.Set("sid-no-pending", &openai.OAuthSession{
+			State:        "state-no-pending",
+			CodeVerifier: "verifier",
+			RedirectURI:  openai.DefaultRedirectURI,
+			CreatedAt:    time.Now(),
+		})
+
+		_, err := svc.ExchangePendingCreateByState(context.Background(), "auth-code", "state-no-pending")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "pending account create session not found")
+	})
+}
+
+func TestOpenAIOAuthService_ExchangePendingCreateByState_SuccessDeletesSession(t *testing.T) {
+	client := &openaiOAuthClientStateStub{}
+	svc := NewOpenAIOAuthService(nil, client)
+	defer svc.Stop()
+
+	pendingCreate := &openai.OAuthPendingCreateAccount{
+		Name:                "OpenAI Plus",
+		Priority:            50,
+		GroupIDs:            []int64{8},
+		CredentialOverrides: map[string]any{"compact_model_mapping": map[string]any{"gpt-5": "gpt-5-mini"}},
+	}
+	svc.sessionStore.Set("sid-pending", &openai.OAuthSession{
+		State:         "state-pending",
+		CodeVerifier:  "verifier",
+		ClientID:      openai.ClientID,
+		RedirectURI:   openai.DefaultRedirectURI,
+		CreatedAt:     time.Now(),
+		PendingCreate: pendingCreate,
+	})
+
+	result, err := svc.ExchangePendingCreateByState(context.Background(), "auth-code", "state-pending")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "at", result.TokenInfo.AccessToken)
+	require.Equal(t, pendingCreate, result.PendingCreate)
+	require.Equal(t, int32(1), atomic.LoadInt32(&client.exchangeCalled))
+
+	_, ok := svc.sessionStore.Get("sid-pending")
+	require.False(t, ok)
+
+	_, err = svc.ExchangePendingCreateByState(context.Background(), "auth-code", "state-pending")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "session not found or expired")
+}

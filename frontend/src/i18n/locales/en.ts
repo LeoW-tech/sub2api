@@ -560,6 +560,10 @@ export default {
       callbackTitle: "OAuth Callback",
       callbackHint:
         "Copy the code and state back to the admin authorization flow when needed.",
+      openaiCompleting: "Completing OpenAI account creation...",
+      openaiCompleteSuccess: "OpenAI account added",
+      openaiCompleteFailed:
+        "Failed to add the OpenAI account automatically. Copy the callback details back to the add-account dialog to continue.",
       code: "Code",
       state: "State",
       fullUrl: "Full URL",
@@ -3331,6 +3335,7 @@ export default {
           "Click the button below to generate the authorization URL",
         generateAuthUrl: "Generate Auth URL",
         generating: "Generating...",
+        openAuthUrl: "Open Auth URL",
         regenerate: "Regenerate",
         step2OpenUrl: "Open the URL in your browser and complete authorization",
         openUrlDesc:

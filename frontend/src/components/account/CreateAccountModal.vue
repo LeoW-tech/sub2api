@@ -3093,7 +3093,6 @@ import { ref, reactive, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import {
-  claudeModels,
   getPresetMappingsByPlatform,
   getModelsByPlatform,
   commonErrorCodes,
@@ -3119,7 +3118,8 @@ import type {
   AccountType,
   CheckMixedChannelResponse,
   CreateAccountRequest,
-  OpenAICompactMode
+  OpenAICompactMode,
+  OpenAIPendingCreatePayload
 } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -3130,6 +3130,11 @@ import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
+import {
+  DEFAULT_OPENAI_ACCOUNT_PRIORITY,
+  resolveDefaultOpenAIPlusGroup,
+  shouldApplyDefaultOpenAIPlusGroup
+} from '@/components/account/createAccountDefaults'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import { VERTEX_LOCATION_OPTIONS } from '@/constants/account'
@@ -3352,6 +3357,8 @@ const mixedChannelWarningAction = ref<(() => Promise<void>) | null>(null)
 const antigravityMixedChannelConfirmed = ref(false)
 const showAdvancedOAuth = ref(false)
 const showGeminiHelpDialog = ref(false)
+const groupSelectionTouched = ref(false)
+const applyingDefaultGroup = ref(false)
 
 // Quota control state (Anthropic OAuth/SetupToken only)
 const windowCostEnabled = ref(false)
@@ -3484,13 +3491,13 @@ const tempUnschedPresets = computed(() => [
 const form = reactive({
   name: '',
   notes: '',
-  platform: 'anthropic' as AccountPlatform,
+  platform: 'openai' as AccountPlatform,
   type: 'oauth' as AccountType, // Will be 'oauth', 'setup-token', or 'apikey'
   credentials: {} as Record<string, unknown>,
   proxy_id: null as number | null,
   concurrency: 10,
   load_factor: null as number | null,
-  priority: 1,
+  priority: DEFAULT_OPENAI_ACCOUNT_PRIORITY,
   rate_multiplier: 1,
   group_ids: [] as number[],
   expires_at: null as number | null
@@ -3534,7 +3541,48 @@ const canExchangeCode = computed(() => {
   return authCode.trim() && oauth.sessionId.value && !oauth.loading.value
 })
 
+const applyDefaultOpenAIPlusGroup = () => {
+  if (!shouldApplyDefaultOpenAIPlusGroup({
+    platform: form.platform,
+    groupIds: form.group_ids,
+    userTouchedGroups: groupSelectionTouched.value
+  })) {
+    return
+  }
+
+  const groupID = resolveDefaultOpenAIPlusGroup(props.groups)
+  if (groupID == null) {
+    return
+  }
+
+  applyingDefaultGroup.value = true
+  form.group_ids = [groupID]
+}
+
 // Watchers
+watch(
+  () => [...form.group_ids],
+  () => {
+    if (applyingDefaultGroup.value) {
+      applyingDefaultGroup.value = false
+      return
+    }
+    if (props.show) {
+      groupSelectionTouched.value = true
+    }
+  }
+)
+
+watch(
+  [() => props.groups, () => form.platform, () => props.show],
+  () => {
+    if (props.show) {
+      applyDefaultOpenAIPlusGroup()
+    }
+  },
+  { deep: true }
+)
+
 watch(
   () => props.show,
   (newVal) => {
@@ -3557,6 +3605,7 @@ watch(
         antigravityModelMappings.value = []
         antigravityModelRestrictionMode.value = 'mapping'
       }
+      applyDefaultOpenAIPlusGroup()
     } else {
       resetForm()
     }
@@ -3591,7 +3640,11 @@ watch(
 // Reset platform-specific settings when platform changes
 watch(
   () => form.platform,
-  (newPlatform) => {
+  (newPlatform, oldPlatform) => {
+    if (oldPlatform && newPlatform !== oldPlatform) {
+      form.group_ids = []
+      groupSelectionTouched.value = false
+    }
     // Reset base URL based on platform
     apiKeyBaseUrl.value =
       (newPlatform === 'openai')
@@ -3655,6 +3708,7 @@ watch(
 
     geminiOAuth.resetState()
     antigravityOAuth.resetState()
+    applyDefaultOpenAIPlusGroup()
   }
 )
 
@@ -3996,19 +4050,21 @@ const resetForm = () => {
   step.value = 1
   form.name = ''
   form.notes = ''
-  form.platform = 'anthropic'
+  groupSelectionTouched.value = false
+  applyingDefaultGroup.value = false
+  form.platform = 'openai'
   form.type = 'oauth'
   form.credentials = {}
   form.proxy_id = null
   form.concurrency = 10
   form.load_factor = null
-  form.priority = 1
+  form.priority = DEFAULT_OPENAI_ACCOUNT_PRIORITY
   form.rate_multiplier = 1
   form.group_ids = []
   form.expires_at = null
   accountCategory.value = 'oauth-based'
   addMethod.value = 'oauth'
-  apiKeyBaseUrl.value = 'https://api.anthropic.com'
+  apiKeyBaseUrl.value = 'https://api.openai.com'
   apiKeyValue.value = ''
   editQuotaLimit.value = null
   editQuotaDailyLimit.value = null
@@ -4022,7 +4078,7 @@ const resetForm = () => {
   modelMappings.value = []
   openAICompactModelMappings.value = []
   modelRestrictionMode.value = 'whitelist'
-  allowedModels.value = [...claudeModels] // Default fill related models
+  allowedModels.value = [...getModelsByPlatform('openai')] // Default fill related models
 
   antigravityModelRestrictionMode.value = 'mapping'
   antigravityWhitelistModels.value = []
@@ -4083,6 +4139,7 @@ const resetForm = () => {
   oauthFlowRef.value?.reset()
   antigravityMixedChannelConfirmed.value = false
   clearMixedChannelDialog()
+  applyDefaultOpenAIPlusGroup()
 }
 
 const handleClose = () => {
@@ -4126,6 +4183,103 @@ const buildOpenAIExtra = (base?: Record<string, unknown>): Record<string, unknow
   }
 
   return Object.keys(extra).length > 0 ? extra : undefined
+}
+
+const applyCreateExtraControls = (extra: Record<string, unknown>) => {
+  if (windowCostEnabled.value && windowCostLimit.value != null && windowCostLimit.value > 0) {
+    extra.window_cost_limit = windowCostLimit.value
+    extra.window_cost_sticky_reserve = windowCostStickyReserve.value ?? 10
+  }
+
+  if (sessionLimitEnabled.value && maxSessions.value != null && maxSessions.value > 0) {
+    extra.max_sessions = maxSessions.value
+    extra.session_idle_timeout_minutes = sessionIdleTimeout.value ?? 5
+  }
+
+  if (rpmLimitEnabled.value) {
+    const DEFAULT_BASE_RPM = 15
+    extra.base_rpm = (baseRpm.value != null && baseRpm.value > 0)
+      ? baseRpm.value
+      : DEFAULT_BASE_RPM
+    extra.rpm_strategy = rpmStrategy.value
+    if (rpmStickyBuffer.value != null && rpmStickyBuffer.value > 0) {
+      extra.rpm_sticky_buffer = rpmStickyBuffer.value
+    }
+  }
+
+  if (userMsgQueueMode.value) {
+    extra.user_msg_queue_mode = userMsgQueueMode.value
+  }
+
+  if (tlsFingerprintEnabled.value) {
+    extra.enable_tls_fingerprint = true
+    if (tlsFingerprintProfileId.value) {
+      extra.tls_fingerprint_profile_id = tlsFingerprintProfileId.value
+    }
+  }
+
+  if (sessionIdMaskingEnabled.value) {
+    extra.session_id_masking_enabled = true
+  }
+
+  if (cacheTTLOverrideEnabled.value) {
+    extra.cache_ttl_override_enabled = true
+    extra.cache_ttl_override_target = cacheTTLOverrideTarget.value
+  }
+
+  if (customBaseUrlEnabled.value && customBaseUrl.value.trim()) {
+    extra.custom_base_url_enabled = true
+    extra.custom_base_url = customBaseUrl.value.trim()
+  }
+}
+
+const buildOpenAICredentialOverrides = (): Record<string, unknown> | null => {
+  const credentials: Record<string, unknown> = {}
+
+  if (!isOpenAIModelRestrictionDisabled.value) {
+    const modelMapping = buildModelMappingObject(modelRestrictionMode.value, allowedModels.value, modelMappings.value)
+    if (modelMapping) {
+      credentials.model_mapping = modelMapping
+    }
+  }
+
+  const compactModelMapping = buildOpenAICompactModelMapping()
+  if (compactModelMapping) {
+    credentials.compact_model_mapping = compactModelMapping
+  }
+
+  if (!applyTempUnschedConfig(credentials)) {
+    return null
+  }
+
+  return credentials
+}
+
+const buildOpenAIPendingCreatePayload = (): OpenAIPendingCreatePayload | null => {
+  const credentialOverrides = buildOpenAICredentialOverrides()
+  if (credentialOverrides == null) {
+    return null
+  }
+
+  return {
+    name: form.name,
+    notes: form.notes,
+    proxy_id: form.proxy_id,
+    concurrency: form.concurrency,
+    load_factor: form.load_factor,
+    priority: form.priority,
+    rate_multiplier: form.rate_multiplier,
+    group_ids: [...form.group_ids],
+    expires_at: form.expires_at,
+    auto_pause_on_expired: autoPauseOnExpired.value,
+    extra: (() => {
+      const extra = buildOpenAIExtra() || {}
+      applyCreateExtraControls(extra)
+      writeQuotaNotifyToExtra(extra, 'create')
+      return Object.keys(extra).length > 0 ? extra : undefined
+    })(),
+    credential_overrides: credentialOverrides
+  }
 }
 
 const buildAnthropicExtra = (base?: Record<string, unknown>): Record<string, unknown> | undefined => {
@@ -4451,7 +4605,11 @@ const goBackToBasicInfo = () => {
 
 const handleGenerateUrl = async () => {
   if (form.platform === 'openai') {
-    await openaiOAuth.generateAuthUrl(form.proxy_id)
+    const pendingCreate = buildOpenAIPendingCreatePayload()
+    if (!pendingCreate) {
+      return
+    }
+    await openaiOAuth.generateAuthUrl(form.proxy_id, undefined, pendingCreate)
   } else if (form.platform === 'gemini') {
     await geminiOAuth.generateAuthUrl(
       form.proxy_id,
@@ -4575,7 +4733,9 @@ const handleOpenAIExchange = async (authCode: string) => {
 
     const credentials = oauthClient.buildCredentials(tokenInfo)
     const oauthExtra = oauthClient.buildExtraInfo(tokenInfo) as Record<string, unknown> | undefined
-    const extra = buildOpenAIExtra(oauthExtra)
+    const extra = buildOpenAIExtra(oauthExtra) || {}
+    applyCreateExtraControls(extra)
+    writeQuotaNotifyToExtra(extra, 'create')
     const shouldCreateOpenAI = form.platform === 'openai'
 
     // Add model mapping for OpenAI OAuth accounts（透传模式下不应用）
@@ -4604,7 +4764,7 @@ const handleOpenAIExchange = async (authCode: string) => {
         platform: 'openai',
         type: 'oauth',
         credentials,
-        extra,
+        extra: Object.keys(extra).length > 0 ? extra : undefined,
         proxy_id: form.proxy_id,
         concurrency: form.concurrency,
         load_factor: form.load_factor ?? undefined,

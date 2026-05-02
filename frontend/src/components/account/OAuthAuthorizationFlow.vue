@@ -376,6 +376,14 @@
                   {{ loading ? t('admin.accounts.oauth.generating') : oauthGenerateAuthUrl }}
                 </button>
                 <div v-else class="space-y-3">
+                  <button
+                    type="button"
+                    class="btn btn-primary text-sm"
+                    @click="handleOpenAuthUrl"
+                  >
+                    <Icon name="externalLink" size="sm" class="mr-2" />
+                    {{ t('admin.accounts.oauth.openAuthUrl') }}
+                  </button>
                   <div class="flex items-center gap-2">
                     <input
                       :value="authUrl"
@@ -704,6 +712,11 @@ const handleCopyUrl = () => {
   if (props.authUrl) {
     copyToClipboard(props.authUrl, 'URL copied to clipboard')
   }
+}
+
+const handleOpenAuthUrl = () => {
+  if (!props.authUrl || typeof window === 'undefined') return
+  window.location.href = props.authUrl
 }
 
 const handleRegenerate = () => {

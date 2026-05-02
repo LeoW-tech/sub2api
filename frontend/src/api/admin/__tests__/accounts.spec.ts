@@ -1,20 +1,23 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-const { getMock } = vi.hoisted(() => ({
+const { getMock, postMock } = vi.hoisted(() => ({
   getMock: vi.fn(),
+  postMock: vi.fn(),
 }));
 
 vi.mock("@/api/client", () => ({
   apiClient: {
     get: getMock,
+    post: postMock,
   },
 }));
 
-import { exportData, list } from "../accounts";
+import { completeOpenAIPendingCreate, exportData, list } from "../accounts";
 
 describe("admin accounts api", () => {
   beforeEach(() => {
     getMock.mockReset();
+    postMock.mockReset();
   });
 
   it("list 会携带 ip 与 capacity_status 筛选参数", async () => {
@@ -70,5 +73,25 @@ describe("admin accounts api", () => {
         sort_order: "desc",
       },
     });
+  });
+
+  it("completeOpenAIPendingCreate 会调用 OpenAI pending create 完成接口", async () => {
+    postMock.mockResolvedValue({
+      data: { id: 10, name: "OpenAI Plus" },
+    });
+
+    const account = await completeOpenAIPendingCreate({
+      code: "oauth-code",
+      state: "oauth-state",
+    });
+
+    expect(postMock).toHaveBeenCalledWith(
+      "/admin/openai/complete-pending-create",
+      {
+        code: "oauth-code",
+        state: "oauth-state",
+      },
+    );
+    expect(account).toEqual({ id: 10, name: "OpenAI Plus" });
   });
 });

@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
 import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
+import type { Account, OpenAIPendingCreatePayload } from '@/types'
 
 export interface OpenAITokenInfo {
   access_token?: string
@@ -50,7 +51,8 @@ export function useOpenAIOAuth() {
   // Generate auth URL for OpenAI OAuth
   const generateAuthUrl = async (
     proxyId?: number | null,
-    redirectUri?: string
+    redirectUri?: string,
+    pendingCreate?: OpenAIPendingCreatePayload
   ): Promise<boolean> => {
     loading.value = true
     authUrl.value = ''
@@ -65,6 +67,9 @@ export function useOpenAIOAuth() {
       }
       if (redirectUri) {
         payload.redirect_uri = redirectUri
+      }
+      if (pendingCreate) {
+        payload.pending_create = pendingCreate
       }
 
       const response = await adminAPI.accounts.generateAuthUrl(
@@ -84,6 +89,35 @@ export function useOpenAIOAuth() {
       error.value = extractApiErrorMessage(err, t('admin.accounts.oauth.openai.failedToGenerateUrl'))
       appStore.showError(error.value)
       return false
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const completePendingCreate = async (code: string, state: string): Promise<Account | null> => {
+    const trimmedCode = code.trim()
+    const trimmedState = state.trim()
+    if (!trimmedCode || !trimmedState) {
+      error.value = 'Missing auth code or state'
+      return null
+    }
+
+    loading.value = true
+    error.value = ''
+    try {
+      return await adminAPI.accounts.completeOpenAIPendingCreate({
+        code: trimmedCode,
+        state: trimmedState
+      })
+    } catch (err: any) {
+      error.value = extractI18nErrorMessage(
+        err,
+        t,
+        'admin.accounts.oauth.openai.errors',
+        t('admin.accounts.oauth.openai.failedToExchangeCode')
+      )
+      appStore.showError(error.value)
+      return null
     } finally {
       loading.value = false
     }
@@ -229,6 +263,7 @@ export function useOpenAIOAuth() {
     // Methods
     resetState,
     generateAuthUrl,
+    completePendingCreate,
     exchangeAuthCode,
     validateRefreshToken,
     buildCredentials,

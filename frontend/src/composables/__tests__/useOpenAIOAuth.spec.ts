@@ -78,3 +78,34 @@ describe('useOpenAIOAuth.exchangeAuthCode', () => {
     )
   })
 })
+
+describe('useOpenAIOAuth.generateAuthUrl', () => {
+  it('sends pending_create with the generated OpenAI auth URL request', async () => {
+    vi.mocked(adminAPI.accounts.generateAuthUrl).mockResolvedValueOnce({
+      auth_url: 'https://auth.openai.com/oauth/authorize?state=oauth-state',
+      session_id: 'session-id'
+    })
+    const oauth = useOpenAIOAuth()
+    const pendingCreate = {
+      name: 'OpenAI Plus',
+      priority: 50,
+      group_ids: [8],
+      credential_overrides: {
+        model_mapping: { 'gpt-5': 'gpt-5-mini' }
+      }
+    }
+
+    const ok = await oauth.generateAuthUrl(3, undefined, pendingCreate)
+
+    expect(ok).toBe(true)
+    expect(adminAPI.accounts.generateAuthUrl).toHaveBeenCalledWith(
+      '/admin/openai/generate-auth-url',
+      {
+        proxy_id: 3,
+        pending_create: pendingCreate
+      }
+    )
+    expect(oauth.sessionId.value).toBe('session-id')
+    expect(oauth.oauthState.value).toBe('oauth-state')
+  })
+})
