@@ -147,7 +147,7 @@ func GroupFromServiceAdmin(g *service.Group) *AdminGroup {
 		MCPXMLInject:                g.MCPXMLInject,
 		DefaultMappedModel:          g.DefaultMappedModel,
 		MessagesDispatchModelConfig: g.MessagesDispatchModelConfig,
-		SupportedModelScopes:        g.SupportedModelScopes,
+		SupportedModelScopes:        service.FilterSupportedModelScopesForPlatform(g.Platform, g.SupportedModelScopes),
 		AccountCount:                g.AccountCount,
 		ActiveAccountCount:          g.ActiveAccountCount,
 		RateLimitedAccountCount:     g.RateLimitedAccountCount,

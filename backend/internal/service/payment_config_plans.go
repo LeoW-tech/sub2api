@@ -106,7 +106,7 @@ func (s *PaymentConfigService) GetGroupInfoMap(ctx context.Context, plans []*dbe
 			DailyLimitUSD:   g.DailyLimitUsd,
 			WeeklyLimitUSD:  g.WeeklyLimitUsd,
 			MonthlyLimitUSD: g.MonthlyLimitUsd,
-			ModelScopes:     g.SupportedModelScopes,
+			ModelScopes:     FilterSupportedModelScopesForPlatform(g.Platform, g.SupportedModelScopes),
 		}
 	}
 	return m

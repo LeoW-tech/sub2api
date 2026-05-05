@@ -31,6 +31,11 @@ type groupRepoStubForAdmin struct {
 	listWithFiltersGroups      []Group
 	listWithFiltersResult      *pagination.PaginationResult
 	listWithFiltersErr         error
+
+	listActiveGroups           []Group
+	listActiveErr              error
+	listActiveByPlatformGroups []Group
+	listActiveByPlatformErr    error
 }
 
 func (s *groupRepoStubForAdmin) Create(_ context.Context, g *Group) error {
@@ -94,11 +99,17 @@ func (s *groupRepoStubForAdmin) ListWithFilters(_ context.Context, params pagina
 }
 
 func (s *groupRepoStubForAdmin) ListActive(_ context.Context) ([]Group, error) {
-	panic("unexpected ListActive call")
+	if s.listActiveErr != nil {
+		return nil, s.listActiveErr
+	}
+	return s.listActiveGroups, nil
 }
 
 func (s *groupRepoStubForAdmin) ListActiveByPlatform(_ context.Context, _ string) ([]Group, error) {
-	panic("unexpected ListActiveByPlatform call")
+	if s.listActiveByPlatformErr != nil {
+		return nil, s.listActiveByPlatformErr
+	}
+	return s.listActiveByPlatformGroups, nil
 }
 
 func (s *groupRepoStubForAdmin) ExistsByName(_ context.Context, _ string) (bool, error) {
@@ -139,6 +150,96 @@ func TestAdminService_ListGroups_PassesSortParams(t *testing.T) {
 		SortBy:    "account_count",
 		SortOrder: "ASC",
 	}, repo.listWithFiltersParams)
+}
+
+func TestAdminService_ListGroups_FiltersSupportedModelScopesOnRead(t *testing.T) {
+	repo := &groupRepoStubForAdmin{
+		listWithFiltersGroups: []Group{
+			{
+				ID:                   1,
+				Name:                 "openai-group",
+				Platform:             PlatformOpenAI,
+				SupportedModelScopes: []string{"claude", "gemini_text", "gemini_image"},
+			},
+			{
+				ID:                   2,
+				Name:                 "antigravity-group",
+				Platform:             PlatformAntigravity,
+				SupportedModelScopes: []string{"claude", "gemini_image"},
+			},
+		},
+	}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	groups, total, err := svc.ListGroups(context.Background(), 1, 10, "", "", "", nil, "id", "asc")
+	require.NoError(t, err)
+	require.Equal(t, int64(2), total)
+	require.Len(t, groups, 2)
+	require.Empty(t, groups[0].SupportedModelScopes)
+	require.Equal(t, []string{"claude", "gemini_image"}, groups[1].SupportedModelScopes)
+	require.Equal(t, []string{"claude", "gemini_text", "gemini_image"}, repo.listWithFiltersGroups[0].SupportedModelScopes)
+}
+
+func TestAdminService_GetAllGroups_FiltersSupportedModelScopesOnRead(t *testing.T) {
+	repo := &groupRepoStubForAdmin{
+		listActiveGroups: []Group{
+			{
+				ID:                   1,
+				Name:                 "openai-group",
+				Platform:             PlatformOpenAI,
+				SupportedModelScopes: []string{"claude", "gemini_text"},
+			},
+			{
+				ID:                   2,
+				Name:                 "antigravity-group",
+				Platform:             PlatformAntigravity,
+				SupportedModelScopes: []string{"gemini_image"},
+			},
+		},
+	}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	groups, err := svc.GetAllGroups(context.Background())
+	require.NoError(t, err)
+	require.Len(t, groups, 2)
+	require.Empty(t, groups[0].SupportedModelScopes)
+	require.Equal(t, []string{"gemini_image"}, groups[1].SupportedModelScopes)
+}
+
+func TestAdminService_GetAllGroupsByPlatform_FiltersSupportedModelScopesOnRead(t *testing.T) {
+	repo := &groupRepoStubForAdmin{
+		listActiveByPlatformGroups: []Group{
+			{
+				ID:                   1,
+				Name:                 "openai-group",
+				Platform:             PlatformOpenAI,
+				SupportedModelScopes: []string{"claude", "gemini_text"},
+			},
+		},
+	}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	groups, err := svc.GetAllGroupsByPlatform(context.Background(), PlatformOpenAI)
+	require.NoError(t, err)
+	require.Len(t, groups, 1)
+	require.Empty(t, groups[0].SupportedModelScopes)
+}
+
+func TestAdminService_GetGroup_FiltersSupportedModelScopesOnRead(t *testing.T) {
+	existingGroup := &Group{
+		ID:                   1,
+		Name:                 "openai-group",
+		Platform:             PlatformOpenAI,
+		SupportedModelScopes: []string{"claude", "gemini_text"},
+	}
+	repo := &groupRepoStubForAdmin{getByID: existingGroup}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	group, err := svc.GetGroup(context.Background(), 1)
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	require.Empty(t, group.SupportedModelScopes)
+	require.Equal(t, []string{"claude", "gemini_text"}, existingGroup.SupportedModelScopes)
 }
 
 // TestAdminService_CreateGroup_WithImagePricing 测试创建分组时 ImagePrice 字段正确传递
@@ -374,6 +475,40 @@ func TestAdminService_CreateGroup_ClearsMessagesDispatchFieldsForNonOpenAIPlatfo
 	require.Equal(t, OpenAIMessagesDispatchModelConfig{}, repo.created.MessagesDispatchModelConfig)
 }
 
+func TestAdminService_CreateGroup_ClearsSupportedModelScopesForNonAntigravityPlatform(t *testing.T) {
+	repo := &groupRepoStubForAdmin{}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	group, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
+		Name:                 "openai-group",
+		Description:          "non-antigravity",
+		Platform:             PlatformOpenAI,
+		RateMultiplier:       1.0,
+		SupportedModelScopes: []string{"claude", "gemini_text", "gemini_image"},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	require.NotNil(t, repo.created)
+	require.Empty(t, repo.created.SupportedModelScopes)
+}
+
+func TestAdminService_CreateGroup_PreservesSupportedModelScopesForAntigravity(t *testing.T) {
+	repo := &groupRepoStubForAdmin{}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	group, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
+		Name:                 "antigravity-group",
+		Description:          "antigravity",
+		Platform:             PlatformAntigravity,
+		RateMultiplier:       1.0,
+		SupportedModelScopes: []string{"claude", "gemini_image"},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	require.NotNil(t, repo.created)
+	require.Equal(t, []string{"claude", "gemini_image"}, repo.created.SupportedModelScopes)
+}
+
 func TestAdminService_UpdateGroup_ClearsMessagesDispatchFieldsWhenPlatformChangesAwayFromOpenAI(t *testing.T) {
 	existingGroup := &Group{
 		ID:                    1,
@@ -399,6 +534,67 @@ func TestAdminService_UpdateGroup_ClearsMessagesDispatchFieldsWhenPlatformChange
 	require.False(t, repo.updated.AllowMessagesDispatch)
 	require.Empty(t, repo.updated.DefaultMappedModel)
 	require.Equal(t, OpenAIMessagesDispatchModelConfig{}, repo.updated.MessagesDispatchModelConfig)
+}
+
+func TestAdminService_UpdateGroup_ClearsSupportedModelScopesWhenPlatformChangesAwayFromAntigravity(t *testing.T) {
+	existingGroup := &Group{
+		ID:                   1,
+		Name:                 "existing-antigravity-group",
+		Platform:             PlatformAntigravity,
+		Status:               StatusActive,
+		SupportedModelScopes: []string{"claude", "gemini_text", "gemini_image"},
+	}
+	repo := &groupRepoStubForAdmin{getByID: existingGroup}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	group, err := svc.UpdateGroup(context.Background(), 1, &UpdateGroupInput{
+		Platform: PlatformOpenAI,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	require.NotNil(t, repo.updated)
+	require.Equal(t, PlatformOpenAI, repo.updated.Platform)
+	require.Empty(t, repo.updated.SupportedModelScopes)
+}
+
+func TestAdminService_UpdateGroup_ClearsSupportedModelScopesForNonAntigravityPayload(t *testing.T) {
+	existingGroup := &Group{
+		ID:       1,
+		Name:     "existing-openai-group",
+		Platform: PlatformOpenAI,
+		Status:   StatusActive,
+	}
+	repo := &groupRepoStubForAdmin{getByID: existingGroup}
+	svc := &adminServiceImpl{groupRepo: repo}
+	scopes := []string{"claude", "gemini_text"}
+
+	group, err := svc.UpdateGroup(context.Background(), 1, &UpdateGroupInput{
+		SupportedModelScopes: &scopes,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	require.NotNil(t, repo.updated)
+	require.Empty(t, repo.updated.SupportedModelScopes)
+}
+
+func TestAdminService_UpdateGroup_PreservesSupportedModelScopesForAntigravity(t *testing.T) {
+	existingGroup := &Group{
+		ID:       1,
+		Name:     "existing-antigravity-group",
+		Platform: PlatformAntigravity,
+		Status:   StatusActive,
+	}
+	repo := &groupRepoStubForAdmin{getByID: existingGroup}
+	svc := &adminServiceImpl{groupRepo: repo}
+	scopes := []string{"claude", "gemini_image"}
+
+	group, err := svc.UpdateGroup(context.Background(), 1, &UpdateGroupInput{
+		SupportedModelScopes: &scopes,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	require.NotNil(t, repo.updated)
+	require.Equal(t, []string{"claude", "gemini_image"}, repo.updated.SupportedModelScopes)
 }
 
 func TestAdminService_ListGroups_WithSearch(t *testing.T) {

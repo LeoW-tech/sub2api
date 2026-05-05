@@ -118,7 +118,7 @@ func (Group) Fields() []ent.Field {
 
 		// 支持的模型系列 (added by migration 046)
 		field.JSON("supported_model_scopes", []string{}).
-			Default([]string{"claude", "gemini_text", "gemini_image"}).
+			Default([]string{}).
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
 			Comment("支持的模型系列：claude, gemini_text, gemini_image"),
 

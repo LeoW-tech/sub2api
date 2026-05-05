@@ -155,3 +155,16 @@ func TestMigration136BuildsAffiliateLedgerAuditIndexesConcurrently(t *testing.T)
 	require.Contains(t, sql, "WHERE source_order_id IS NOT NULL")
 	require.Contains(t, sql, "WHERE action = 'accrue'")
 }
+
+func TestMigration137ClearsNonAntigravitySupportedModelScopesAndDefault(t *testing.T) {
+	content, err := FS.ReadFile("137_clear_non_antigravity_supported_model_scopes.sql")
+	require.NoError(t, err)
+
+	sql := string(content)
+	require.Contains(t, sql, "ALTER TABLE groups")
+	require.Contains(t, sql, "ALTER COLUMN supported_model_scopes SET DEFAULT '[]'::jsonb")
+	require.Contains(t, sql, "UPDATE groups")
+	require.Contains(t, sql, "SET supported_model_scopes = '[]'::jsonb")
+	require.Contains(t, sql, "COALESCE(platform, '') <> 'antigravity'")
+	require.Contains(t, sql, "supported_model_scopes <> '[]'::jsonb")
+}
