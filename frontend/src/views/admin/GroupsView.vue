@@ -3513,6 +3513,16 @@ const normalizeOptionalLimit = (
   return Number.isFinite(value) && value > 0 ? value : null;
 };
 
+const resolveSupportedModelScopes = (
+  platform: GroupPlatform,
+  scopes: string[],
+): string[] => {
+  if (platform !== "antigravity") {
+    return [];
+  }
+  return [...scopes];
+};
+
 const handleCreateGroup = async () => {
   if (!createForm.name.trim()) {
     appStore.showError(t("admin.groups.nameRequired"));
@@ -3534,6 +3544,10 @@ const handleCreateGroup = async () => {
       ),
       model_routing: convertRoutingRulesToApiFormat(
         createModelRoutingRules.value,
+      ),
+      supported_model_scopes: resolveSupportedModelScopes(
+        createForm.platform,
+        createForm.supported_model_scopes,
       ),
       messages_dispatch_model_config:
         createForm.platform === "openai"
@@ -3659,6 +3673,10 @@ const handleUpdateGroup = async () => {
           : editForm.fallback_group_id_on_invalid_request,
       model_routing: convertRoutingRulesToApiFormat(
         editModelRoutingRules.value,
+      ),
+      supported_model_scopes: resolveSupportedModelScopes(
+        editForm.platform,
+        editForm.supported_model_scopes,
       ),
       messages_dispatch_model_config:
         editForm.platform === "openai"
