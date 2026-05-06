@@ -5702,8 +5702,7 @@ export default {
         chatIdsPlaceholder: "123456789\n-1001234567890",
         chatIdsHint: "支持换行或逗号分隔，留空则不发送。",
         proxyUrls: "代理 URL 列表",
-        proxyUrlsPlaceholder:
-          "http://host.docker.internal:58080\nhttp://host.docker.internal:58081\nhttp://host.docker.internal:58082",
+        proxyUrlsPlaceholder: "http://host.docker.internal:65182",
         proxyUrlsHint: "支持换行或逗号分隔。留空时使用默认 door 代理顺序。",
       },
       testEmail: {

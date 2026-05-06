@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -85,6 +86,42 @@ func TestTelegramNotificationService_SendTestTextWithConfig_ReturnsTelegramAPIEr
 	require.EqualError(t, err, `telegram send failed: 123456: telegram api status 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}`)
 }
 
+func TestTelegramNotificationService_SendTestTextWithConfig_RedactsTokenFromRequestError(t *testing.T) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("Post " + req.URL.String() + ": proxy connection refused")
+	})
+	svc := &TelegramNotificationService{
+		clientFactory: func(proxyURL string) (*http.Client, error) {
+			return &http.Client{Transport: transport}, nil
+		},
+	}
+
+	err := svc.SendTestTextWithConfig(context.Background(), &TelegramNotificationConfig{
+		BotToken: "123456:secret-token",
+		ChatIDs:  []string{"123456"},
+		ProxyURLs: []string{
+			"http://host.docker.internal:65182",
+		},
+	}, "hello")
+
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "123456:secret-token")
+	require.Contains(t, err.Error(), "<telegram-bot-token>")
+}
+
+func TestTelegramNotificationService_DefaultProxyUsesUnifiedTelegramAuto(t *testing.T) {
+	require.Equal(t, []string{"http://host.docker.internal:65182"}, telegramDefaultProxyURLs)
+}
+
+func TestTelegramNotificationService_SanitizeTelegramErrorRedactsBotToken(t *testing.T) {
+	err := errors.New("Post \"https://api.telegram.org/bot123456:secret-token/sendMessage\": proxy error")
+
+	got := sanitizeTelegramError(err, "123456:secret-token")
+
+	require.NotContains(t, got, "123456:secret-token")
+	require.Contains(t, got, "<telegram-bot-token>")
+}
+
 type settingRepoStubForTelegram struct {
 	values map[string]string
 }
@@ -118,3 +155,9 @@ func (s *settingRepoStubForTelegram) GetAll(_ context.Context) (map[string]strin
 	return s.values, nil
 }
 func (s *settingRepoStubForTelegram) Delete(context.Context, string) error { panic("unexpected") }
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}

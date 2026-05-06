@@ -16,9 +16,7 @@ import (
 const telegramDefaultBaseURL = "https://api.telegram.org"
 
 var telegramDefaultProxyURLs = []string{
-	"http://host.docker.internal:58080",
-	"http://host.docker.internal:58081",
-	"http://host.docker.internal:58082",
+	"http://host.docker.internal:65182",
 }
 
 type telegramClientFactory func(proxyURL string) (*http.Client, error)
@@ -106,13 +104,25 @@ func (s *TelegramNotificationService) sendTextWithConfig(ctx context.Context, cf
 			ChatIDs:   chatIDs,
 			ProxyURLs: proxyURLs,
 		}, chatID, text); err != nil {
-			sendErrors = append(sendErrors, fmt.Sprintf("%s: %v", chatID, err))
+			sendErrors = append(sendErrors, fmt.Sprintf("%s: %s", chatID, sanitizeTelegramError(err, botToken)))
 		}
 	}
 	if len(sendErrors) > 0 {
 		return fmt.Errorf("telegram send failed: %s", strings.Join(sendErrors, "; "))
 	}
 	return nil
+}
+
+func sanitizeTelegramError(err error, botToken string) string {
+	if err == nil {
+		return ""
+	}
+	message := err.Error()
+	token := strings.TrimSpace(botToken)
+	if token == "" {
+		return message
+	}
+	return strings.ReplaceAll(message, token, "<telegram-bot-token>")
 }
 
 func (s *TelegramNotificationService) loadConfig(ctx context.Context) (*TelegramNotificationConfig, error) {

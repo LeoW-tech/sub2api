@@ -5772,8 +5772,7 @@ export default {
         chatIdsHint:
           "Supports newline or comma separated values. Leave empty to disable delivery.",
         proxyUrls: "Proxy URL List",
-        proxyUrlsPlaceholder:
-          "http://host.docker.internal:58080\nhttp://host.docker.internal:58081\nhttp://host.docker.internal:58082",
+        proxyUrlsPlaceholder: "http://host.docker.internal:65182",
         proxyUrlsHint:
           "Supports newline or comma separated values. Uses the default door proxy order when empty.",
       },
