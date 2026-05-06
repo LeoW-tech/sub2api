@@ -1913,7 +1913,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeySMTPUseTLS:                               "false",
 		SettingKeyTelegramEnabled:                          "false",
 		SettingKeyTelegramChatIDs:                          "",
-		SettingKeyTelegramProxyURLs:                        "",
+		SettingKeyTelegramProxyURLs:                        "http://host.docker.internal:65182",
 		// Model fallback defaults
 		SettingKeyEnableModelFallback:      "false",
 		SettingKeyFallbackModelAnthropic:   "claude-3-5-sonnet-20241022",

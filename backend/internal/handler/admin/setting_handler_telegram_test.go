@@ -49,7 +49,7 @@ func TestSettingHandler_SendTestTelegram_FallsBackToSavedConfig(t *testing.T) {
 			service.SettingKeySiteName:          "Sub2API Stable",
 			service.SettingKeyTelegramBotToken:  "saved-token",
 			service.SettingKeyTelegramChatIDs:   "1820493278\n-1001234567890",
-			service.SettingKeyTelegramProxyURLs: "http://host.docker.internal:58080,http://host.docker.internal:58081",
+			service.SettingKeyTelegramProxyURLs: "http://host.docker.internal:65182",
 		},
 	}
 	svc := service.NewSettingService(repo, &config.Config{})
@@ -68,7 +68,7 @@ func TestSettingHandler_SendTestTelegram_FallsBackToSavedConfig(t *testing.T) {
 	require.NotNil(t, telegram.lastConfig)
 	require.Equal(t, "saved-token", telegram.lastConfig.BotToken)
 	require.Equal(t, []string{"1820493278", "-1001234567890"}, telegram.lastConfig.ChatIDs)
-	require.Equal(t, []string{"http://host.docker.internal:58080", "http://host.docker.internal:58081"}, telegram.lastConfig.ProxyURLs)
+	require.Equal(t, []string{"http://host.docker.internal:65182"}, telegram.lastConfig.ProxyURLs)
 	require.Contains(t, telegram.lastText, "[Sub2API Stable] Telegram 测试消息")
 }
 

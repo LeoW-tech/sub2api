@@ -65,8 +65,6 @@ runtime/
     data/
     postgres_data/
     redis_data/
-    door-gateway.json
-    door-workers/
   dev/
     .env
     data/
@@ -76,7 +74,6 @@ runtime/
     <timestamp>/
       runtime/
       com.sub2api.autostart.plist
-      com.sub2api.door-gateway.plist
 ```
 
 说明：
@@ -84,18 +81,16 @@ runtime/
 - `runtime/stable` 是稳定环境，默认服务端口 `8080`
 - `runtime/dev` 是开发环境，服务端口 `127.0.0.1:8081`
 - `runtime/backups` 是默认运行时备份目录
-- `door-gateway` 配置在 `runtime/stable/door-gateway.json`
-- `door-gateway` worker 数据在 `runtime/stable/door-workers/`
 - `runtime/` 整体不进 git
-- Linux 当前使用 `systemd` 托管 `stable + door-gateway`
-- Mac 当前使用 `autostart/launchd` 负责登录后自动恢复
+- Linux 当前使用 `systemd` 托管 `stable`，所有节点出口统一依赖 `/srv/egress-control`
+- Mac 当前使用 `autostart/launchd` 负责登录后自动恢复 stable 栈
 
 前端访问地址：
 
 - 稳定环境前端（本机）：`http://127.0.0.1:8080/`
 - 稳定环境前端（局域网）：`http://<本机局域网IP>:8080/`
 - 开发环境前端：`http://127.0.0.1:8081/`
-- `door-gateway` 健康检查：`http://127.0.0.1:19080/health`
+- egress-control 健康检查：`http://127.0.0.1:19180/health`
 
 ## 分支与维护模式
 
@@ -129,9 +124,9 @@ runtime/
 - 不要把 `runtime/` 下的文件加入 git
 - 不要删除或覆盖用户的运行时数据，除非用户明确要求
 - 修改稳定环境相关内容时，优先保证 `stable` 可恢复
-- 修改 `door-gateway` 时，要同时考虑配置路径、日志路径以及当前平台的托管方式
-- Linux 侧要同时考虑 `systemd`、`/etc/systemd/system/sub2api-stable.service`、`/etc/systemd/system/sub2api-door-gateway.service`
-- Mac 侧要同时考虑 `LaunchAgents`、`colima`、`autostart`、`~/Library/LaunchAgents/com.sub2api.autostart.plist`、`~/Library/LaunchAgents/com.sub2api.door-gateway.plist`
+- 不得恢复旧 `door-gateway` 双轨链路；Sub2API 需要节点出口时只能接入 `/srv/egress-control`
+- Linux 侧要同时考虑 `systemd`、`/etc/systemd/system/sub2api-stable.service`、`egress-control.service`、`egress-control-docker-bridge.service`
+- Mac 侧要同时考虑 `LaunchAgents`、`colima`、`autostart`、`~/Library/LaunchAgents/com.sub2api.autostart.plist`
 - 如果调整脚本接口，必须同步更新 `docs/LOCAL_DEVELOPMENT_MAINTENANCE.md`
 - 这套仓库服务的是双机同步模式：Linux 通常负责提交并按需推送，Mac 从 `origin` 拉取同步更新
 
@@ -141,6 +136,6 @@ runtime/
 
 1. `git status` 是否干净或是否只剩预期改动
 2. 如涉及 stable/dev 运行面，相关服务是否真的可访问
-3. 如在 Linux 上操作稳定环境，至少检查 `./scripts/sub2api-local stable status`、`./scripts/sub2api-local systemd status` 与 `http://127.0.0.1:19080/health`
-4. 如在 Mac 上操作自动恢复链路，至少检查 `./scripts/sub2api-local autostart status` 与 `http://127.0.0.1:19080/health`
+3. 如在 Linux 上操作稳定环境，至少检查 `./scripts/sub2api-local stable status`、`./scripts/sub2api-local systemd status` 与 `http://127.0.0.1:19180/health`
+4. 如在 Mac 上操作自动恢复链路，至少检查 `./scripts/sub2api-local autostart status`
 5. 变更是否已经提交本地 git

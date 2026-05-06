@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/url"
 	"os"
 	"strings"
@@ -149,7 +150,7 @@ type GeminiTierQuotaConfig struct {
 type UpdateConfig struct {
 	// ProxyURL 用于访问 GitHub 的代理地址
 	// 支持 http/https/socks5/socks5h 协议
-	// 例如: "http://127.0.0.1:7890", "socks5://127.0.0.1:1080"
+	// 例如: 宿主机 "http://127.0.0.1:19181"，Docker "http://host.docker.internal:65181"
 	ProxyURL string `mapstructure:"proxy_url"`
 }
 
@@ -1225,6 +1226,7 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	// 环境变量支持
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	_ = viper.BindEnv("update.proxy_url", "UPDATE_PROXY_URL")
 
 	// 默认值
 	setDefaults()
@@ -1292,6 +1294,7 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	cfg.Log.Environment = strings.TrimSpace(cfg.Log.Environment)
 	cfg.Log.StacktraceLevel = strings.ToLower(strings.TrimSpace(cfg.Log.StacktraceLevel))
 	cfg.Log.Output.FilePath = strings.TrimSpace(cfg.Log.Output.FilePath)
+	cfg.Update.ProxyURL = strings.TrimSpace(cfg.Update.ProxyURL)
 	cfg.Gateway.ForcedCodexInstructionsTemplateFile = strings.TrimSpace(cfg.Gateway.ForcedCodexInstructionsTemplateFile)
 	if cfg.Gateway.ForcedCodexInstructionsTemplateFile != "" {
 		content, err := os.ReadFile(cfg.Gateway.ForcedCodexInstructionsTemplateFile)
@@ -1830,6 +1833,9 @@ func (c *Config) Validate() error {
 	}
 	if c.SubscriptionMaintenance.QueueSize < 0 {
 		return fmt.Errorf("subscription_maintenance.queue_size must be non-negative")
+	}
+	if err := validateNoLegacyEgressProxyURL("update.proxy_url", c.Update.ProxyURL); err != nil {
+		return err
 	}
 
 	// Gemini OAuth 配置校验：client_id 与 client_secret 必须同时设置或同时留空。
@@ -2633,6 +2639,32 @@ func ValidateAbsoluteHTTPURL(raw string) error {
 	}
 	if u.Fragment != "" {
 		return fmt.Errorf("must not include fragment")
+	}
+	return nil
+}
+
+func validateNoLegacyEgressProxyURL(fieldName, raw string) error {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil
+	}
+	u, err := url.Parse(trimmed)
+	if err != nil {
+		return fmt.Errorf("%s invalid: %w", fieldName, err)
+	}
+	host := strings.ToLower(strings.Trim(u.Hostname(), "[]"))
+	port := u.Port()
+	if strings.EqualFold(host, "localhost") {
+		host = "127.0.0.1"
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+		switch port {
+		case "7890", "7891":
+			return fmt.Errorf("%s must not use legacy local proxy port %s; use egress-control 19181/65181 instead", fieldName, port)
+		}
+		if strings.HasPrefix(port, "58") && len(port) == 5 {
+			return fmt.Errorf("%s must not use legacy door-gateway port %s; use egress-control 65xxx fixed doors instead", fieldName, port)
+		}
 	}
 	return nil
 }

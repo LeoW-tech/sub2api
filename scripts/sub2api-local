@@ -64,8 +64,7 @@ usage() {
   ./scripts/sub2api-local dev status
   ./scripts/sub2api-local dev restart
   ./scripts/sub2api-local dev rebuild
-  ./scripts/sub2api-local door restart
-  ./scripts/sub2api-local door status
+  ./scripts/sub2api-local egress status
   ./scripts/sub2api-local systemd install
   ./scripts/sub2api-local systemd status
   ./scripts/sub2api-local systemd restart
@@ -227,6 +226,26 @@ env_value() {
   ' "$ENV_FILE"
 }
 
+reject_legacy_proxy_url() {
+  local key="$1"
+  local value="$2"
+  [[ -n "$value" ]] || return 0
+  case "$value" in
+    *127.0.0.1:7890*|*localhost:7890*|*127.0.0.1:7891*|*localhost:7891*)
+      die "$key 仍指向旧 Clash 本机端口，请改用 egress-control: 宿主机 19181 / Docker 65181"
+      ;;
+    *127.0.0.1:58[0-9][0-9][0-9]*|*localhost:58[0-9][0-9][0-9]*)
+      die "$key 仍指向旧 door-gateway 58xxx 端口，请改用 egress-control 固定门 65xxx"
+      ;;
+  esac
+}
+
+validate_runtime_env() {
+  local update_proxy_url
+  update_proxy_url="$(env_value UPDATE_PROXY_URL)"
+  reject_legacy_proxy_url UPDATE_PROXY_URL "$update_proxy_url"
+}
+
 image_exists() {
   local image
   image="$(env_value SUB2API_IMAGE)"
@@ -272,6 +291,7 @@ runtime_up() {
   local env_name="$1"
   local build_flag="${2:-}"
   load_runtime "$env_name"
+  validate_runtime_env
 
   if [[ "$build_flag" == "--build" ]]; then
     runtime_rebuild "$env_name"
@@ -294,11 +314,13 @@ runtime_up() {
 
 runtime_down() {
   load_runtime "$1"
+  validate_runtime_env
   compose_cmd down
 }
 
 runtime_logs() {
   load_runtime "$1"
+  validate_runtime_env
   compose_cmd logs -f --tail=200 "${@:2}"
 }
 
@@ -326,38 +348,54 @@ runtime_container_status() {
   printf '%s: %s status=%s health=%s\n' "$service_name" "$container_name" "$state" "$health"
 }
 
-door_health_payload() {
-  curl -fsS "http://127.0.0.1:19080/health"
+egress_control_health_payload() {
+  curl -fsS "http://127.0.0.1:19180/health"
 }
 
-door_health_summary() {
-  local payload="$1"
-  local online
-  local total
-
-  online="$(printf '%s\n' "$payload" | sed -n 's/.*"online_doors"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1)"
-  total="$(printf '%s\n' "$payload" | sed -n 's/.*"total_doors"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1)"
-
-  if [[ -n "$online" && -n "$total" ]]; then
-    printf ' online_doors=%s/%s' "$online" "$total"
+egress_control_ready_payload() {
+  local token=""
+  if [[ -r /etc/egress-control/config.yaml ]]; then
+    token="$(sed -n 's/^[[:space:]]*api_token:[[:space:]]*//p' /etc/egress-control/config.yaml | head -n 1 | sed 's/^"//; s/"$//; s/^'\''//; s/'\''$//')"
+  fi
+  if [[ -n "$token" ]]; then
+    curl -fsS -H "Authorization: Bearer $token" "http://127.0.0.1:19180/ready"
+  else
+    return 1
   fi
 }
 
-door_health_status() {
+egress_control_health_summary() {
+  local payload="$1"
+  local healthy
+  local total
+
+  healthy="$(printf '%s\n' "$payload" | sed -n 's/.*"healthy_doors"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1)"
+  total="$(printf '%s\n' "$payload" | sed -n 's/.*"door_count"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1)"
+
+  if [[ -n "$healthy" && -n "$total" ]]; then
+    printf ' healthy_doors=%s/%s' "$healthy" "$total"
+  fi
+}
+
+egress_control_status() {
   local payload
 
-  if ! payload="$(door_health_payload 2>/dev/null)"; then
-    echo "door-gateway: failed"
+  if ! payload="$(egress_control_health_payload 2>/dev/null)"; then
+    echo "egress-control: failed"
     return 1
   fi
 
-  if printf '%s\n' "$payload" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'; then
-    echo "door-gateway: ok$(door_health_summary "$payload")"
-    return 0
+  if ! printf '%s\n' "$payload" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"(ok|healthy)"'; then
+    echo "egress-control: failed"
+    return 1
   fi
 
-  echo "door-gateway: failed$(door_health_summary "$payload")"
-  return 1
+  if payload="$(egress_control_ready_payload 2>/dev/null)"; then
+    echo "egress-control: ok$(egress_control_health_summary "$payload")"
+  else
+    echo "egress-control: ok"
+  fi
+  return 0
 }
 
 runtime_host_resolution_status() {
@@ -383,6 +421,7 @@ runtime_status() {
   local server_port
 
   load_runtime "$env_name"
+  validate_runtime_env
   server_port="$(env_value SERVER_PORT)"
   [[ -n "$server_port" ]] || server_port="8080"
 
@@ -415,7 +454,7 @@ runtime_status() {
   fi
 
   if [[ "$env_name" == "stable" ]]; then
-    if ! door_health_status; then
+    if ! egress_control_status; then
       status=1
     fi
   fi
@@ -435,10 +474,10 @@ runtime_status() {
       echo "sub2api-stable.service: 未安装"
       status=1
     fi
-    if systemd_unit_exists sub2api-door-gateway.service; then
-      echo "sub2api-door-gateway.service: active=$(systemctl is-active sub2api-door-gateway.service) enabled=$(systemctl is-enabled sub2api-door-gateway.service)"
+    if systemd_unit_exists egress-control.service; then
+      echo "egress-control.service: active=$(systemctl is-active egress-control.service) enabled=$(systemctl is-enabled egress-control.service)"
     else
-      echo "sub2api-door-gateway.service: 未安装"
+      echo "egress-control.service: 未安装"
       status=1
     fi
   fi
@@ -449,6 +488,7 @@ runtime_status() {
 runtime_rebuild() {
   local env_name="$1"
   load_runtime "$env_name"
+  validate_runtime_env
 
   if [[ "$env_name" == "stable" ]]; then
     ensure_main_branch
@@ -460,80 +500,42 @@ runtime_rebuild() {
 
 runtime_restart() {
   load_runtime "$1"
+  validate_runtime_env
   compose_cmd restart
   wait_for_http "http://127.0.0.1:$(env_value SERVER_PORT)/health" 90
 }
 
-door_restart() {
-  if [[ "$(uname -s)" == "Darwin" ]]; then
-    local label
-    local plist
-    label="$(launch_agent_label "com.sub2api.door-gateway")"
-    plist="$(launch_agent_path "com.sub2api.door-gateway")"
-
-    [[ -f "$plist" ]] || die "缺少 LaunchAgent 配置: $plist"
-
-    if ! launch_agent_loaded "$label"; then
-      launch_agent_bootstrap "$plist"
-    fi
-
-    launch_agent_kickstart "$label"
-    wait_for_http "http://127.0.0.1:19080/health" 90
-    return
+egress_status() {
+  if [[ "$(uname -s)" == "Linux" ]]; then
+    systemctl status egress-control.service egress-control-docker-bridge.service --no-pager --full | sed -n '1,120p'
+    echo
   fi
-
-  require_linux
-  systemd_unit_exists sub2api-door-gateway.service || die "缺少 systemd 服务: sub2api-door-gateway.service"
-  systemctl restart sub2api-door-gateway.service
-  wait_for_http "http://127.0.0.1:19080/health" 90
-}
-
-door_status() {
-  if [[ "$(uname -s)" == "Darwin" ]]; then
-    launchctl print "$(launch_agent_label "com.sub2api.door-gateway")" | sed -n '1,80p'
-  else
-    require_linux
-    systemctl status sub2api-door-gateway.service --no-pager --full | sed -n '1,80p'
-  fi
-
-  echo
-  if ! door_health_status; then
-    return 1
-  fi
+  egress_control_status
 }
 
 autostart_install() {
   require_macos
 
   local autostart_template="$REPO_ROOT/deploy/local/launchd/com.sub2api.autostart.plist.template"
-  local door_template="$REPO_ROOT/deploy/local/launchd/com.sub2api.door-gateway.plist.template"
   local autostart_plist
-  local door_plist
   local autostart_label
-  local door_label
   local bash_bin
   local colima_bin
   local docker_bin
-  local node_bin
   local launchd_path
 
   autostart_plist="$(launch_agent_path "com.sub2api.autostart")"
-  door_plist="$(launch_agent_path "com.sub2api.door-gateway")"
   autostart_label="$(launch_agent_label "com.sub2api.autostart")"
-  door_label="$(launch_agent_label "com.sub2api.door-gateway")"
 
   [[ -f "$autostart_template" ]] || die "缺少模板文件: $autostart_template"
-  [[ -f "$door_template" ]] || die "缺少模板文件: $door_template"
   [[ -f "$RUNTIME_ROOT/stable/.env" ]] || die "缺少环境文件: $RUNTIME_ROOT/stable/.env"
-  [[ -f "$RUNTIME_ROOT/stable/door-gateway.json" ]] || die "缺少 door-gateway 配置: $RUNTIME_ROOT/stable/door-gateway.json"
 
   mkdir -p "$(launch_agents_dir)" "$RUNTIME_ROOT/stable/data/logs"
 
   bash_bin="$(command_path bash)"
   colima_bin="$(command_path colima)"
   docker_bin="$(command_path docker)"
-  node_bin="$(command_path node)"
-  launchd_path="$(build_launchd_path "$bash_bin" "$colima_bin" "$docker_bin" "$node_bin")"
+  launchd_path="$(build_launchd_path "$bash_bin" "$colima_bin" "$docker_bin")"
 
   render_template \
     "$autostart_template" \
@@ -547,30 +549,14 @@ autostart_install() {
     "__PATH__" "$launchd_path" \
     "__COLIMA_BIN__" "$colima_bin" \
     "__DOCKER_BIN__" "$docker_bin" \
-    "__NODE_BIN__" "$node_bin"
-
-  render_template \
-    "$door_template" \
-    "$door_plist" \
-    "__REPO_ROOT__" "$REPO_ROOT" \
-    "__RUNTIME_ROOT__" "$RUNTIME_ROOT" \
-    "__NODE_BIN__" "$node_bin" \
-    "__DOOR_SCRIPT__" "$REPO_ROOT/tools/door-gateway/src/server.mjs" \
-    "__DOOR_WORKDIR__" "$REPO_ROOT/tools/door-gateway" \
-    "__DOOR_CONFIG__" "$RUNTIME_ROOT/stable/door-gateway.json" \
-    "__DOOR_STDOUT__" "$RUNTIME_ROOT/stable/data/logs/door-gateway.log" \
-    "__DOOR_STDERR__" "$RUNTIME_ROOT/stable/data/logs/door-gateway.err.log" \
-    "__PATH__" "$launchd_path"
+    "__NODE_BIN__" ""
 
   plutil -lint "$autostart_plist" >/dev/null
-  plutil -lint "$door_plist" >/dev/null
 
   launch_agent_bootout "$autostart_label"
-  launch_agent_bootout "$door_label"
   launch_agent_bootstrap "$autostart_plist"
 
   wait_for_http "http://127.0.0.1:8080/health" 120
-  wait_for_http "http://127.0.0.1:19080/health" 120
 }
 
 systemd_install() {
@@ -578,20 +564,13 @@ systemd_install() {
   require_root
 
   local stable_template="$REPO_ROOT/deploy/local/systemd/sub2api-stable.service.template"
-  local door_template="$REPO_ROOT/deploy/local/systemd/sub2api-door-gateway.service.template"
   local stable_unit
-  local door_unit
-  local node_bin
 
   stable_unit="$(systemd_unit_path sub2api-stable.service)"
-  door_unit="$(systemd_unit_path sub2api-door-gateway.service)"
-  node_bin="$(command_path node)"
 
   [[ -x "$RUNTIME_COMPOSE_SCRIPT" ]] || die "缺少可执行脚本: $RUNTIME_COMPOSE_SCRIPT"
   [[ -f "$stable_template" ]] || die "缺少模板文件: $stable_template"
-  [[ -f "$door_template" ]] || die "缺少模板文件: $door_template"
   [[ -f "$RUNTIME_ROOT/stable/.env" ]] || die "缺少环境文件: $RUNTIME_ROOT/stable/.env"
-  [[ -f "$RUNTIME_ROOT/stable/door-gateway.json" ]] || die "缺少 door-gateway 配置: $RUNTIME_ROOT/stable/door-gateway.json"
 
   render_template \
     "$stable_template" \
@@ -600,50 +579,39 @@ systemd_install() {
     "__RUNTIME_ROOT__" "$RUNTIME_ROOT" \
     "__RUNTIME_COMPOSE_SCRIPT__" "$RUNTIME_COMPOSE_SCRIPT"
 
-  render_template \
-    "$door_template" \
-    "$door_unit" \
-    "__RUNTIME_ROOT__" "$RUNTIME_ROOT" \
-    "__DOOR_WORKDIR__" "$REPO_ROOT/tools/door-gateway" \
-    "__DOOR_CONFIG__" "$RUNTIME_ROOT/stable/door-gateway.json" \
-    "__NODE_BIN__" "$node_bin" \
-    "__DOOR_SCRIPT__" "$REPO_ROOT/tools/door-gateway/src/server.mjs"
-
   systemctl daemon-reload
-  systemctl enable sub2api-stable.service sub2api-door-gateway.service
+  systemctl disable --now sub2api-door-gateway.service >/dev/null 2>&1 || true
+  rm -f "$(systemd_unit_path sub2api-door-gateway.service)"
+  systemctl enable sub2api-stable.service
   systemctl restart sub2api-stable.service
   wait_for_http "http://127.0.0.1:8080/health" 120
-  systemctl restart sub2api-door-gateway.service
-  wait_for_http "http://127.0.0.1:19080/health" 120
+  egress_control_status
 }
 
 systemd_status() {
   require_linux
 
-  systemctl status sub2api-door-gateway.service --no-pager --full | sed -n '1,80p'
-  echo
   systemctl status sub2api-stable.service --no-pager --full | sed -n '1,80p'
+  echo
+  systemctl status egress-control.service egress-control-docker-bridge.service --no-pager --full | sed -n '1,120p'
 }
 
 systemd_restart() {
   require_linux
   systemctl restart sub2api-stable.service
   wait_for_http "http://127.0.0.1:8080/health" 120
-  systemctl restart sub2api-door-gateway.service
-  wait_for_http "http://127.0.0.1:19080/health" 120
+  egress_control_status
 }
 
 autostart_uninstall() {
   require_macos
 
   local autostart_plist
-  local door_plist
   autostart_plist="$(launch_agent_path "com.sub2api.autostart")"
-  door_plist="$(launch_agent_path "com.sub2api.door-gateway")"
 
   launch_agent_bootout "$(launch_agent_label "com.sub2api.autostart")"
 
-  rm -f "$autostart_plist" "$door_plist"
+  rm -f "$autostart_plist" "$(launch_agent_path "com.sub2api.door-gateway")"
 }
 
 autostart_status() {
@@ -668,24 +636,11 @@ autostart_status() {
   fi
 
   echo
-  echo "== launchctl print $(launch_agent_label "com.sub2api.door-gateway") =="
-  if ! launchctl print "$(launch_agent_label "com.sub2api.door-gateway")" | sed -n '1,120p'; then
-    status=1
-  fi
-
-  echo
   echo "== health checks =="
   if curl -fsS "http://127.0.0.1:8080/health" >/dev/null 2>&1; then
     echo "stable: ok"
   else
     echo "stable: failed"
-    status=1
-  fi
-
-  if curl -fsS "http://127.0.0.1:19080/health" >/dev/null 2>&1; then
-    echo "door-gateway: ok"
-  else
-    echo "door-gateway: failed"
     status=1
   fi
 
@@ -696,17 +651,12 @@ autostart_restart() {
   require_macos
 
   local autostart_plist
-  local door_plist
   local autostart_label
-  local door_label
 
   autostart_plist="$(launch_agent_path "com.sub2api.autostart")"
-  door_plist="$(launch_agent_path "com.sub2api.door-gateway")"
   autostart_label="$(launch_agent_label "com.sub2api.autostart")"
-  door_label="$(launch_agent_label "com.sub2api.door-gateway")"
 
   [[ -f "$autostart_plist" ]] || die "缺少 LaunchAgent 配置: $autostart_plist"
-  [[ -f "$door_plist" ]] || die "缺少 LaunchAgent 配置: $door_plist"
 
   if ! launch_agent_loaded "$autostart_label"; then
     launch_agent_bootstrap "$autostart_plist"
@@ -714,14 +664,7 @@ autostart_restart() {
     launch_agent_kickstart "$autostart_label"
   fi
 
-  if ! launch_agent_loaded "$door_label"; then
-    launch_agent_bootstrap "$door_plist"
-  else
-    launch_agent_kickstart "$door_label"
-  fi
-
   wait_for_http "http://127.0.0.1:8080/health" 120
-  wait_for_http "http://127.0.0.1:19080/health" 120
 }
 
 sync_upstream() {
@@ -771,10 +714,6 @@ backup_runtime() {
     cp "$(launch_agent_path "com.sub2api.autostart")" "$target/com.sub2api.autostart.plist"
   fi
 
-  if [[ -f "$HOME/Library/LaunchAgents/com.sub2api.door-gateway.plist" ]]; then
-    cp "$HOME/Library/LaunchAgents/com.sub2api.door-gateway.plist" "$target/com.sub2api.door-gateway.plist"
-  fi
-
   echo "运行时备份已创建: $target"
 }
 
@@ -796,8 +735,8 @@ main() {
     dev:status) runtime_status dev ;;
     dev:restart) runtime_restart dev ;;
     dev:rebuild) runtime_rebuild dev ;;
-    door:restart) door_restart ;;
-    door:status) door_status ;;
+    egress:status) egress_status ;;
+    door:restart|door:status) die "door-gateway 已废弃，请使用 ./scripts/sub2api-local egress status" ;;
     systemd:install) systemd_install ;;
     systemd:status) systemd_status ;;
     systemd:restart) systemd_restart ;;

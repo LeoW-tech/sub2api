@@ -156,39 +156,15 @@ SELECT
 - Docker 场景下需把宿主机 Socket 挂载到容器内同路径
 - 详细步骤见：`deploy/DATAMANAGEMENTD_CN.md`
 
-### door-gateway（账号专属出口门）
+### egress-control（统一出口）
 
-如果你希望：
+Sub2API 在 Linux 宿主机上的固定账号出口统一由 `/srv/egress-control` 管理。
+本仓库不再提供或恢复旧 `door-gateway` 工具，也不允许新增 `580xx` 端口链路。
 
-- 保留宿主机日常使用的 `Clash Pro` 通用门不变
-- 同时再给 Sub2API 提供 `10-20` 个账号专属出口门
-- 让每个账号稳定绑定自己的出口，不和其它账号串线
-
-可以额外部署宿主机侧 `tools/door-gateway`：
-
-- 每扇门对应一个独立 Mihomo worker
-- 每扇门监听自己的固定本地端口
-- 每扇门绑定你现有 Clash/Mihomo 配置里的一个节点名
-- 管理接口统一查看全部门状态
-- 可直接导出为 Sub2API 可导入的 JSON
-
-快速启动示例：
-
-```bash
-cd tools/door-gateway
-cp doors.example.json ~/door-gateway.json
-DOOR_GATEWAY_CONFIG=~/door-gateway.json npm start
-```
-
-管理接口：
-
-- `GET http://127.0.0.1:19080/health`
-- `GET http://127.0.0.1:19080/doors`
-- `GET http://127.0.0.1:19080/export/sub2api`
-
-如果 Sub2API 跑在 Docker 里，建议在 `door-gateway` 配置中把导出主机设为 `host.docker.internal`，这样导出的门可以直接在 `IP管理` 中导入使用。
-同时需要把 `worker_bind_host` 设为 `0.0.0.0`，否则 Mihomo worker 只监听宿主机回环地址，Docker 容器访问 `host.docker.internal:58xxx` 仍会被拒绝。
-`controller_bind_host` 一般保持默认 `127.0.0.1`，避免把管理端口一并暴露出去。
+- 固定账号代理继续使用已经导入的 `egress-control:sub2api:*` 记录。
+- Docker 内访问固定门使用 `host.docker.internal:65xxx`。
+- Telegram 通知统一使用 `http://host.docker.internal:65182`。
+- 普通健康轮转、固定门查询和高并发 lease 的接入方式以 `/srv/egress-control/README.md` 为准。
 
 ### Commands
 

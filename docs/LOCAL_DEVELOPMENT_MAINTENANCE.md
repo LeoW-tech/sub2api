@@ -98,7 +98,7 @@ node scripts/sub2api-oauth-callback-helper.mjs \
 ./scripts/sub2api-local backup runtime
 ```
 
-`./scripts/sub2api-local backup runtime` 默认会把备份写到当前 runtime 根目录下的 `backups/<时间戳>/`。在 Mac 上如果检测到 `LaunchAgents` 文件，也会一并备份 `com.sub2api.autostart.plist` 与 `com.sub2api.door-gateway.plist`。
+`./scripts/sub2api-local backup runtime` 默认会把备份写到当前 runtime 根目录下的 `backups/<时间戳>/`。在 Mac 上如果检测到 `LaunchAgents` 文件，也会一并备份 `com.sub2api.autostart.plist`。
 
 ## 日常重启命令
 
@@ -114,8 +114,8 @@ node scripts/sub2api-oauth-callback-helper.mjs \
 # 重启开发环境
 ./scripts/sub2api-local dev restart
 
-# 重启 door-gateway
-./scripts/sub2api-local door restart
+# 查看统一 egress-control 状态
+./scripts/sub2api-local egress status
 
 # 重新触发登录后自动恢复链路
 ./scripts/sub2api-local autostart restart
@@ -134,7 +134,7 @@ NPM_REGISTRY=https://registry.npmmirror.com ./scripts/sub2api-local stable rebui
 
 ### Linux 主运行面：systemd 托管
 
-如果你希望 Linux 在开机后自动恢复 `stable + door-gateway`，并让 `door-gateway` 在异常退出后自动拉起，使用：
+如果你希望 Linux 在开机后自动恢复 `stable`，并统一依赖 `/srv/egress-control` 出网，使用：
 
 ```bash
 sudo ./scripts/sub2api-local systemd install
@@ -143,12 +143,12 @@ sudo ./scripts/sub2api-local systemd install
 安装动作会：
 
 - 渲染并安装 `/etc/systemd/system/sub2api-stable.service`
-- 渲染并安装 `/etc/systemd/system/sub2api-door-gateway.service`
+- 确保不会安装或恢复旧 `/etc/systemd/system/sub2api-door-gateway.service`
 - 让 stable 栈统一通过仓库内 `scripts/sub2api-runtime-compose` 启动
 - 把当前 runtime 根目录显式写入 systemd 环境，避免仓库内外 runtime 路径漂移
 - 在 Linux 自动追加 `deploy/local/docker-compose.runtime.linux.yml`
 - 为 `sub2api` 容器注入 `host.docker.internal:host-gateway`
-- 先恢复 stable 栈，再按顺序拉起 `door-gateway`
+- 先恢复 stable 栈，再检查 `egress-control.service` 与 `egress-control-docker-bridge.service`
 
 查看 Linux 守护状态：
 
@@ -167,21 +167,20 @@ sudo ./scripts/sub2api-local systemd restart
 
 - 当前平台使用的 compose 文件
 - `sub2api/postgres/redis` 容器状态
-- `sub2api` 与 `door-gateway` 的 health 结果
+- `sub2api` 与 `egress-control` 的 health 结果
 - 容器内 `host.docker.internal` 的解析结果
-- Linux 上的 `sub2api-stable.service` / `sub2api-door-gateway.service` 状态
+- Linux 上的 `sub2api-stable.service` / `egress-control.service` 状态
 
 预期恢复链路：
 
-- 宿主机重启后，systemd 先执行 `sub2api-stable.service`，再启动 `sub2api-door-gateway.service`
-- Docker 服务恢复后，可执行 `sudo ./scripts/sub2api-local systemd restart` 重新串起 stable 和 `door-gateway`
-- `door-gateway` 进程异常退出后，systemd 会按 `Restart=always` 自动拉起
-- `door-gateway` 内部如果只出现单个 worker 监听口失效，健康轮询会自动重启该 worker
+- 宿主机重启后，systemd 恢复 `sub2api-stable.service`，节点出口由独立 `egress-control.service` / `egress-control-docker-bridge.service` 提供
+- Docker 服务恢复后，可执行 `sudo ./scripts/sub2api-local systemd restart` 重新恢复 stable 并验证 egress-control
+- 固定账号绑定的代理映射仍由 Sub2API 数据库记录保持稳定，不由 Sub2API 运维脚本自动迁移
 - 容器本身异常退出后，由 compose 中的 `restart: unless-stopped` 自动恢复
 
 ### Mac 辅助运行面：autostart / launchd 自动恢复
 
-如果你希望 macOS 在登录后自动恢复 `stable + door-gateway`，使用：
+如果你希望 macOS 在登录后自动恢复 `stable`，使用：
 
 ```bash
 ./scripts/sub2api-local autostart install
@@ -191,11 +190,10 @@ sudo ./scripts/sub2api-local systemd restart
 
 - 校验 `colima`、`docker`、`node` 是否可用
 - 生成 `~/Library/LaunchAgents/com.sub2api.autostart.plist`
-- 生成 `~/Library/LaunchAgents/com.sub2api.door-gateway.plist`
-- 启动主协调器，自动恢复 `stable` 与 `door-gateway`
-- 校验 `http://127.0.0.1:8080/health` 与 `http://127.0.0.1:19080/health`
+- 启动主协调器，自动恢复 `stable`
+- 校验 `http://127.0.0.1:8080/health`
 
-当前默认 macOS 容器运行时为 Colima；`autostart` 会在登录后先恢复 Colima，再恢复 stable 栈和 `door-gateway`。
+当前默认 macOS 容器运行时为 Colima；`autostart` 会在登录后先恢复 Colima，再恢复 stable 栈。
 
 查看当前状态：
 
@@ -288,11 +286,9 @@ git checkout main
 - 稳定环境历史数据：`runtime/stable/data`
 - 稳定环境数据库：`runtime/stable/postgres_data`
 - 稳定环境 Redis：`runtime/stable/redis_data`
-- `door-gateway` 配置：`runtime/stable/door-gateway.json`
 - Linux 专用 compose override：`deploy/local/docker-compose.runtime.linux.yml`
-- `door-gateway` worker 目录：`runtime/stable/door-workers`
 - 运行时备份目录：`runtime/backups`
 - Linux systemd 模板：`deploy/local/systemd/*.service.template`
-- Mac 当前用户 `LaunchAgent`：`~/Library/LaunchAgents/com.sub2api.autostart.plist`、`~/Library/LaunchAgents/com.sub2api.door-gateway.plist`
+- Mac 当前用户 `LaunchAgent`：`~/Library/LaunchAgents/com.sub2api.autostart.plist`
 
 这些目录全部不进 git。

@@ -289,6 +289,16 @@ func TestLoadForcedCodexInstructionsTemplate(t *testing.T) {
 	require.Equal(t, "server-prefix\n\n{{ .ExistingInstructions }}", cfg.Gateway.ForcedCodexInstructionsTemplate)
 }
 
+func TestLoadRejectsLegacyUpdateProxyURL(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("UPDATE_PROXY_URL", "http://127.0.0.1:7890")
+
+	_, err := Load()
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "legacy local proxy port 7890")
+}
+
 func TestLoadDefaultSecurityToggles(t *testing.T) {
 	resetViperWithJWTSecret(t)
 
