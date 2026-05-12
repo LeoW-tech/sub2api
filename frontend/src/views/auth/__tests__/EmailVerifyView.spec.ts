@@ -38,6 +38,7 @@ const {
       adoption_required?: boolean
       suggested_display_name?: string
       suggested_avatar_url?: string
+      aff_code?: string
     }
   },
 }))
@@ -299,6 +300,7 @@ describe('EmailVerifyView', () => {
       token_field: 'pending_auth_token',
       provider: 'wechat',
       redirect: '/profile',
+      aff_code: 'AFF123',
     }
     sessionStorage.setItem(
       'register_data',

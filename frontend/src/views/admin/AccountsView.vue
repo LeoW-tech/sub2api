@@ -15,7 +15,6 @@
           <AccountTableActions
             :loading="loading"
             @refresh="handleManualRefresh"
-            @sync="showSync = true"
             @create="showCreate = true"
           >
             <template #after>
@@ -25,6 +24,7 @@
                   @click="
                     showAutoRefreshDropdown = !showAutoRefreshDropdown;
                     showColumnDropdown = false;
+                    showAccountToolsDropdown = false;
                   "
                   class="btn btn-secondary px-2 md:px-3"
                   :title="t('admin.accounts.autoRefresh')"
@@ -114,7 +114,7 @@
                     showAutoRefreshDropdown = false;
                   "
                   class="btn btn-secondary px-2 md:px-3"
-                  :title="t('admin.users.columnSettings')"
+                  :title="t('admin.accounts.moreActions')"
                 >
                   <svg
                     class="h-4 w-4 md:mr-1.5"
@@ -133,10 +133,9 @@
                     t("admin.users.columnSettings")
                   }}</span>
                 </button>
-                <!-- Dropdown menu -->
                 <div
                   v-if="showColumnDropdown"
-                  class="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                  class="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] origin-top-right overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
                 >
                   <div class="max-h-80 overflow-y-auto p-2">
                     <button
@@ -153,6 +152,72 @@
                         class="text-primary-500"
                       />
                     </button>
+                    <button class="account-tools-menu-item" @click="openSyncFromCrs">
+                      <span class="account-tools-menu-icon bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+                        <Icon name="sync" size="sm" />
+                      </span>
+                      <span class="flex-1 text-left">{{ t('admin.accounts.syncFromCrs') }}</span>
+                    </button>
+                    <button class="account-tools-menu-item" @click="openImportData">
+                      <span class="account-tools-menu-icon bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300">
+                        <Icon name="upload" size="sm" />
+                      </span>
+                      <span class="flex-1 text-left">{{ t('admin.accounts.dataImport') }}</span>
+                    </button>
+                    <button class="account-tools-menu-item" @click="openExportDataDialogFromMenu">
+                      <span class="account-tools-menu-icon bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-300">
+                        <Icon name="download" size="sm" />
+                      </span>
+                      <span class="flex-1 text-left">
+                        {{ selIds.length ? t('admin.accounts.dataExportSelected') : t('admin.accounts.dataExport') }}
+                      </span>
+                      <span
+                        v-if="selIds.length"
+                        class="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700 dark:bg-primary-900/40 dark:text-primary-300"
+                      >
+                        {{ t('admin.accounts.selectedCount', { count: selIds.length }) }}
+                      </span>
+                    </button>
+
+                    <div class="my-2 border-t border-gray-100 dark:border-gray-700"></div>
+                    <div class="px-2 py-2">
+                      <div class="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                        {{ t('admin.accounts.toolActions') }}
+                      </div>
+                    </div>
+                    <button class="account-tools-menu-item" @click="openErrorPassthrough">
+                      <span class="account-tools-menu-icon bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300">
+                        <Icon name="shield" size="sm" />
+                      </span>
+                      <span class="flex-1 text-left">{{ t('admin.errorPassthrough.title') }}</span>
+                    </button>
+                    <button class="account-tools-menu-item" @click="openTLSFingerprintProfiles">
+                      <span class="account-tools-menu-icon bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200">
+                        <Icon name="lock" size="sm" />
+                      </span>
+                      <span class="flex-1 text-left">{{ t('admin.tlsFingerprintProfiles.title') }}</span>
+                    </button>
+
+                    <div class="my-2 border-t border-gray-100 dark:border-gray-700"></div>
+                    <div class="px-2 py-2">
+                      <div class="flex items-center justify-between gap-3">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                          {{ t('admin.accounts.viewColumns') }}
+                        </span>
+                        <Icon name="grid" size="sm" class="text-gray-400" />
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-1">
+                      <button
+                        v-for="col in toggleableColumns"
+                        :key="col.key"
+                        @click="toggleColumn(col.key)"
+                        class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                      >
+                        <span class="truncate">{{ col.label }}</span>
+                        <Icon v-if="isColumnVisible(col.key)" name="check" size="sm" class="text-primary-500" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -760,6 +825,7 @@ const exportingData = ref(false);
 
 // Column settings
 const showColumnDropdown = ref(false);
+const showAccountToolsDropdown = showColumnDropdown;
 const columnDropdownRef = ref<HTMLElement | null>(null);
 const hiddenColumns = reactive<Set<string>>(new Set());
 const DEFAULT_HIDDEN_COLUMNS = [
@@ -1261,6 +1327,35 @@ const handleManualRefresh = async () => {
   usageManualRefreshToken.value += 1;
 };
 
+const closeAccountToolsDropdown = () => {
+  showAccountToolsDropdown.value = false
+}
+
+const openSyncFromCrs = () => {
+  closeAccountToolsDropdown()
+  showSync.value = true
+}
+
+const openImportData = () => {
+  closeAccountToolsDropdown()
+  showImportData.value = true
+}
+
+const openExportDataDialogFromMenu = () => {
+  closeAccountToolsDropdown()
+  openExportDataDialog()
+}
+
+const openErrorPassthrough = () => {
+  closeAccountToolsDropdown()
+  showErrorPassthrough.value = true
+}
+
+const openTLSFingerprintProfiles = () => {
+  closeAccountToolsDropdown()
+  showTLSFingerprintProfiles.value = true
+}
+
 const syncPendingListChanges = async () => {
   hasPendingListSync.value = false;
   await load();
@@ -1274,7 +1369,7 @@ const { pause: pauseAutoRefresh, resume: resumeAutoRefresh } = useIntervalFn(
     if (document.hidden) return;
     if (loading.value || autoRefreshFetching.value) return;
     if (isAnyModalOpen.value) return;
-    if (menu.show) return;
+    if (menu.show || showColumnDropdown.value || showAutoRefreshDropdown.value) return;
     if (inAutoRefreshSilentWindow()) {
       autoRefreshCountdown.value = Math.max(
         0,
@@ -1327,41 +1422,57 @@ function normalizeOpenAICompactMode(value: unknown): string {
   return typeof value === "string" ? value.trim().toLowerCase() : "auto";
 }
 
-function getOpenAICompactState(row: any): 'supported' | 'unsupported' | 'unknown' | null {
+function getOpenAICompactState(row: any): 'active' | 'blocked' | 'auto' | null {
   if (row.platform !== 'openai' || (row.type !== 'oauth' && row.type !== 'apikey')) return null
   const extra = row.extra as Record<string, unknown> | undefined
   const mode = normalizeOpenAICompactMode(extra?.openai_compact_mode)
-  if (mode === 'force_on') return 'supported'
-  if (mode === 'force_off') return 'unsupported'
+  if (mode === 'force_on') return 'active'
+  if (mode === 'force_off') return 'blocked'
   if (typeof extra?.openai_compact_supported === 'boolean') {
-    return extra.openai_compact_supported ? 'supported' : 'unsupported'
+    return extra.openai_compact_supported ? 'active' : 'blocked'
   }
-  return 'unknown'
+  return 'auto'
+}
+
+function getOpenAICompactMeta(row: any): { label: string; className: string; dotClass: string } | null {
+  const state = getOpenAICompactState(row)
+  if (!state) return null
+  switch (state) {
+    case 'active':
+      return {
+        label: t('admin.accounts.openai.compactSupported'),
+        className: 'text-emerald-600 dark:text-emerald-300',
+        dotClass: 'bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.14)]'
+      }
+    case 'blocked':
+      return {
+        label: t('admin.accounts.openai.compactUnsupported'),
+        className: 'text-rose-600 dark:text-rose-300',
+        dotClass: 'bg-rose-500 shadow-[0_0_0_2px_rgba(244,63,94,0.14)]'
+      }
+    case 'auto':
+      return {
+        label: t('admin.accounts.openai.compactAuto'),
+        className: 'text-slate-500 dark:text-slate-400',
+        dotClass: 'bg-slate-300 dark:bg-slate-500'
+      }
+  }
 }
 
 function getOpenAICompactLabel(row: any): string | null {
-  switch (getOpenAICompactState(row)) {
-    case 'supported': return t('admin.accounts.openai.compactSupported')
-    case 'unsupported': return t('admin.accounts.openai.compactUnsupported')
-    case 'unknown': return t('admin.accounts.openai.compactUnknown')
-    default: return null
-  }
+  return getOpenAICompactMeta(row)?.label || null
 }
 
 function getOpenAICompactClass(row: any): string {
-  switch (getOpenAICompactState(row)) {
-    case 'supported': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-    case 'unsupported': return 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
-    case 'unknown': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-    default: return ''
-  }
+  return getOpenAICompactMeta(row)?.className || ''
 }
 
 function getOpenAICompactTitle(row: any): string {
   const extra = row.extra as Record<string, unknown> | undefined
   const checkedAt = typeof extra?.openai_compact_checked_at === 'string' ? extra.openai_compact_checked_at : ''
-  if (!checkedAt) return getOpenAICompactLabel(row) || ''
-  return `${getOpenAICompactLabel(row)} | ${t('admin.accounts.openai.compactLastChecked')}: ${formatDateTime(new Date(checkedAt))}`
+  const label = getOpenAICompactMeta(row)?.label || ''
+  if (!checkedAt) return label
+  return `${label} | ${t('admin.accounts.openai.compactLastChecked')}: ${formatDateTime(new Date(checkedAt))}`
 }
 
 function getAntigravityTierClass(row: any): string {
@@ -2216,7 +2327,7 @@ const handleScroll = () => {
   menu.show = false;
 };
 
-// 点击外部关闭列设置下拉菜单
+// 点击外部关闭顶部下拉菜单
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement;
   if (columnDropdownRef.value && !columnDropdownRef.value.contains(target)) {
@@ -2260,3 +2371,13 @@ onUnmounted(() => {
   document.removeEventListener("click", handleClickOutside);
 });
 </script>
+
+<style scoped>
+.account-tools-menu-item {
+  @apply flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700;
+}
+
+.account-tools-menu-icon {
+  @apply inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md;
+}
+</style>
