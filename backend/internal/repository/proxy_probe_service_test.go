@@ -37,6 +37,10 @@ func (s *ProxyProbeServiceSuite) setupProxyServer(handler http.HandlerFunc) {
 	s.proxySrv = newLocalTestServer(s.T(), handler)
 }
 
+func (s *ProxyProbeServiceSuite) setupTLSServer(handler http.HandlerFunc) {
+	s.proxySrv = httptest.NewTLSServer(handler)
+}
+
 func (s *ProxyProbeServiceSuite) TestProbeProxy_InvalidProxyURL() {
 	_, _, err := s.prober.ProbeProxy(s.ctx, "://bad")
 	require.Error(s.T(), err)
@@ -49,48 +53,38 @@ func (s *ProxyProbeServiceSuite) TestProbeProxy_UnsupportedProxyScheme() {
 	require.ErrorContains(s.T(), err, "failed to create proxy client")
 }
 
-func (s *ProxyProbeServiceSuite) TestProbeProxy_Success_IPAPI() {
-	s.setupProxyServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// 检查是否是 ip-api 请求
-		if strings.Contains(r.RequestURI, "ip-api.com") {
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, `{"status":"success","query":"1.2.3.4","city":"c","regionName":"r","country":"cc","countryCode":"CC"}`)
+func (s *ProxyProbeServiceSuite) TestProbeProxy_Success_OpenAIReachability() {
+	s.setupTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/models" {
+			w.WriteHeader(http.StatusOK)
+			_, _ = io.WriteString(w, `{"error":{"message":"missing api key"}}`)
 			return
 		}
 		// 其他请求返回错误
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
 
-	info, latencyMs, err := s.prober.ProbeProxy(s.ctx, s.proxySrv.URL)
+	info, latencyMs, err := s.prober.probeWithURL(s.ctx, s.proxySrv.Client(), s.proxySrv.URL+"/v1/models", "openai")
 	require.NoError(s.T(), err, "ProbeProxy")
 	require.GreaterOrEqual(s.T(), latencyMs, int64(0), "unexpected latency")
-	require.Equal(s.T(), "1.2.3.4", info.IP)
-	require.Equal(s.T(), "c", info.City)
-	require.Equal(s.T(), "r", info.Region)
-	require.Equal(s.T(), "cc", info.Country)
-	require.Equal(s.T(), "CC", info.CountryCode)
+	require.Equal(s.T(), "", info.IP)
+	require.Equal(s.T(), "openai", info.Country)
 }
 
-func (s *ProxyProbeServiceSuite) TestProbeProxy_Success_HTTPBinFallback() {
-	s.setupProxyServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// ip-api 失败
-		if strings.Contains(r.RequestURI, "ip-api.com") {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return
-		}
-		// httpbin 成功
-		if strings.Contains(r.RequestURI, "httpbin.org") {
-			w.Header().Set("Content-Type", "application/json")
+func (s *ProxyProbeServiceSuite) TestProbeProxy_DoesNotUsePublicIPProbeFallback() {
+	s.setupTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.RequestURI, "ip-api.com") || strings.Contains(r.RequestURI, "httpbin.org") {
+			w.WriteHeader(http.StatusOK)
 			_, _ = io.WriteString(w, `{"origin": "5.6.7.8"}`)
 			return
 		}
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
 
-	info, latencyMs, err := s.prober.ProbeProxy(s.ctx, s.proxySrv.URL)
-	require.NoError(s.T(), err, "ProbeProxy should fallback to httpbin")
-	require.GreaterOrEqual(s.T(), latencyMs, int64(0), "unexpected latency")
-	require.Equal(s.T(), "5.6.7.8", info.IP)
+	_, _, err := s.prober.ProbeProxy(s.ctx, s.proxySrv.URL)
+	require.Error(s.T(), err)
+	require.NotContains(s.T(), err.Error(), "httpbin.org")
+	require.NotContains(s.T(), err.Error(), "ip-api.com")
 }
 
 func (s *ProxyProbeServiceSuite) TestProbeProxy_AllFailed() {
@@ -103,25 +97,16 @@ func (s *ProxyProbeServiceSuite) TestProbeProxy_AllFailed() {
 	require.ErrorContains(s.T(), err, "all probe URLs failed")
 }
 
-func (s *ProxyProbeServiceSuite) TestProbeProxy_InvalidJSON() {
-	s.setupProxyServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.RequestURI, "ip-api.com") {
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, "not-json")
-			return
-		}
-		// httpbin 也返回无效响应
-		if strings.Contains(r.RequestURI, "httpbin.org") {
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, "not-json")
-			return
-		}
-		w.WriteHeader(http.StatusServiceUnavailable)
+func (s *ProxyProbeServiceSuite) TestProbeProxy_OpenAIReachabilityAcceptsUnauthorized() {
+	s.setupTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = io.WriteString(w, `{"error":{"message":"missing api key"}}`)
 	}))
 
-	_, _, err := s.prober.ProbeProxy(s.ctx, s.proxySrv.URL)
-	require.Error(s.T(), err)
-	require.ErrorContains(s.T(), err, "all probe URLs failed")
+	info, latencyMs, err := s.prober.probeWithURL(s.ctx, s.proxySrv.Client(), s.proxySrv.URL+"/v1/models", "openai")
+	require.NoError(s.T(), err)
+	require.GreaterOrEqual(s.T(), latencyMs, int64(0), "unexpected latency")
+	require.Equal(s.T(), "openai", info.Country)
 }
 
 func (s *ProxyProbeServiceSuite) TestProbeProxy_ProxyServerClosed() {

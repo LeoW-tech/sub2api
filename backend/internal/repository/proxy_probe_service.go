@@ -44,14 +44,14 @@ const (
 	defaultProxyProbeResponseMaxBytes = int64(1024 * 1024)
 )
 
-// probeURLs 按优先级排列的探测 URL 列表
-// 某些 AI API 专用代理只允许访问特定域名，因此需要多个备选
+// probeURLs 按优先级排列的探测 URL 列表。
+// 代理只服务 AI 上游账号时，在线判断必须探测真实业务目标，不能使用
+// ip-api/httpbin/gstatic 等无关站点，否则会把“只允许 OpenAI 的代理”误判离线。
 var probeURLs = []struct {
 	url    string
-	parser string // "ip-api" or "httpbin"
+	parser string // "openai" or legacy parser names kept for unit-level parsers
 }{
-	{"http://ip-api.com/json/?lang=zh-CN", "ip-api"},
-	{"http://httpbin.org/ip", "httpbin"},
+	{"https://api.openai.com/v1/models", "openai"},
 }
 
 type proxyProbeService struct {
@@ -99,6 +99,13 @@ func (s *proxyProbeService) probeWithURL(ctx context.Context, client *http.Clien
 	defer func() { _ = resp.Body.Close() }()
 
 	latencyMs := time.Since(startTime).Milliseconds()
+
+	if parser == "openai" {
+		if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusInternalServerError {
+			return &service.ProxyExitInfo{Country: "openai"}, latencyMs, nil
+		}
+		return nil, latencyMs, fmt.Errorf("request to %s failed with status: %d", url, resp.StatusCode)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, latencyMs, fmt.Errorf("request failed with status: %d", resp.StatusCode)
