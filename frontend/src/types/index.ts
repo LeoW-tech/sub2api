@@ -689,6 +689,9 @@ export interface Proxy {
   username: string | null
   password?: string | null
   status: 'active' | 'inactive'
+  external_key?: string | null
+  exit_ip?: string | null
+  network_status?: 'online' | 'offline' | null
   account_count?: number // Number of accounts using this proxy
   latency_ms?: number
   latency_status?: 'success' | 'failed'
@@ -739,6 +742,22 @@ export interface ProxyQualityCheckResult {
   challenge_count: number
   checked_at: number
   items: ProxyQualityCheckItem[]
+}
+
+export interface ProxyIPOption {
+  ip: string
+  proxy_names: string[]
+}
+
+export interface ProxyNetworkMonitorStatus {
+  enabled: boolean
+  running?: boolean
+  scan_running?: boolean
+  interval_seconds?: number
+}
+
+export interface UpdateProxyNetworkMonitorRequest {
+  enabled: boolean
 }
 
 // Gemini credentials structure for OAuth and API Key authentication
@@ -821,6 +840,7 @@ export interface Account {
   created_at: string
   updated_at: string
   proxy?: Proxy
+  network_status?: 'online' | 'offline' | null
   group_ids?: number[] // Groups this account belongs to
   groups?: Group[] // Preloaded group objects
 
@@ -991,6 +1011,20 @@ export interface OpenAIResponsesState {
   openai_responses_supported?: boolean
 }
 
+export interface OpenAIPendingCreatePayload {
+  name?: string
+  notes?: string | null
+  group_ids?: number[]
+  proxy_id?: number | null
+  concurrency?: number
+  priority?: number
+  rate_multiplier?: number
+  load_factor?: number | null
+  expires_at?: number | null
+  auto_pause_on_expired?: boolean
+  confirm_mixed_channel_risk?: boolean
+}
+
 export interface CreateAccountRequest {
   name: string
   notes?: string | null
@@ -1055,6 +1089,8 @@ export interface CreateProxyRequest {
   port: number
   username?: string | null
   password?: string | null
+  external_key?: string | null
+  exit_ip?: string | null
 }
 
 export interface UpdateProxyRequest {
@@ -1065,6 +1101,8 @@ export interface UpdateProxyRequest {
   username?: string | null
   password?: string | null
   status?: 'active' | 'inactive'
+  external_key?: string | null
+  exit_ip?: string | null
 }
 
 export interface AdminDataPayload {
@@ -1077,6 +1115,7 @@ export interface AdminDataPayload {
 
 export interface AdminDataProxy {
   proxy_key: string
+  proxy_external_key?: string | null
   name: string
   protocol: ProxyProtocol
   host: string
@@ -1084,6 +1123,8 @@ export interface AdminDataProxy {
   username?: string | null
   password?: string | null
   status: 'active' | 'inactive'
+  exit_ip?: string | null
+  exit_ip_checked_at?: number | null
 }
 
 export interface AdminDataAccount {
@@ -1094,9 +1135,14 @@ export interface AdminDataAccount {
   credentials: Record<string, unknown>
   extra?: Record<string, unknown>
   proxy_key?: string | null
-  concurrency: number
+  proxy_external_key?: string | null
+  proxy_name?: string | null
+  exit_ip?: string | null
+  concurrency?: number | null
+  load_factor?: number | null
   priority: number
   rate_multiplier?: number | null
+  group_ids?: number[]
   expires_at?: number | null
   auto_pause_on_expired?: boolean
 }

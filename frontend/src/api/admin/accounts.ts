@@ -577,6 +577,15 @@ export async function getAvailableModels(id: number): Promise<ClaudeModel[]> {
   return data;
 }
 
+export interface SyncUpstreamModelsResult {
+  models: string[]
+}
+
+export async function syncUpstreamModels(id: number): Promise<SyncUpstreamModelsResult> {
+  const { data } = await apiClient.post<SyncUpstreamModelsResult>(`/admin/accounts/${id}/models/sync-upstream`)
+  return data
+}
+
 export interface CRSPreviewAccount {
   crs_account_id: string;
   kind: string;
@@ -852,6 +861,7 @@ export const accountsAPI = {
   resetTempUnschedulable,
   setSchedulable,
   getAvailableModels,
+  syncUpstreamModels,
   generateAuthUrl,
   exchangeCode,
   completeOpenAIPendingCreate,

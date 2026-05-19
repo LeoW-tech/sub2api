@@ -1236,9 +1236,9 @@ const loadNetworkMonitorStatus = async () => {
 
 const applyNetworkMonitorStatus = (status: ProxyNetworkMonitorStatus) => {
   networkMonitorEnabled.value = status.enabled
-  networkMonitorRunning.value = status.running
-  networkMonitorScanRunning.value = status.scan_running
-  networkMonitorIntervalSeconds.value = status.interval_seconds
+  networkMonitorRunning.value = status.running ?? false
+  networkMonitorScanRunning.value = status.scan_running ?? false
+  networkMonitorIntervalSeconds.value = status.interval_seconds ?? 0
 }
 
 const handleNetworkMonitorToggle = async (enabled: boolean) => {
