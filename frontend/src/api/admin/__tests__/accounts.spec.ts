@@ -28,6 +28,7 @@ describe("admin accounts api", () => {
     await list(1, 20, {
       ip: "203.0.113.10",
       capacity_status: "concurrent",
+      rt_status: "no_rt",
       search: "keyword",
     });
 
@@ -37,6 +38,7 @@ describe("admin accounts api", () => {
         page_size: 20,
         ip: "203.0.113.10",
         capacity_status: "concurrent",
+        rt_status: "no_rt",
         search: "keyword",
       },
       signal: undefined,
@@ -58,6 +60,7 @@ describe("admin accounts api", () => {
       filters: {
         ip: "203.0.113.10",
         capacity_status: "concurrent",
+        rt_status: "has_rt",
         platform: "openai",
         sort_by: "priority",
         sort_order: "desc",
@@ -68,6 +71,7 @@ describe("admin accounts api", () => {
       params: {
         ip: "203.0.113.10",
         capacity_status: "concurrent",
+        rt_status: "has_rt",
         platform: "openai",
         sort_by: "priority",
         sort_order: "desc",

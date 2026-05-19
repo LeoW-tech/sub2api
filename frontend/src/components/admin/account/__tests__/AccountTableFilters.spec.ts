@@ -49,6 +49,7 @@ describe("AccountTableFilters", () => {
       platform: "",
       type: "",
       status: "",
+      rt_status: "",
       capacity_status: "",
       privacy_mode: "",
       network_status: "",
@@ -77,7 +78,7 @@ describe("AccountTableFilters", () => {
     });
 
     const selects = wrapper.findAllComponents(SelectStub);
-    const statusOptions = selects[2]?.props("options") as Array<{
+    const statusOptions = selects[3]?.props("options") as Array<{
       value: string;
       label: string;
     }>;
@@ -101,7 +102,7 @@ describe("AccountTableFilters", () => {
     });
 
     const selects = wrapper.findAllComponents(SelectStub);
-    const statusSelect = selects[2];
+    const statusSelect = selects[3];
 
     await statusSelect.vm.$emit("update:modelValue", "disabled");
     await statusSelect.vm.$emit("change", "disabled");
@@ -112,6 +113,69 @@ describe("AccountTableFilters", () => {
           platform: "",
           type: "",
           status: "disabled",
+          rt_status: "",
+          capacity_status: "",
+          privacy_mode: "",
+          network_status: "",
+          ip: "",
+          group: "",
+        },
+      ],
+    ]);
+    expect(wrapper.emitted("change")).toHaveLength(1);
+  });
+
+
+  it("RT 筛选项包含全部Token/有RT/无RT", () => {
+    const wrapper = mount(AccountTableFilters, {
+      props: baseProps,
+      global: {
+        stubs: {
+          Select: SelectStub,
+          SearchInput: SearchInputStub,
+        },
+      },
+    });
+
+    const selects = wrapper.findAllComponents(SelectStub);
+    const rtOptions = selects[2]?.props("options") as Array<{
+      value: string;
+      label: string;
+    }>;
+
+    expect(rtOptions).toEqual(
+      expect.arrayContaining([
+        { value: "", label: "admin.accounts.allTokenStatus" },
+        { value: "has_rt", label: "admin.accounts.hasRT" },
+        { value: "no_rt", label: "admin.accounts.noRT" },
+      ]),
+    );
+  });
+
+  it("选择无RT时会发出对应筛选值", async () => {
+    const wrapper = mount(AccountTableFilters, {
+      props: baseProps,
+      global: {
+        stubs: {
+          Select: SelectStub,
+          SearchInput: SearchInputStub,
+        },
+      },
+    });
+
+    const selects = wrapper.findAllComponents(SelectStub);
+    const rtSelect = selects[2];
+
+    await rtSelect.vm.$emit("update:modelValue", "no_rt");
+    await rtSelect.vm.$emit("change", "no_rt");
+
+    expect(wrapper.emitted("update:filters")).toEqual([
+      [
+        {
+          platform: "",
+          type: "",
+          status: "",
+          rt_status: "no_rt",
           capacity_status: "",
           privacy_mode: "",
           network_status: "",
@@ -135,7 +199,7 @@ describe("AccountTableFilters", () => {
     });
 
     const selects = wrapper.findAllComponents(SelectStub);
-    const networkOptions = selects[5]?.props("options") as Array<{
+    const networkOptions = selects[6]?.props("options") as Array<{
       value: string;
       label: string;
     }>;
@@ -160,7 +224,7 @@ describe("AccountTableFilters", () => {
     });
 
     const selects = wrapper.findAllComponents(SelectStub);
-    const ipOptions = selects[6]?.props("options") as Array<{
+    const ipOptions = selects[7]?.props("options") as Array<{
       value: string;
       label: string;
       description?: string;
@@ -190,7 +254,7 @@ describe("AccountTableFilters", () => {
     });
 
     const selects = wrapper.findAllComponents(SelectStub);
-    const ipSelect = selects[6];
+    const ipSelect = selects[7];
 
     await ipSelect.vm.$emit("update:modelValue", "203.0.113.10");
     await ipSelect.vm.$emit("change", "203.0.113.10");
@@ -201,6 +265,7 @@ describe("AccountTableFilters", () => {
           platform: "",
           type: "",
           status: "",
+          rt_status: "",
           capacity_status: "",
           privacy_mode: "",
           network_status: "",
@@ -224,7 +289,7 @@ describe("AccountTableFilters", () => {
     });
 
     const selects = wrapper.findAllComponents(SelectStub);
-    const capacityOptions = selects[3]?.props("options") as Array<{
+    const capacityOptions = selects[4]?.props("options") as Array<{
       value: string;
       label: string;
     }>;
@@ -252,7 +317,7 @@ describe("AccountTableFilters", () => {
     });
 
     const selects = wrapper.findAllComponents(SelectStub);
-    const capacitySelect = selects[3];
+    const capacitySelect = selects[4];
 
     await capacitySelect.vm.$emit("update:modelValue", "concurrent");
     await capacitySelect.vm.$emit("change", "concurrent");
@@ -263,6 +328,7 @@ describe("AccountTableFilters", () => {
           platform: "",
           type: "",
           status: "",
+          rt_status: "",
           capacity_status: "concurrent",
           privacy_mode: "",
           network_status: "",

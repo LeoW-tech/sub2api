@@ -502,10 +502,10 @@ func (r *accountRepository) Delete(ctx context.Context, id int64) error {
 }
 
 func (r *accountRepository) List(ctx context.Context, params pagination.PaginationParams) ([]service.Account, *pagination.PaginationResult, error) {
-	return r.ListWithFilters(ctx, params, "", "", "", "", 0, "", "", "", "", nil)
+	return r.ListWithFilters(ctx, params, "", "", "", "", 0, "", "", "", "", "", nil)
 }
 
-func (r *accountRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, accountIDs []int64) ([]service.Account, *pagination.PaginationResult, error) {
+func (r *accountRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus string, accountIDs []int64) ([]service.Account, *pagination.PaginationResult, error) {
 	q := r.client.Account.Query()
 
 	if platform != "" {
@@ -604,6 +604,17 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 	}
 	if exitIP != "" {
 		q = q.Where(dbaccount.HasProxyWith(dbproxy.ExitIPEQ(exitIP)))
+	}
+	if rtStatus != "" {
+		q = q.Where(dbpredicate.Account(func(s *entsql.Selector) {
+			field := s.C(dbaccount.FieldCredentials)
+			switch rtStatus {
+			case "has_rt":
+				s.Where(entsql.ExprP("jsonb_typeof(" + field + "->'refresh_token') = 'string' AND btrim(COALESCE(" + field + "->>'refresh_token', '')) <> ''"))
+			case "no_rt":
+				s.Where(entsql.ExprP("jsonb_typeof(" + field + "->'refresh_token') <> 'string' OR btrim(COALESCE(" + field + "->>'refresh_token', '')) = ''"))
+			}
+		}))
 	}
 	if len(accountIDs) > 0 {
 		q = q.Where(dbaccount.IDIn(accountIDs...))

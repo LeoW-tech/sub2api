@@ -205,7 +205,7 @@ func TestExportDataPassesAccountFiltersAndSort(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(
 		http.MethodGet,
-		"/api/v1/admin/accounts/data?platform=openai&type=oauth&status=active&group=12&privacy_mode=blocked&network_status=offline&ip=203.0.113.10&search=keyword&sort_by=priority&sort_order=desc",
+		"/api/v1/admin/accounts/data?platform=openai&type=oauth&status=active&group=12&privacy_mode=blocked&network_status=offline&ip=203.0.113.10&rt_status=no_rt&search=keyword&sort_by=priority&sort_order=desc",
 		nil,
 	)
 	router.ServeHTTP(rec, req)
@@ -219,6 +219,7 @@ func TestExportDataPassesAccountFiltersAndSort(t *testing.T) {
 	require.Equal(t, "blocked", adminSvc.lastListAccounts.privacyMode)
 	require.Equal(t, "offline", adminSvc.lastListAccounts.networkStatus)
 	require.Equal(t, "203.0.113.10", adminSvc.lastListAccounts.exitIP)
+	require.Equal(t, "no_rt", adminSvc.lastListAccounts.rtStatus)
 	require.Equal(t, "keyword", adminSvc.lastListAccounts.search)
 	require.Equal(t, "priority", adminSvc.lastListAccounts.sortBy)
 	require.Equal(t, "desc", adminSvc.lastListAccounts.sortOrder)
@@ -230,7 +231,7 @@ func TestAccountListPassesCapacityStatusAndIPFilter(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(
 		http.MethodGet,
-		"/api/v1/admin/accounts?ip=203.0.113.10&capacity_status=concurrent&search=keyword",
+		"/api/v1/admin/accounts?ip=203.0.113.10&capacity_status=concurrent&rt_status=has_rt&search=keyword",
 		nil,
 	)
 	router.ServeHTTP(rec, req)
@@ -239,6 +240,7 @@ func TestAccountListPassesCapacityStatusAndIPFilter(t *testing.T) {
 	require.Equal(t, 1, adminSvc.lastListAccounts.calls)
 	require.Equal(t, "203.0.113.10", adminSvc.lastListAccounts.exitIP)
 	require.Equal(t, "concurrent", adminSvc.lastListAccounts.capacityStatus)
+	require.Equal(t, "has_rt", adminSvc.lastListAccounts.rtStatus)
 	require.Equal(t, "keyword", adminSvc.lastListAccounts.search)
 }
 
@@ -248,7 +250,7 @@ func TestExportDataPassesCapacityStatusFilter(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(
 		http.MethodGet,
-		"/api/v1/admin/accounts/data?capacity_status=concurrent&search=keyword",
+		"/api/v1/admin/accounts/data?capacity_status=concurrent&rt_status=no_rt&search=keyword",
 		nil,
 	)
 	router.ServeHTTP(rec, req)
@@ -256,6 +258,7 @@ func TestExportDataPassesCapacityStatusFilter(t *testing.T) {
 
 	require.Equal(t, 1, adminSvc.lastListAccounts.calls)
 	require.Equal(t, "concurrent", adminSvc.lastListAccounts.capacityStatus)
+	require.Equal(t, "no_rt", adminSvc.lastListAccounts.rtStatus)
 	require.Equal(t, "keyword", adminSvc.lastListAccounts.search)
 }
 
@@ -312,6 +315,62 @@ func TestAccountListETagChangesWhenCapacityStatusChanges(t *testing.T) {
 	require.NotEmpty(t, withCapacity.Header().Get("ETag"))
 	require.NotEmpty(t, withoutCapacity.Header().Get("ETag"))
 	require.NotEqual(t, withCapacity.Header().Get("ETag"), withoutCapacity.Header().Get("ETag"))
+}
+
+
+func TestAccountListRejectsInvalidRTStatusFilter(t *testing.T) {
+	router, _ := setupAccountDataRouter()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/admin/accounts?rt_status=weird",
+		nil,
+	)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestExportDataRejectsInvalidRTStatusFilter(t *testing.T) {
+	router, _ := setupAccountDataRouter()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/admin/accounts/data?rt_status=weird",
+		nil,
+	)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestAccountListETagChangesWhenRTStatusChanges(t *testing.T) {
+	router, adminSvc := setupAccountDataRouter()
+	adminSvc.accounts = []service.Account{
+		{ID: 1, Name: "acc-1", Status: service.StatusActive},
+	}
+
+	withRT := httptest.NewRecorder()
+	withRTReq := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/admin/accounts?rt_status=has_rt",
+		nil,
+	)
+	router.ServeHTTP(withRT, withRTReq)
+	require.Equal(t, http.StatusOK, withRT.Code)
+
+	withoutRT := httptest.NewRecorder()
+	withoutRTReq := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/admin/accounts?rt_status=no_rt",
+		nil,
+	)
+	router.ServeHTTP(withoutRT, withoutRTReq)
+	require.Equal(t, http.StatusOK, withoutRT.Code)
+
+	require.NotEmpty(t, withRT.Header().Get("ETag"))
+	require.NotEmpty(t, withoutRT.Header().Get("ETag"))
+	require.NotEqual(t, withRT.Header().Get("ETag"), withoutRT.Header().Get("ETag"))
 }
 
 func TestExportDataSelectedIDsOverrideFilters(t *testing.T) {

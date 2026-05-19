@@ -765,6 +765,7 @@ type AccountBulkEditTarget =
         platform?: string;
         type?: string;
         status?: string;
+        rt_status?: string;
         capacity_status?: string;
         group?: string;
         privacy_mode?: string;
@@ -1079,6 +1080,7 @@ const {
     platform: "",
     type: "",
     status: "",
+    rt_status: "",
     capacity_status: "",
     privacy_mode: "",
     network_status: "",
@@ -1293,6 +1295,7 @@ const refreshAccountsIncrementally = async () => {
         platform?: string;
         type?: string;
         status?: string;
+        rt_status?: string;
         capacity_status?: string;
         privacy_mode?: string;
         group?: string;
@@ -1924,6 +1927,7 @@ const buildBulkEditFilterSnapshot = () => {
     platform: typeof rawParams.platform === "string" ? rawParams.platform : "",
     type: typeof rawParams.type === "string" ? rawParams.type : "",
     status: typeof rawParams.status === "string" ? rawParams.status : "",
+    rt_status: typeof rawParams.rt_status === "string" ? rawParams.rt_status : "",
     capacity_status:
       typeof rawParams.capacity_status === "string" ? rawParams.capacity_status : "",
     group: typeof rawParams.group === "string" ? rawParams.group : "",
@@ -1989,6 +1993,7 @@ const buildAccountQueryFilters = () => ({
   platform: params.platform || "",
   type: params.type || "",
   status: params.status || "",
+  rt_status: params.rt_status || "",
   capacity_status: params.capacity_status || "",
   group: params.group || "",
   privacy_mode: params.privacy_mode || "",
@@ -2040,6 +2045,12 @@ const accountMatchesCurrentFilters = (account: Account) => {
       return false;
     }
   }
+  const refreshToken =
+    typeof account.credentials?.refresh_token === "string"
+      ? account.credentials.refresh_token.trim()
+      : "";
+  if (filters.rt_status === "has_rt" && refreshToken === "") return false;
+  if (filters.rt_status === "no_rt" && refreshToken !== "") return false;
   if (filters.capacity_status === ACCOUNT_CAPACITY_CONCURRENT_QUERY_VALUE) {
     if ((account.current_concurrency ?? 0) <= 0) return false;
   }

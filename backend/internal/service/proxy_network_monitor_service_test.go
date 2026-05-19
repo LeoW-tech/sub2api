@@ -145,18 +145,18 @@ func (s *proxyNetworkMonitorNotifierStub) lastMessage() string {
 
 type proxyNetworkMonitorAdminServiceStub struct {
 	AdminService
-	listAccountsFn func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error)
+	listAccountsFn func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error)
 }
 
 func (s *proxyNetworkMonitorAdminServiceStub) TestProxy(ctx context.Context, proxyID int64) (*ProxyTestResult, error) {
 	return &ProxyTestResult{Success: true}, nil
 }
 
-func (s *proxyNetworkMonitorAdminServiceStub) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
+func (s *proxyNetworkMonitorAdminServiceStub) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
 	if s.listAccountsFn == nil {
 		panic("unexpected ListAccounts call")
 	}
-	return s.listAccountsFn(ctx, page, pageSize, platform, accountType, status, search, groupID, privacyMode, networkStatus, exitIP, capacityStatus, sortBy, sortOrder)
+	return s.listAccountsFn(ctx, page, pageSize, platform, accountType, status, search, groupID, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus, sortBy, sortOrder)
 }
 
 func TestProxyNetworkMonitorService_DefaultInterval(t *testing.T) {
@@ -221,7 +221,7 @@ func TestProxyNetworkMonitorService_RunFullScan_PreventsOverlap(t *testing.T) {
 
 func TestProxyNetworkMonitorService_NotifySummary_SkipsWhenNoPausedOfflineAccounts(t *testing.T) {
 	adminSvc := &proxyNetworkMonitorAdminServiceStub{
-		listAccountsFn: func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
+		listAccountsFn: func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
 			require.Equal(t, ProxyNetworkStatusOffline, networkStatus)
 			return []Account{
 				{ID: 1, NetworkAutoPaused: false, Schedulable: false},
@@ -244,7 +244,7 @@ func TestProxyNetworkMonitorService_NotifySummary_SkipsWhenNoPausedOfflineAccoun
 
 func TestProxyNetworkMonitorService_NotifySummary_SendsWhenPausedOfflineAccountsPresent(t *testing.T) {
 	adminSvc := &proxyNetworkMonitorAdminServiceStub{
-		listAccountsFn: func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
+		listAccountsFn: func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
 			require.Equal(t, ProxyNetworkStatusOffline, networkStatus)
 			return []Account{
 				{ID: 1, NetworkAutoPaused: true, Schedulable: false},
@@ -271,7 +271,7 @@ func TestProxyNetworkMonitorService_NotifySummary_SendsWhenPausedOfflineAccounts
 
 func TestProxyNetworkMonitorService_NotifySummary_SkipsWhenPausedOfflineCountFails(t *testing.T) {
 	adminSvc := &proxyNetworkMonitorAdminServiceStub{
-		listAccountsFn: func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
+		listAccountsFn: func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
 			return nil, 0, errors.New("list accounts failed")
 		},
 	}
@@ -292,7 +292,7 @@ func TestProvideProxyNetworkMonitorService_StartsByDefault(t *testing.T) {
 		},
 	}
 	adminSvc := &proxyNetworkMonitorAdminServiceStub{
-		listAccountsFn: func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
+		listAccountsFn: func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
 			return nil, 0, nil
 		},
 	}

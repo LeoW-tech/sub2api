@@ -220,6 +220,7 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 		search      string
 		groupID     int64
 		privacyMode string
+		rtStatus    string
 		wantCount   int
 		validate    func(accounts []service.Account)
 	}{
@@ -381,6 +382,35 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 				s.Require().Empty(accounts[0].GroupIDs)
 			},
 		},
+
+		{
+			name: "filter_by_rt_has",
+			setup: func(client *dbent.Client) {
+				mustCreateAccount(s.T(), client, &service.Account{Name: "has-rt", Credentials: map[string]any{"refresh_token": "rt-123"}})
+				mustCreateAccount(s.T(), client, &service.Account{Name: "no-rt-missing", Credentials: map[string]any{"access_token": "at"}})
+				mustCreateAccount(s.T(), client, &service.Account{Name: "no-rt-empty", Credentials: map[string]any{"refresh_token": ""}})
+			},
+			rtStatus:  "has_rt",
+			wantCount: 1,
+			validate: func(accounts []service.Account) {
+				s.Require().Equal("has-rt", accounts[0].Name)
+			},
+		},
+		{
+			name: "filter_by_rt_no",
+			setup: func(client *dbent.Client) {
+				mustCreateAccount(s.T(), client, &service.Account{Name: "has-rt", Credentials: map[string]any{"refresh_token": "rt-123"}})
+				mustCreateAccount(s.T(), client, &service.Account{Name: "no-rt-missing", Credentials: map[string]any{"access_token": "at"}})
+				mustCreateAccount(s.T(), client, &service.Account{Name: "no-rt-empty", Credentials: map[string]any{"refresh_token": ""}})
+				mustCreateAccount(s.T(), client, &service.Account{Name: "no-rt-spaces", Credentials: map[string]any{"refresh_token": "   "}})
+			},
+			rtStatus:  "no_rt",
+			wantCount: 3,
+			validate: func(accounts []service.Account) {
+				names := []string{accounts[0].Name, accounts[1].Name, accounts[2].Name}
+				s.ElementsMatch([]string{"no-rt-missing", "no-rt-empty", "no-rt-spaces"}, names)
+			},
+		},
 		{
 			name: "filter_by_privacy_mode",
 			setup: func(client *dbent.Client) {
@@ -419,7 +449,7 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 
 			tt.setup(client)
 
-			accounts, _, err := repo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, tt.platform, tt.accType, tt.status, tt.search, tt.groupID, tt.privacyMode, "", "", "", nil)
+			accounts, _, err := repo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, tt.platform, tt.accType, tt.status, tt.search, tt.groupID, tt.privacyMode, "", "", tt.rtStatus, "", nil)
 			s.Require().NoError(err)
 			s.Require().Len(accounts, tt.wantCount)
 			if tt.validate != nil {

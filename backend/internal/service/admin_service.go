@@ -67,7 +67,7 @@ type AdminService interface {
 	ReplaceUserGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (*ReplaceUserGroupResult, error)
 
 	// Account management
-	ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error)
+	ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error)
 	GetAccount(ctx context.Context, id int64) (*Account, error)
 	GetAccountsByIDs(ctx context.Context, ids []int64) ([]*Account, error)
 	CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error)
@@ -328,6 +328,7 @@ type BulkUpdateAccountFilters struct {
 	PrivacyMode    string
 	NetworkStatus  string
 	ExitIP         string
+	RTStatus       string
 	CapacityStatus string
 	SortBy         string
 	SortOrder      string
@@ -2360,7 +2361,7 @@ func (s *adminServiceImpl) ReplaceUserGroup(ctx context.Context, userID, oldGrou
 }
 
 // Account management implementations
-func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
+func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
 	var accountIDs []int64
 	if strings.TrimSpace(capacityStatus) == AccountCapacityStatusConcurrentFilter {
@@ -2379,7 +2380,7 @@ func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int,
 		}
 		accountIDs = ids
 	}
-	accounts, result, err := s.accountRepo.ListWithFilters(ctx, params, platform, accountType, status, search, groupID, privacyMode, networkStatus, exitIP, capacityStatus, accountIDs)
+	accounts, result, err := s.accountRepo.ListWithFilters(ctx, params, platform, accountType, status, search, groupID, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus, accountIDs)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -2822,6 +2823,7 @@ func (s *adminServiceImpl) resolveBulkUpdateTargetIDs(ctx context.Context, filte
 			filters.PrivacyMode,
 			filters.NetworkStatus,
 			filters.ExitIP,
+			filters.RTStatus,
 			filters.CapacityStatus,
 			filters.SortBy,
 			filters.SortOrder,

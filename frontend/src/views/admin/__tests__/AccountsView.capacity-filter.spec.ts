@@ -34,6 +34,7 @@ const tableParams = reactive({
   type: "",
   status: "",
   capacity_status: "",
+  rt_status: "",
   privacy_mode: "",
   network_status: "",
   ip: "",
@@ -143,7 +144,7 @@ const AccountTableFiltersStub = defineComponent({
   template: `
     <button
       class="apply-concurrent-filter"
-      @click="$emit('update:filters', { ...filters, capacity_status: 'concurrent' }); $emit('change')"
+      @click="$emit('update:filters', { ...filters, rt_status: 'no_rt' }); $emit('change')"
     >
       apply
     </button>
@@ -219,6 +220,7 @@ describe("AccountsView capacity filter", () => {
     tableParams.type = "";
     tableParams.status = "";
     tableParams.capacity_status = "";
+    tableParams.rt_status = "";
     tableParams.privacy_mode = "";
     tableParams.network_status = "";
     tableParams.ip = "";
@@ -248,18 +250,19 @@ describe("AccountsView capacity filter", () => {
     getAllGroupsMock.mockResolvedValue([]);
   });
 
-  it("启用正在并发筛选后，本地更新会移除并发数归零的账号", async () => {
+  it("启用无RT筛选后，本地更新会移除补充了RT的账号", async () => {
     const wrapper = mountView();
     await flushPromises();
 
     await wrapper.get("button.apply-concurrent-filter").trigger("click");
-    expect(tableParams.capacity_status).toBe("concurrent");
+    expect(tableParams.rt_status).toBe("no_rt");
 
     const accountTestModal = wrapper.findComponent(AccountTestModalStub);
     await accountTestModal.vm.$emit("tested", {
       id: 1,
       name: "Concurrent Account",
-      current_concurrency: 0,
+      credentials: { refresh_token: "new-rt" },
+      current_concurrency: 2,
       current_window_cost: null,
       active_sessions: null,
     });

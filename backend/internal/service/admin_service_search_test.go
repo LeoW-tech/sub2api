@@ -20,6 +20,7 @@ type accountRepoStubForAdminList struct {
 	listWithFiltersStatus   string
 	listWithFiltersSearch   string
 	listWithFiltersPrivacy  string
+	listWithFiltersRTStatus string
 	listWithFiltersCapacity string
 	listWithFiltersIP       string
 	listWithFiltersIDs      []int64
@@ -28,7 +29,7 @@ type accountRepoStubForAdminList struct {
 	listWithFiltersErr      error
 }
 
-func (s *accountRepoStubForAdminList) ListWithFilters(_ context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, accountIDs []int64) ([]Account, *pagination.PaginationResult, error) {
+func (s *accountRepoStubForAdminList) ListWithFilters(_ context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus string, accountIDs []int64) ([]Account, *pagination.PaginationResult, error) {
 	s.listWithFiltersCalls++
 	s.listWithFiltersParams = params
 	s.listWithFiltersPlatform = platform
@@ -37,6 +38,7 @@ func (s *accountRepoStubForAdminList) ListWithFilters(_ context.Context, params 
 	s.listWithFiltersSearch = search
 	s.listWithFiltersPrivacy = privacyMode
 	s.listWithFiltersIP = exitIP
+	s.listWithFiltersRTStatus = rtStatus
 	s.listWithFiltersCapacity = capacityStatus
 	s.listWithFiltersIDs = append([]int64(nil), accountIDs...)
 	_ = networkStatus
@@ -220,6 +222,23 @@ func TestAdminService_ListAccounts_WithIP(t *testing.T) {
 		require.Equal(t, int64(1), total)
 		require.Equal(t, []Account{{ID: 3, Name: "acc3"}}, accounts)
 		require.Equal(t, "203.0.113.10", repo.listWithFiltersIP)
+	})
+}
+
+
+func TestAdminService_ListAccounts_WithRTStatus(t *testing.T) {
+	t.Run("rt_status 参数正常传递到 repository 层", func(t *testing.T) {
+		repo := &accountRepoStubForAdminList{
+			listWithFiltersAccounts: []Account{{ID: 5, Name: "acc5"}},
+			listWithFiltersResult:   &pagination.PaginationResult{Total: 1},
+		}
+		svc := &adminServiceImpl{accountRepo: repo}
+
+		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusActive, "acc5", 0, "", "", "", "has_rt", "", "name", "ASC")
+		require.NoError(t, err)
+		require.Equal(t, int64(1), total)
+		require.Equal(t, []Account{{ID: 5, Name: "acc5"}}, accounts)
+		require.Equal(t, "has_rt", repo.listWithFiltersRTStatus)
 	})
 }
 

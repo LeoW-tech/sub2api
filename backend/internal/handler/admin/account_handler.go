@@ -162,6 +162,7 @@ type BulkUpdateAccountFilters struct {
 	PrivacyMode    string `json:"privacy_mode"`
 	NetworkStatus  string `json:"network_status"`
 	ExitIP         string `json:"ip"`
+	RTStatus       string `json:"rt_status"`
 	CapacityStatus string `json:"capacity_status"`
 	SortBy         string `json:"sort_by"`
 	SortOrder      string `json:"sort_order"`
@@ -190,6 +191,8 @@ type AccountWithConcurrency struct {
 
 const accountListGroupUngroupedQueryValue = "ungrouped"
 const accountListCapacityConcurrentQueryValue = service.AccountCapacityStatusConcurrentFilter
+const accountListRTStatusHasQueryValue = "has_rt"
+const accountListRTStatusNoQueryValue = "no_rt"
 
 func (h *AccountHandler) buildAccountResponseWithRuntime(ctx context.Context, account *service.Account) AccountWithConcurrency {
 	item := AccountWithConcurrency{
@@ -246,6 +249,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 	privacyMode := strings.TrimSpace(c.Query("privacy_mode"))
 	networkStatus := strings.TrimSpace(c.Query("network_status"))
 	exitIP := strings.TrimSpace(c.Query("ip"))
+	rtStatus := strings.TrimSpace(c.Query("rt_status"))
 	capacityStatus := strings.TrimSpace(c.Query("capacity_status"))
 	sortBy := c.DefaultQuery("sort_by", "name")
 	sortOrder := c.DefaultQuery("sort_order", "asc")
@@ -258,6 +262,10 @@ func (h *AccountHandler) List(c *gin.Context) {
 
 	if networkStatus != "" && networkStatus != service.ProxyNetworkStatusOnline && networkStatus != service.ProxyNetworkStatusOffline {
 		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_NETWORK_STATUS_FILTER", "invalid network status filter"))
+		return
+	}
+	if rtStatus != "" && rtStatus != accountListRTStatusHasQueryValue && rtStatus != accountListRTStatusNoQueryValue {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_RT_STATUS_FILTER", "invalid rt status filter"))
 		return
 	}
 	if capacityStatus != "" && capacityStatus != accountListCapacityConcurrentQueryValue {
@@ -283,7 +291,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 		}
 	}
 
-	accounts, total, err := h.adminService.ListAccounts(c.Request.Context(), page, pageSize, platform, accountType, status, search, groupID, privacyMode, networkStatus, exitIP, capacityStatus, sortBy, sortOrder)
+	accounts, total, err := h.adminService.ListAccounts(c.Request.Context(), page, pageSize, platform, accountType, status, search, groupID, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus, sortBy, sortOrder)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -405,7 +413,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 		result[i] = item
 	}
 
-	etag := buildAccountsListETag(result, total, page, pageSize, platform, accountType, status, search, groupID, privacyMode, networkStatus, exitIP, capacityStatus, lite)
+	etag := buildAccountsListETag(result, total, page, pageSize, platform, accountType, status, search, groupID, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus, lite)
 	if etag != "" {
 		c.Header("ETag", etag)
 		c.Header("Vary", "If-None-Match")
@@ -424,7 +432,7 @@ func buildAccountsListETag(
 	page, pageSize int,
 	platform, accountType, status, search string,
 	groupID int64,
-	privacyMode, networkStatus, exitIP, capacityStatus string,
+	privacyMode, networkStatus, exitIP, rtStatus, capacityStatus string,
 	lite bool,
 ) string {
 	payload := struct {
@@ -439,6 +447,7 @@ func buildAccountsListETag(
 		PrivacyMode    string                   `json:"privacy_mode"`
 		NetworkStatus  string                   `json:"network_status"`
 		ExitIP         string                   `json:"ip"`
+		RTStatus       string                   `json:"rt_status"`
 		CapacityStatus string                   `json:"capacity_status"`
 		Lite           bool                     `json:"lite"`
 		Items          []AccountWithConcurrency `json:"items"`
@@ -454,6 +463,7 @@ func buildAccountsListETag(
 		PrivacyMode:    privacyMode,
 		NetworkStatus:  networkStatus,
 		ExitIP:         exitIP,
+		RTStatus:       rtStatus,
 		CapacityStatus: capacityStatus,
 		Lite:           lite,
 		Items:          items,
@@ -2172,7 +2182,7 @@ func (h *AccountHandler) BatchRefreshTier(c *gin.Context) {
 	accounts := make([]*service.Account, 0)
 
 	if len(req.AccountIDs) == 0 {
-		allAccounts, _, err := h.adminService.ListAccounts(ctx, 1, 10000, "gemini", "oauth", "", "", 0, "", "", "", "", "name", "asc")
+		allAccounts, _, err := h.adminService.ListAccounts(ctx, 1, 10000, "gemini", "oauth", "", "", 0, "", "", "", "", "", "name", "asc")
 		if err != nil {
 			response.ErrorFrom(c, err)
 			return

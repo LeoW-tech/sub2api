@@ -22,6 +22,13 @@
       @change="$emit('change')"
     />
     <Select
+      :model-value="filters.rt_status"
+      class="w-40"
+      :options="rtStatusOptions"
+      @update:model-value="updateRTStatus"
+      @change="$emit('change')"
+    />
+    <Select
       :model-value="filters.status"
       class="w-40"
       :options="statusOptions"
@@ -95,6 +102,9 @@ const updateType = (value: string | number | boolean | null) => {
 const updateStatus = (value: string | number | boolean | null) => {
   emit("update:filters", { ...props.filters, status: value });
 };
+const updateRTStatus = (value: string | number | boolean | null) => {
+  emit("update:filters", { ...props.filters, rt_status: value });
+};
 const updateCapacityStatus = (value: string | number | boolean | null) => {
   emit("update:filters", { ...props.filters, capacity_status: value });
 };
@@ -125,6 +135,12 @@ const typeOptions = computed<SelectOption[]>(() => [
   { value: "setup-token", label: t("admin.accounts.setupToken") },
   { value: "apikey", label: t("admin.accounts.apiKey") },
   { value: "bedrock", label: "AWS Bedrock" },
+]);
+
+const rtStatusOptions = computed<SelectOption[]>(() => [
+  { value: "", label: t("admin.accounts.allTokenStatus") },
+  { value: "has_rt", label: t("admin.accounts.hasRT") },
+  { value: "no_rt", label: t("admin.accounts.noRT") },
 ]);
 
 const statusOptions = computed<SelectOption[]>(() => [

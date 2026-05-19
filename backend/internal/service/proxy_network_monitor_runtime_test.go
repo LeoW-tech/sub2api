@@ -187,7 +187,7 @@ func (s *proxyNetworkMonitorRuntimeAdminService) TestProxy(ctx context.Context, 
 	return &ProxyTestResult{Success: true}, nil
 }
 
-func (s *proxyNetworkMonitorRuntimeAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
+func (s *proxyNetworkMonitorRuntimeAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
 	return nil, 0, nil
 }
 
@@ -218,7 +218,7 @@ func (s *blockingProxyNetworkMonitorAdminService) TestProxy(ctx context.Context,
 	}
 }
 
-func (s *blockingProxyNetworkMonitorAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
+func (s *blockingProxyNetworkMonitorAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error) {
 	return nil, 0, nil
 }
 

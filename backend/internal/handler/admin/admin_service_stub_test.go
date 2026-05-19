@@ -42,6 +42,7 @@ type stubAdminService struct {
 		privacyMode    string
 		networkStatus  string
 		exitIP         string
+		rtStatus       string
 		capacityStatus string
 		sortBy         string
 		sortOrder      string
@@ -299,7 +300,7 @@ func (s *stubAdminService) BatchSetGroupRPMOverrides(_ context.Context, _ int64,
 	return nil
 }
 
-func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, capacityStatus string, sortBy, sortOrder string) ([]service.Account, int64, error) {
+func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus string, sortBy, sortOrder string) ([]service.Account, int64, error) {
 	s.lastListAccounts.platform = platform
 	s.lastListAccounts.accountType = accountType
 	s.lastListAccounts.status = status
@@ -308,6 +309,7 @@ func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int,
 	s.lastListAccounts.privacyMode = privacyMode
 	s.lastListAccounts.networkStatus = networkStatus
 	s.lastListAccounts.exitIP = exitIP
+	s.lastListAccounts.rtStatus = rtStatus
 	s.lastListAccounts.capacityStatus = capacityStatus
 	s.lastListAccounts.sortBy = sortBy
 	s.lastListAccounts.sortOrder = sortOrder
