@@ -25,4 +25,30 @@ describe('usage service tier locale keys', () => {
   it('contains en label for disabled account status', () => {
     expect(en.admin.accounts.status.disabled).toBe('Disabled')
   })
+
+  it('contains zh labels for account filter and network status keys', () => {
+    expect(zh.admin.accounts.allTokenStatus).toBe('全部 RT 状态')
+    expect(zh.admin.accounts.hasRT).toBe('有 RT')
+    expect(zh.admin.accounts.noRT).toBe('无 RT')
+    expect(zh.admin.accounts.allCapacity).toBe('全部容量状态')
+    expect(zh.admin.accounts.capacityConcurrent).toBe('有并发占用')
+    expect(zh.admin.accounts.allNetworkStatus).toBe('全部网络状态')
+    expect(zh.admin.accounts.allIPs).toBe('全部出口 IP')
+    expect(zh.admin.accounts.columns.networkStatus).toBe('网络状态')
+    expect(zh.admin.accounts.networkStatus.online).toBe('在线')
+    expect(zh.admin.accounts.networkStatus.offline).toBe('离线')
+  })
+
+  it('contains en labels for account filter and network status keys', () => {
+    expect(en.admin.accounts.allTokenStatus).toBe('All RT Status')
+    expect(en.admin.accounts.hasRT).toBe('Has RT')
+    expect(en.admin.accounts.noRT).toBe('No RT')
+    expect(en.admin.accounts.allCapacity).toBe('All Capacity Status')
+    expect(en.admin.accounts.capacityConcurrent).toBe('Has Active Concurrency')
+    expect(en.admin.accounts.allNetworkStatus).toBe('All Network Status')
+    expect(en.admin.accounts.allIPs).toBe('All Exit IPs')
+    expect(en.admin.accounts.columns.networkStatus).toBe('Network Status')
+    expect(en.admin.accounts.networkStatus.online).toBe('Online')
+    expect(en.admin.accounts.networkStatus.offline).toBe('Offline')
+  })
 })
