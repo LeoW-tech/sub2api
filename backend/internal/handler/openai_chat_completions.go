@@ -124,45 +124,26 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 	failedAccountIDs := make(map[int64]struct{})
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
-	schedulerFallbackModel := resolveOpenAIChatCompletionsSchedulerFallbackModel(apiKey, reqModel)
-	useSchedulerFallbackModel := false
 
 	for {
-		schedulerModel := reqModel
-		if useSchedulerFallbackModel {
-			schedulerModel = schedulerFallbackModel
-		}
-		reqLog.Debug("openai_chat_completions.account_selecting",
-			zap.Int("excluded_account_count", len(failedAccountIDs)),
-			zap.String("scheduler_model", schedulerModel),
-			zap.Bool("scheduler_default_fallback", useSchedulerFallbackModel),
-		)
+		reqLog.Debug("openai_chat_completions.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
 		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithScheduler(
 			c.Request.Context(),
 			apiKey.GroupID,
 			"",
 			sessionHash,
-			schedulerModel,
+			reqModel,
 			failedAccountIDs,
 			service.OpenAIUpstreamTransportAny,
 			false,
 		)
 		if err != nil {
-			if !useSchedulerFallbackModel && schedulerFallbackModel != "" && len(failedAccountIDs) == 0 {
-				useSchedulerFallbackModel = true
-				reqLog.Warn("openai_chat_completions.account_select_retrying_with_scheduler_fallback",
-					zap.Error(err),
-					zap.String("requested_model", reqModel),
-					zap.String("scheduler_fallback_model", schedulerFallbackModel),
-				)
-				continue
-			}
 			reqLog.Warn("openai_chat_completions.account_select_failed",
 				zap.Error(err),
 				zap.Int("excluded_account_count", len(failedAccountIDs)),
-				zap.String("scheduler_model", schedulerModel),
 			)
 			if len(failedAccountIDs) == 0 {
+				markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
 				h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "Service temporarily unavailable", streamStarted)
 				return
 			} else {
@@ -175,14 +156,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			}
 		}
 		if selection == nil || selection.Account == nil {
-			if !useSchedulerFallbackModel && schedulerFallbackModel != "" && len(failedAccountIDs) == 0 {
-				useSchedulerFallbackModel = true
-				reqLog.Warn("openai_chat_completions.account_select_retrying_with_scheduler_fallback",
-					zap.String("requested_model", reqModel),
-					zap.String("scheduler_fallback_model", schedulerFallbackModel),
-				)
-				continue
-			}
+			markOpsRoutingCapacityLimited(c)
 			h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts", streamStarted)
 			return
 		}
@@ -204,6 +178,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		if channelMapping.Mapped {
 			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMapping.MappedModel)
 		}
+		writerSizeBeforeForward := c.Writer.Size()
 		result, err := h.gatewayService.ForwardAsChatCompletions(c.Request.Context(), c, account, forwardBody, promptCacheKey, "")
 
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
@@ -229,6 +204,10 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			} else {
 				var failoverErr *service.UpstreamFailoverError
 				if errors.As(err, &failoverErr) {
+					if c.Writer.Size() != writerSizeBeforeForward {
+						h.handleFailoverExhausted(c, failoverErr, true)
+						return
+					}
 					h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
 					// Pool mode: retry on the same account
 					if failoverErr.RetryableOnSameAccount {
@@ -320,7 +299,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 
 // resolveRawCCUpstreamEndpoint returns the actual upstream endpoint for
 // OpenAI Chat Completions requests. For APIKey accounts whose upstream
-// has been probed to not support the Responses API, the request is
+// is forced or probed to not support the Responses API, the request is
 // forwarded directly to /v1/chat/completions — not through the default
 // CC→Responses conversion path.
 func resolveRawCCUpstreamEndpoint(c *gin.Context, account *service.Account) string {

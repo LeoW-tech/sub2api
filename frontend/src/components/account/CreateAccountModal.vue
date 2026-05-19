@@ -2649,6 +2649,28 @@
         </div>
       </div>
 
+      <!-- OpenAI APIKey Responses API support mode -->
+      <div
+        v-if="form.platform === 'openai' && accountCategory === 'apikey'"
+        class="border-t border-gray-200 pt-4 dark:border-dark-600"
+      >
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <label class="input-label mb-0">{{ t('admin.accounts.openai.responsesMode') }}</label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.openai.responsesModeDesc') }}
+            </p>
+          </div>
+          <div class="w-56">
+            <Select
+              v-model="openAIResponsesMode"
+              :options="openAIResponsesModeOptions"
+              data-testid="openai-responses-mode-select"
+            />
+          </div>
+        </div>
+      </div>
+
       <div>
         <div class="flex items-center justify-between">
           <div>
@@ -3095,6 +3117,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import {
+  claudeModels,
   getPresetMappingsByPlatform,
   getModelsByPlatform,
   commonErrorCodes,
@@ -3122,7 +3145,8 @@ import type {
   CreateAccountRequest,
   CodexSessionImportMessage,
   OpenAICompactMode,
-  OpenAIPendingCreatePayload
+  OpenAIPendingCreatePayload,
+  OpenAIResponsesMode
 } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -3133,11 +3157,6 @@ import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
-import {
-  DEFAULT_OPENAI_ACCOUNT_PRIORITY,
-  resolveDefaultOpenAIPlusGroup,
-  shouldApplyDefaultOpenAIPlusGroup
-} from '@/components/account/createAccountDefaults'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import { VERTEX_LOCATION_OPTIONS } from '@/constants/account'
@@ -3284,6 +3303,7 @@ const interceptWarmupRequests = ref(false)
 const autoPauseOnExpired = ref(true)
 const openaiPassthroughEnabled = ref(false)
 const openAICompactMode = ref<OpenAICompactMode>('auto')
+const openAIResponsesMode = ref<OpenAIResponsesMode>('auto')
 const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const codexCLIOnlyEnabled = ref(false)
@@ -3341,6 +3361,11 @@ const openAICompactModeOptions = computed(() => [
   { value: 'force_on', label: t('admin.accounts.openai.compactModeForceOn') },
   { value: 'force_off', label: t('admin.accounts.openai.compactModeForceOff') }
 ])
+const openAIResponsesModeOptions = computed(() => [
+  { value: 'auto', label: t('admin.accounts.openai.responsesModeAuto') },
+  { value: 'force_responses', label: t('admin.accounts.openai.responsesModeForceResponses') },
+  { value: 'force_chat_completions', label: t('admin.accounts.openai.responsesModeForceChatCompletions') }
+])
 
 function buildAntigravityExtra(): Record<string, unknown> | undefined {
   const extra: Record<string, unknown> = {}
@@ -3361,8 +3386,6 @@ const mixedChannelWarningAction = ref<(() => Promise<void>) | null>(null)
 const antigravityMixedChannelConfirmed = ref(false)
 const showAdvancedOAuth = ref(false)
 const showGeminiHelpDialog = ref(false)
-const groupSelectionTouched = ref(false)
-const applyingDefaultGroup = ref(false)
 
 // Quota control state (Anthropic OAuth/SetupToken only)
 const windowCostEnabled = ref(false)
@@ -3495,13 +3518,13 @@ const tempUnschedPresets = computed(() => [
 const form = reactive({
   name: '',
   notes: '',
-  platform: 'openai' as AccountPlatform,
+  platform: 'anthropic' as AccountPlatform,
   type: 'oauth' as AccountType, // Will be 'oauth', 'setup-token', or 'apikey'
   credentials: {} as Record<string, unknown>,
   proxy_id: null as number | null,
   concurrency: 10,
   load_factor: null as number | null,
-  priority: DEFAULT_OPENAI_ACCOUNT_PRIORITY,
+  priority: 1,
   rate_multiplier: 1,
   group_ids: [] as number[],
   expires_at: null as number | null
@@ -3545,48 +3568,7 @@ const canExchangeCode = computed(() => {
   return authCode.trim() && oauth.sessionId.value && !oauth.loading.value
 })
 
-const applyDefaultOpenAIPlusGroup = () => {
-  if (!shouldApplyDefaultOpenAIPlusGroup({
-    platform: form.platform,
-    groupIds: form.group_ids,
-    userTouchedGroups: groupSelectionTouched.value
-  })) {
-    return
-  }
-
-  const groupID = resolveDefaultOpenAIPlusGroup(props.groups)
-  if (groupID == null) {
-    return
-  }
-
-  applyingDefaultGroup.value = true
-  form.group_ids = [groupID]
-}
-
 // Watchers
-watch(
-  () => [...form.group_ids],
-  () => {
-    if (applyingDefaultGroup.value) {
-      applyingDefaultGroup.value = false
-      return
-    }
-    if (props.show) {
-      groupSelectionTouched.value = true
-    }
-  }
-)
-
-watch(
-  [() => props.groups, () => form.platform, () => props.show],
-  () => {
-    if (props.show) {
-      applyDefaultOpenAIPlusGroup()
-    }
-  },
-  { deep: true }
-)
-
 watch(
   () => props.show,
   (newVal) => {
@@ -3609,7 +3591,6 @@ watch(
         antigravityModelMappings.value = []
         antigravityModelRestrictionMode.value = 'mapping'
       }
-      applyDefaultOpenAIPlusGroup()
     } else {
       resetForm()
     }
@@ -3644,11 +3625,7 @@ watch(
 // Reset platform-specific settings when platform changes
 watch(
   () => form.platform,
-  (newPlatform, oldPlatform) => {
-    if (oldPlatform && newPlatform !== oldPlatform) {
-      form.group_ids = []
-      groupSelectionTouched.value = false
-    }
+  (newPlatform) => {
     // Reset base URL based on platform
     apiKeyBaseUrl.value =
       (newPlatform === 'openai')
@@ -3712,7 +3689,6 @@ watch(
 
     geminiOAuth.resetState()
     antigravityOAuth.resetState()
-    applyDefaultOpenAIPlusGroup()
   }
 )
 
@@ -4054,21 +4030,19 @@ const resetForm = () => {
   step.value = 1
   form.name = ''
   form.notes = ''
-  groupSelectionTouched.value = false
-  applyingDefaultGroup.value = false
-  form.platform = 'openai'
+  form.platform = 'anthropic'
   form.type = 'oauth'
   form.credentials = {}
   form.proxy_id = null
   form.concurrency = 10
   form.load_factor = null
-  form.priority = DEFAULT_OPENAI_ACCOUNT_PRIORITY
+  form.priority = 1
   form.rate_multiplier = 1
   form.group_ids = []
   form.expires_at = null
   accountCategory.value = 'oauth-based'
   addMethod.value = 'oauth'
-  apiKeyBaseUrl.value = 'https://api.openai.com'
+  apiKeyBaseUrl.value = 'https://api.anthropic.com'
   apiKeyValue.value = ''
   editQuotaLimit.value = null
   editQuotaDailyLimit.value = null
@@ -4082,7 +4056,7 @@ const resetForm = () => {
   modelMappings.value = []
   openAICompactModelMappings.value = []
   modelRestrictionMode.value = 'whitelist'
-  allowedModels.value = [...getModelsByPlatform('openai')] // Default fill related models
+  allowedModels.value = [...claudeModels] // Default fill related models
 
   antigravityModelRestrictionMode.value = 'mapping'
   antigravityWhitelistModels.value = []
@@ -4098,6 +4072,7 @@ const resetForm = () => {
   autoPauseOnExpired.value = true
   openaiPassthroughEnabled.value = false
   openAICompactMode.value = 'auto'
+  openAIResponsesMode.value = 'auto'
   openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
   openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
   codexCLIOnlyEnabled.value = false
@@ -4143,7 +4118,6 @@ const resetForm = () => {
   oauthFlowRef.value?.reset()
   antigravityMixedChannelConfirmed.value = false
   clearMixedChannelDialog()
-  applyDefaultOpenAIPlusGroup()
 }
 
 const handleClose = () => {
@@ -4186,104 +4160,13 @@ const buildOpenAIExtra = (base?: Record<string, unknown>): Record<string, unknow
     delete extra.openai_compact_mode
   }
 
+  if (accountCategory.value === 'apikey' && openAIResponsesMode.value !== 'auto') {
+    extra.openai_responses_mode = openAIResponsesMode.value
+  } else {
+    delete extra.openai_responses_mode
+  }
+
   return Object.keys(extra).length > 0 ? extra : undefined
-}
-
-const applyCreateExtraControls = (extra: Record<string, unknown>) => {
-  if (windowCostEnabled.value && windowCostLimit.value != null && windowCostLimit.value > 0) {
-    extra.window_cost_limit = windowCostLimit.value
-    extra.window_cost_sticky_reserve = windowCostStickyReserve.value ?? 10
-  }
-
-  if (sessionLimitEnabled.value && maxSessions.value != null && maxSessions.value > 0) {
-    extra.max_sessions = maxSessions.value
-    extra.session_idle_timeout_minutes = sessionIdleTimeout.value ?? 5
-  }
-
-  if (rpmLimitEnabled.value) {
-    const DEFAULT_BASE_RPM = 15
-    extra.base_rpm = (baseRpm.value != null && baseRpm.value > 0)
-      ? baseRpm.value
-      : DEFAULT_BASE_RPM
-    extra.rpm_strategy = rpmStrategy.value
-    if (rpmStickyBuffer.value != null && rpmStickyBuffer.value > 0) {
-      extra.rpm_sticky_buffer = rpmStickyBuffer.value
-    }
-  }
-
-  if (userMsgQueueMode.value) {
-    extra.user_msg_queue_mode = userMsgQueueMode.value
-  }
-
-  if (tlsFingerprintEnabled.value) {
-    extra.enable_tls_fingerprint = true
-    if (tlsFingerprintProfileId.value) {
-      extra.tls_fingerprint_profile_id = tlsFingerprintProfileId.value
-    }
-  }
-
-  if (sessionIdMaskingEnabled.value) {
-    extra.session_id_masking_enabled = true
-  }
-
-  if (cacheTTLOverrideEnabled.value) {
-    extra.cache_ttl_override_enabled = true
-    extra.cache_ttl_override_target = cacheTTLOverrideTarget.value
-  }
-
-  if (customBaseUrlEnabled.value && customBaseUrl.value.trim()) {
-    extra.custom_base_url_enabled = true
-    extra.custom_base_url = customBaseUrl.value.trim()
-  }
-}
-
-const buildOpenAICredentialOverrides = (): Record<string, unknown> | null => {
-  const credentials: Record<string, unknown> = {}
-
-  if (!isOpenAIModelRestrictionDisabled.value) {
-    const modelMapping = buildModelMappingObject(modelRestrictionMode.value, allowedModels.value, modelMappings.value)
-    if (modelMapping) {
-      credentials.model_mapping = modelMapping
-    }
-  }
-
-  const compactModelMapping = buildOpenAICompactModelMapping()
-  if (compactModelMapping) {
-    credentials.compact_model_mapping = compactModelMapping
-  }
-
-  if (!applyTempUnschedConfig(credentials)) {
-    return null
-  }
-
-  return credentials
-}
-
-const buildOpenAIPendingCreatePayload = (): OpenAIPendingCreatePayload | null => {
-  const credentialOverrides = buildOpenAICredentialOverrides()
-  if (credentialOverrides == null) {
-    return null
-  }
-
-  return {
-    name: form.name,
-    notes: form.notes,
-    proxy_id: form.proxy_id,
-    concurrency: form.concurrency,
-    load_factor: form.load_factor,
-    priority: form.priority,
-    rate_multiplier: form.rate_multiplier,
-    group_ids: [...form.group_ids],
-    expires_at: form.expires_at,
-    auto_pause_on_expired: autoPauseOnExpired.value,
-    extra: (() => {
-      const extra = buildOpenAIExtra() || {}
-      applyCreateExtraControls(extra)
-      writeQuotaNotifyToExtra(extra, 'create')
-      return Object.keys(extra).length > 0 ? extra : undefined
-    })(),
-    credential_overrides: credentialOverrides
-  }
 }
 
 const buildAnthropicExtra = (base?: Record<string, unknown>): Record<string, unknown> | undefined => {
@@ -4609,11 +4492,7 @@ const goBackToBasicInfo = () => {
 
 const handleGenerateUrl = async () => {
   if (form.platform === 'openai') {
-    const pendingCreate = buildOpenAIPendingCreatePayload()
-    if (!pendingCreate) {
-      return
-    }
-    await openaiOAuth.generateAuthUrl(form.proxy_id, undefined, pendingCreate)
+    await openaiOAuth.generateAuthUrl(form.proxy_id)
   } else if (form.platform === 'gemini') {
     await geminiOAuth.generateAuthUrl(
       form.proxy_id,
@@ -4737,9 +4616,7 @@ const handleOpenAIExchange = async (authCode: string) => {
 
     const credentials = oauthClient.buildCredentials(tokenInfo)
     const oauthExtra = oauthClient.buildExtraInfo(tokenInfo) as Record<string, unknown> | undefined
-    const extra = buildOpenAIExtra(oauthExtra) || {}
-    applyCreateExtraControls(extra)
-    writeQuotaNotifyToExtra(extra, 'create')
+    const extra = buildOpenAIExtra(oauthExtra)
     const shouldCreateOpenAI = form.platform === 'openai'
 
     // Add model mapping for OpenAI OAuth accounts（透传模式下不应用）
@@ -4768,7 +4645,7 @@ const handleOpenAIExchange = async (authCode: string) => {
         platform: 'openai',
         type: 'oauth',
         credentials,
-        extra: Object.keys(extra).length > 0 ? extra : undefined,
+        extra,
         proxy_id: form.proxy_id,
         concurrency: form.concurrency,
         load_factor: form.load_factor ?? undefined,

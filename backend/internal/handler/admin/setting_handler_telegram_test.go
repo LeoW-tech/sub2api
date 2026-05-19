@@ -54,7 +54,7 @@ func TestSettingHandler_SendTestTelegram_FallsBackToSavedConfig(t *testing.T) {
 	}
 	svc := service.NewSettingService(repo, &config.Config{})
 	telegram := &telegramServiceStub{}
-	handler := NewSettingHandler(svc, nil, nil, nil, nil, nil, nil)
+	handler := NewSettingHandler(svc, nil, nil, nil, nil, nil, nil, nil)
 	handler.telegramService = telegram
 
 	rec := httptest.NewRecorder()
@@ -80,7 +80,7 @@ func TestSettingHandler_SendTestTelegram_ReturnsBadRequestWithServiceError(t *te
 		},
 	}
 	svc := service.NewSettingService(repo, &config.Config{})
-	handler := NewSettingHandler(svc, nil, nil, nil, nil, nil, nil)
+	handler := NewSettingHandler(svc, nil, nil, nil, nil, nil, nil, nil)
 	handler.telegramService = &telegramServiceStub{err: errors.New("telegram send failed: 1820493278: telegram api status 400: Bad Request: chat not found")}
 
 	body := map[string]any{
@@ -111,7 +111,7 @@ func TestSettingHandler_SendTestTelegram_ReturnsServerErrorWhenSavedSettingsFall
 		err: errors.New("database unavailable"),
 	}
 	svc := service.NewSettingService(repo, &config.Config{})
-	handler := NewSettingHandler(svc, nil, nil, nil, nil, nil, nil)
+	handler := NewSettingHandler(svc, nil, nil, nil, nil, nil, nil, nil)
 	handler.telegramService = &telegramServiceStub{}
 
 	rec := httptest.NewRecorder()

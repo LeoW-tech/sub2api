@@ -1,70 +1,64 @@
-import { describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
-import SubscriptionPlanCard from '../SubscriptionPlanCard.vue'
-import type { SubscriptionPlan } from '@/types/payment'
+import { mount } from "@vue/test-utils";
+import { describe, expect, it } from "vitest";
+import { createI18n } from "vue-i18n";
+import SubscriptionPlanCard from "../SubscriptionPlanCard.vue";
 
-vi.mock('vue-i18n', async () => {
-  const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
-  return {
-    ...actual,
-    useI18n: () => ({
-      t: (key: string) => key,
-    }),
-  }
-})
-
-const planFactory = (overrides: Partial<SubscriptionPlan>): SubscriptionPlan => ({
-  id: 1,
-  group_id: 10,
-  group_platform: 'openai',
-  group_name: 'OpenAI',
-  rate_multiplier: 1,
-  daily_limit_usd: null,
-  weekly_limit_usd: null,
-  monthly_limit_usd: null,
-  supported_model_scopes: ['claude', 'gemini_text', 'gemini_image'],
-  name: 'Codex 150K',
-  description: '',
-  price: 68,
-  original_price: 150,
-  validity_days: 30,
-  validity_unit: 'day',
-  features: [],
-  for_sale: true,
-  sort_order: 1,
-  ...overrides,
-})
-
-describe('SubscriptionPlanCard', () => {
-  it('hides Antigravity model scopes for OpenAI plans', () => {
-    const wrapper = mount(SubscriptionPlanCard, {
-      props: {
-        plan: planFactory({
-          group_platform: 'openai',
-          supported_model_scopes: ['claude', 'gemini_text', 'gemini_image'],
-        }),
+const i18n = createI18n({
+  legacy: false,
+  locale: "en",
+  fallbackWarn: false,
+  missingWarn: false,
+  messages: {
+    en: {
+      payment: {
+        days: "days",
+        models: "Models",
+        planCard: {
+          quota: "Quota",
+          rate: "Rate",
+          unlimited: "Unlimited",
+        },
+        subscribeNow: "Subscribe now",
       },
-    })
+    },
+  },
+});
 
-    expect(wrapper.text()).not.toContain('Claude')
-    expect(wrapper.text()).not.toContain('Gemini')
-    expect(wrapper.text()).not.toContain('Imagen')
-    expect(wrapper.text()).not.toContain('payment.planCard.models')
-  })
-
-  it('shows Antigravity model scopes for Antigravity plans', () => {
-    const wrapper = mount(SubscriptionPlanCard, {
-      props: {
-        plan: planFactory({
-          group_platform: 'antigravity',
-          supported_model_scopes: ['claude', 'gemini_text', 'gemini_image'],
-        }),
+const mountPlanCard = (groupPlatform: string) =>
+  mount(SubscriptionPlanCard, {
+    props: {
+      plan: {
+        id: 1,
+        group_id: 10,
+        group_platform: groupPlatform,
+        name: "Pro",
+        price: 10,
+        amount: 1000,
+        features: [],
+        rate_multiplier: 1,
+        validity_days: 30,
+        validity_unit: "day",
+        supported_model_scopes: ["claude", "gemini_text", "gemini_image"],
+        is_active: true,
       },
-    })
+    },
+    global: { plugins: [i18n] },
+  });
 
-    expect(wrapper.text()).toContain('Claude')
-    expect(wrapper.text()).toContain('Gemini')
-    expect(wrapper.text()).toContain('Imagen')
-    expect(wrapper.text()).toContain('payment.planCard.models')
-  })
-})
+describe("SubscriptionPlanCard", () => {
+  it("does not show Antigravity model scopes for OpenAI plans", () => {
+    const text = mountPlanCard("openai").text();
+
+    expect(text).not.toContain("Claude");
+    expect(text).not.toContain("Gemini");
+    expect(text).not.toContain("Imagen");
+  });
+
+  it("shows model scopes for Antigravity plans", () => {
+    const text = mountPlanCard("antigravity").text();
+
+    expect(text).toContain("Claude");
+    expect(text).toContain("Gemini");
+    expect(text).toContain("Imagen");
+  });
+});
