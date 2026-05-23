@@ -38,28 +38,6 @@
 
           <!-- Right: All action buttons -->
           <div class="flex flex-1 flex-wrap items-center justify-end gap-2">
-            <div class="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-dark-600 dark:bg-dark-800">
-              <div class="flex flex-col">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-200">
-                  {{ t('admin.proxies.networkMonitor') }}
-                </span>
-                <span class="text-xs text-gray-500 dark:text-gray-400">
-                  {{ networkMonitorIntervalLabel }}
-                </span>
-              </div>
-              <span
-                class="badge"
-                :class="networkMonitorStatusBadgeClass"
-              >
-                {{ networkMonitorStatusLabel }}
-              </span>
-              <Toggle
-                :model-value="networkMonitorEnabled"
-                :disabled="networkMonitorLoading || networkMonitorUpdating"
-                :aria-label="t('admin.proxies.networkMonitor')"
-                @update:model-value="handleNetworkMonitorToggle"
-              />
-            </div>
             <button
               @click="loadProxies"
               :disabled="loading"
@@ -156,16 +134,7 @@
 
           <template #cell-address="{ row }">
             <div class="flex items-center gap-1.5">
-              <div class="flex flex-col gap-1">
-                <code class="code text-xs">{{ row.host }}:{{ row.port }}</code>
-                <span
-                  v-if="row.external_key"
-                  class="max-w-[220px] truncate text-xs text-gray-500 dark:text-gray-400"
-                  :title="row.external_key || undefined"
-                >
-                  {{ t('admin.proxies.externalKeyInline') }}: {{ row.external_key }}
-                </span>
-              </div>
+              <code class="code text-xs">{{ row.host }}:{{ row.port }}</code>
               <div class="relative">
                 <button
                   type="button"
@@ -222,19 +191,10 @@
                 :alt="row.country || row.country_code"
                 class="h-4 w-6 rounded-sm"
               />
-              <div class="flex flex-col gap-1">
-                <span v-if="formatLocation(row)" class="text-sm text-gray-700 dark:text-gray-200">
-                  {{ formatLocation(row) }}
-                </span>
-                <span v-else class="text-sm text-gray-400">-</span>
-                <span
-                  v-if="displayExitIP(row)"
-                  class="font-mono text-xs text-gray-500 dark:text-gray-400"
-                  :title="displayExitIP(row) || undefined"
-                >
-                  {{ displayExitIP(row) }}
-                </span>
-              </div>
+              <span v-if="formatLocation(row)" class="text-sm text-gray-700 dark:text-gray-200">
+                {{ formatLocation(row) }}
+              </span>
+              <span v-else class="text-sm text-gray-400">-</span>
             </div>
           </template>
 
@@ -397,45 +357,50 @@
       @close="closeCreateModal"
     >
       <!-- Tab Switch -->
-      <div class="mb-6 flex border-b border-gray-200 dark:border-dark-600">
-        <button
-          type="button"
-          @click="createMode = 'standard'"
-          :class="[
-            '-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors',
-            createMode === 'standard'
-              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-          ]"
-        >
-          <Icon name="plus" size="sm" class="mr-1.5 inline" />
-          {{ t('admin.proxies.standardAdd') }}
-        </button>
-        <button
-          type="button"
-          @click="createMode = 'batch'"
-          :class="[
-            '-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors',
-            createMode === 'batch'
-              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-          ]"
-        >
-          <svg
-            class="mr-1.5 inline h-4 w-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            stroke-width="1.5"
+      <div
+        class="mb-6 flex items-center justify-between gap-3 border-b border-gray-200 dark:border-dark-600"
+      >
+        <div class="flex min-w-0 shrink-0">
+          <button
+            type="button"
+            @click="createMode = 'standard'"
+            :class="[
+              '-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors',
+              createMode === 'standard'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            ]"
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"
-            />
-          </svg>
-          {{ t('admin.proxies.batchAdd') }}
-        </button>
+            <Icon name="plus" size="sm" class="mr-1.5 inline" />
+            {{ t('admin.proxies.standardAdd') }}
+          </button>
+          <button
+            type="button"
+            @click="createMode = 'batch'"
+            :class="[
+              '-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors',
+              createMode === 'batch'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            ]"
+          >
+            <svg
+              class="mr-1.5 inline h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"
+              />
+            </svg>
+            {{ t('admin.proxies.batchAdd') }}
+          </button>
+        </div>
+        <ProxyAdBanner />
       </div>
 
       <!-- Standard Add Form -->
@@ -453,15 +418,6 @@
             required
             class="input"
             :placeholder="t('admin.proxies.enterProxyName')"
-          />
-        </div>
-        <div>
-          <label class="input-label">{{ t('admin.proxies.externalKey') }}</label>
-          <input
-            v-model="createForm.external_key"
-            type="text"
-            class="input"
-            :placeholder="t('admin.proxies.externalKeyPlaceholder')"
           />
         </div>
         <div>
@@ -499,15 +455,6 @@
             type="text"
             class="input"
             :placeholder="t('admin.proxies.optionalAuth')"
-          />
-        </div>
-        <div>
-          <label class="input-label">{{ t('admin.proxies.exitIp') }}</label>
-          <input
-            v-model="createForm.exit_ip"
-            type="text"
-            class="input"
-            :placeholder="t('admin.proxies.exitIpPlaceholder')"
           />
         </div>
         <div>
@@ -679,15 +626,6 @@
           <input v-model="editForm.name" type="text" required class="input" />
         </div>
         <div>
-          <label class="input-label">{{ t('admin.proxies.externalKey') }}</label>
-          <input
-            v-model="editForm.external_key"
-            type="text"
-            class="input"
-            :placeholder="t('admin.proxies.externalKeyPlaceholder')"
-          />
-        </div>
-        <div>
           <label class="input-label">{{ t('admin.proxies.protocol') }}</label>
           <Select v-model="editForm.protocol" :options="protocolSelectOptions" />
         </div>
@@ -711,15 +649,6 @@
         <div>
           <label class="input-label">{{ t('admin.proxies.username') }}</label>
           <input v-model="editForm.username" type="text" class="input" />
-        </div>
-        <div>
-          <label class="input-label">{{ t('admin.proxies.exitIp') }}</label>
-          <input
-            v-model="editForm.exit_ip"
-            type="text"
-            class="input"
-            :placeholder="t('admin.proxies.exitIpPlaceholder')"
-          />
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.password') }}</label>
@@ -952,13 +881,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
-import type {
-  Proxy,
-  ProxyAccountSummary,
-  ProxyNetworkMonitorStatus,
-  ProxyProtocol,
-  ProxyQualityCheckResult
-} from '@/types'
+import type { Proxy, ProxyAccountSummary, ProxyProtocol, ProxyQualityCheckResult } from '@/types'
 import type { Column } from '@/components/common/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -969,7 +892,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ImportDataModal from '@/components/admin/proxy/ImportDataModal.vue'
 import Select from '@/components/common/Select.vue'
-import Toggle from '@/components/common/Toggle.vue'
+import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import { useClipboard } from '@/composables/useClipboard'
@@ -1022,38 +945,10 @@ const editStatusOptions = computed(() => [
   { value: 'inactive', label: t('admin.accounts.status.inactive') }
 ])
 
-const networkMonitorIntervalLabel = computed(() => {
-  const seconds = networkMonitorIntervalSeconds.value
-  if (seconds > 0 && seconds % 60 === 0) {
-    return t('admin.proxies.networkMonitorIntervalMinutes', { minutes: seconds / 60 })
-  }
-  return t('admin.proxies.networkMonitorIntervalSeconds', { seconds })
-})
-
-const networkMonitorStatusLabel = computed(() => {
-  if (!networkMonitorEnabled.value) return t('admin.proxies.networkMonitorDisabled')
-  if (networkMonitorScanRunning.value) return t('admin.proxies.networkMonitorScanning')
-  if (networkMonitorRunning.value) return t('admin.proxies.networkMonitorRunning')
-  return t('admin.proxies.networkMonitorStopped')
-})
-
-const networkMonitorStatusBadgeClass = computed(() => {
-  if (!networkMonitorEnabled.value) return 'badge-gray'
-  if (networkMonitorScanRunning.value) return 'badge-warning'
-  if (networkMonitorRunning.value) return 'badge-success'
-  return 'badge-danger'
-})
-
 const proxies = ref<Proxy[]>([])
 const visiblePasswordIds = reactive(new Set<number>())
 const copyMenuProxyId = ref<number | null>(null)
 const loading = ref(false)
-const networkMonitorEnabled = ref(false)
-const networkMonitorRunning = ref(false)
-const networkMonitorScanRunning = ref(false)
-const networkMonitorIntervalSeconds = ref(300)
-const networkMonitorLoading = ref(false)
-const networkMonitorUpdating = ref(false)
 const searchQuery = ref('')
 const filters = reactive({
   protocol: '',
@@ -1136,25 +1031,21 @@ const batchParseResult = reactive({
 
 const createForm = reactive({
   name: '',
-  external_key: '',
   protocol: 'http' as ProxyProtocol,
   host: '',
   port: 8080,
   username: '',
-  password: '',
-  exit_ip: ''
+  password: ''
 })
 
 const editForm = reactive({
   name: '',
-  external_key: '',
   protocol: 'http' as ProxyProtocol,
   host: '',
   port: 8080,
   username: '',
   password: '',
-  status: 'active' as 'active' | 'inactive',
-  exit_ip: ''
+  status: 'active' as 'active' | 'inactive'
 })
 
 let abortController: AbortController | null = null
@@ -1221,56 +1112,6 @@ const loadProxies = async () => {
   }
 }
 
-const loadNetworkMonitorStatus = async () => {
-  networkMonitorLoading.value = true
-  try {
-    const status = await adminAPI.proxies.getNetworkMonitorStatus()
-    applyNetworkMonitorStatus(status)
-  } catch (error) {
-    appStore.showError(t('admin.proxies.networkMonitorLoadFailed'))
-    console.error('Error loading proxy network monitor status:', error)
-  } finally {
-    networkMonitorLoading.value = false
-  }
-}
-
-const applyNetworkMonitorStatus = (status: ProxyNetworkMonitorStatus) => {
-  networkMonitorEnabled.value = status.enabled
-  networkMonitorRunning.value = status.running ?? false
-  networkMonitorScanRunning.value = status.scan_running ?? false
-  networkMonitorIntervalSeconds.value = status.interval_seconds ?? 0
-}
-
-const handleNetworkMonitorToggle = async (enabled: boolean) => {
-  if (networkMonitorUpdating.value) return
-
-  const previousEnabled = networkMonitorEnabled.value
-  const previousRunning = networkMonitorRunning.value
-  const previousScanRunning = networkMonitorScanRunning.value
-  networkMonitorEnabled.value = enabled
-  networkMonitorRunning.value = enabled
-  networkMonitorUpdating.value = true
-  try {
-    const status = await adminAPI.proxies.updateNetworkMonitor(enabled)
-    applyNetworkMonitorStatus(status)
-    appStore.showSuccess(
-      status.enabled
-        ? t('admin.proxies.networkMonitorEnabled')
-        : t('admin.proxies.networkMonitorDisabledSuccess')
-    )
-  } catch (error: any) {
-    networkMonitorEnabled.value = previousEnabled
-    networkMonitorRunning.value = previousRunning
-    networkMonitorScanRunning.value = previousScanRunning
-    appStore.showError(
-      error.message || error.response?.data?.detail || t('admin.proxies.networkMonitorUpdateFailed')
-    )
-    console.error('Error updating proxy network monitor:', error)
-  } finally {
-    networkMonitorUpdating.value = false
-  }
-}
-
 let searchTimeout: ReturnType<typeof setTimeout>
 const handleSearch = () => {
   clearTimeout(searchTimeout)
@@ -1302,13 +1143,11 @@ const closeCreateModal = () => {
   showCreateModal.value = false
   createMode.value = 'standard'
   createForm.name = ''
-  createForm.external_key = ''
   createForm.protocol = 'http'
   createForm.host = ''
   createForm.port = 8080
   createForm.username = ''
   createForm.password = ''
-  createForm.exit_ip = ''
   createPasswordVisible.value = false
   batchInput.value = ''
   batchParseResult.total = 0
@@ -1429,13 +1268,11 @@ const handleCreateProxy = async () => {
   try {
     await adminAPI.proxies.create({
       name: createForm.name.trim(),
-      external_key: createForm.external_key.trim() || null,
       protocol: createForm.protocol,
       host: createForm.host.trim(),
       port: createForm.port,
       username: createForm.username.trim() || null,
-      password: createForm.password.trim() || null,
-      exit_ip: createForm.exit_ip.trim() || null
+      password: createForm.password.trim() || null
     })
     appStore.showSuccess(t('admin.proxies.proxyCreated'))
     closeCreateModal()
@@ -1451,14 +1288,12 @@ const handleCreateProxy = async () => {
 const handleEdit = (proxy: Proxy) => {
   editingProxy.value = proxy
   editForm.name = proxy.name
-  editForm.external_key = proxy.external_key || ''
   editForm.protocol = proxy.protocol
   editForm.host = proxy.host
   editForm.port = proxy.port
   editForm.username = proxy.username || ''
   editForm.password = proxy.password || ''
   editForm.status = proxy.status
-  editForm.exit_ip = proxy.exit_ip || ''
   editPasswordVisible.value = false
   editPasswordDirty.value = false
   showEditModal.value = true
@@ -1490,13 +1325,11 @@ const handleUpdateProxy = async () => {
   try {
     const updateData: any = {
       name: editForm.name.trim(),
-      external_key: editForm.external_key.trim() || null,
       protocol: editForm.protocol,
       host: editForm.host.trim(),
       port: editForm.port,
       username: editForm.username.trim() || null,
-      status: editForm.status,
-      exit_ip: editForm.exit_ip.trim() || null
+      status: editForm.status
     }
 
     // Only include password if user actually modified the field
@@ -1572,8 +1405,6 @@ const formatLocation = (proxy: Proxy) => {
   const parts = [proxy.country, proxy.city].filter(Boolean) as string[]
   return parts.join(' · ')
 }
-
-const displayExitIP = (proxy: Proxy) => proxy.ip_address || proxy.exit_ip || ''
 
 const flagUrl = (code: string) =>
   `https://unpkg.com/flag-icons/flags/4x3/${code.toLowerCase()}.svg`
@@ -2045,7 +1876,7 @@ function closeCopyMenu() {
 }
 
 onMounted(() => {
-  void Promise.all([loadProxies(), loadNetworkMonitorStatus()])
+  loadProxies()
   document.addEventListener('click', closeCopyMenu)
 })
 
