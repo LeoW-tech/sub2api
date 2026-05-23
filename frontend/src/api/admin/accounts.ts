@@ -826,6 +826,30 @@ export async function batchRefresh(
   return data;
 }
 
+export interface TrueRefreshTokenResult extends BatchOperationResult {
+  job?: Record<string, unknown>;
+  target_emails?: string[];
+  skipped?: Array<Record<string, unknown>>;
+}
+
+/**
+ * Ask payment system to true-refresh selected pushed accounts.
+ */
+export async function trueRefreshToken(
+  accountIds: number[],
+): Promise<TrueRefreshTokenResult> {
+  const { data } = await apiClient.post<TrueRefreshTokenResult>(
+    "/admin/accounts/true-refresh",
+    {
+      account_ids: accountIds,
+    },
+    {
+      timeout: 120000,
+    },
+  );
+  return data;
+}
+
 /**
  * Set privacy for an Antigravity OAuth account
  * @param id - Account ID
@@ -878,6 +902,7 @@ export const accountsAPI = {
   getAntigravityDefaultModelMapping,
   batchClearError,
   batchRefresh,
+  trueRefreshToken,
   setPrivacy,
 };
 

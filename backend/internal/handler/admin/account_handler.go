@@ -2,6 +2,7 @@
 package admin
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -11,6 +12,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -2206,6 +2208,102 @@ func (h *AccountHandler) RefreshTier(c *gin.Context) {
 		"drive_storage_usage": extra["drive_storage_usage"],
 		"updated_at":          extra["drive_tier_updated_at"],
 	})
+}
+
+// TrueRefresh handles payment-side true refresh for already-pushed accounts.
+// POST /api/v1/admin/accounts/true-refresh
+func (h *AccountHandler) TrueRefresh(c *gin.Context) {
+	var req struct {
+		AccountIDs []int64 `json:"account_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if len(req.AccountIDs) == 0 {
+		response.BadRequest(c, "account_ids is required")
+		return
+	}
+	if len(req.AccountIDs) > 100 {
+		response.BadRequest(c, "最多一次处理 100 个账号")
+		return
+	}
+
+	accounts, err := h.adminService.GetAccountsByIDs(c.Request.Context(), req.AccountIDs)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	foundIDs := make(map[int64]bool, len(accounts))
+	emails := make([]string, 0, len(accounts))
+	skipped := make([]gin.H, 0)
+	for _, acc := range accounts {
+		if acc == nil {
+			continue
+		}
+		foundIDs[acc.ID] = true
+		email := strings.TrimSpace(strings.ToLower(acc.Name))
+		if email == "" || !strings.Contains(email, "@") {
+			if v, ok := acc.Credentials["email"].(string); ok {
+				email = strings.TrimSpace(strings.ToLower(v))
+			}
+		}
+		if email == "" || !strings.Contains(email, "@") {
+			skipped = append(skipped, gin.H{"account_id": acc.ID, "error": "missing email"})
+			continue
+		}
+		emails = append(emails, email)
+	}
+	for _, id := range req.AccountIDs {
+		if !foundIDs[id] {
+			skipped = append(skipped, gin.H{"account_id": id, "error": "account not found"})
+		}
+	}
+	if len(emails) == 0 {
+		response.BadRequest(c, "no valid account emails")
+		return
+	}
+
+	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("PAYMENT_WEBUI_BASE_URL")), "/")
+	if baseURL == "" {
+		baseURL = "http://192.168.31.214:8765"
+	}
+	token := strings.TrimSpace(os.Getenv("PAYMENT_SUB2API_TRUE_REFRESH_TOKEN"))
+	body, _ := json.Marshal(gin.H{
+		"emails":     emails,
+		"workers":    3,
+		"login_mode": "protocol",
+		"source":     "sub2api",
+	})
+	httpReq, err := http.NewRequestWithContext(c.Request.Context(), http.MethodPost, baseURL+"/api/sub2api/true-refresh", bytes.NewReader(body))
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+token)
+	}
+	client := &http.Client{Timeout: 30 * time.Second}
+	httpResp, err := client.Do(httpReq)
+	if err != nil {
+		response.Error(c, http.StatusBadGateway, "payment true-refresh request failed: "+err.Error())
+		return
+	}
+	defer httpResp.Body.Close()
+	var payload map[string]any
+	if err := json.NewDecoder(httpResp.Body).Decode(&payload); err != nil {
+		response.Error(c, http.StatusBadGateway, "payment true-refresh returned invalid JSON: "+err.Error())
+		return
+	}
+	if httpResp.StatusCode >= 400 {
+		response.Error(c, httpResp.StatusCode, fmt.Sprintf("payment true-refresh failed: %v", payload))
+		return
+	}
+	payload["success"] = len(emails)
+	payload["failed"] = len(skipped)
+	payload["skipped"] = skipped
+	response.Success(c, payload)
 }
 
 // BatchRefreshTierRequest represents batch tier refresh request

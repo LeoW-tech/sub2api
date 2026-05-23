@@ -256,6 +256,7 @@
           @delete="handleBulkDelete"
           @reset-status="handleBulkResetStatus"
           @refresh-token="handleBulkRefreshToken"
+          @true-refresh-token="handleBulkTrueRefreshToken"
           @edit-selected="openBulkEditSelected"
           @edit-filtered="openBulkEditFiltered"
           @test-activate="handleBulkTestActivate"
@@ -1710,6 +1711,20 @@ const handleBulkRefreshToken = async () => {
     reload();
   } catch (error) {
     console.error("Failed to bulk refresh token:", error);
+    appStore.showError(String(error));
+  }
+};
+const handleBulkTrueRefreshToken = async () => {
+  if (!confirm(t("common.confirm"))) return;
+  try {
+    const result = await adminAPI.accounts.trueRefreshToken(selIds.value);
+    const jobId = result.job?.job_id || result.job?.run_id || "";
+    appStore.showSuccess(
+      `${t("admin.accounts.bulkActions.trueRefreshTokenStarted")}${jobId ? `：${jobId}` : ""}`,
+    );
+    reload();
+  } catch (error) {
+    console.error("Failed to start true refresh token:", error);
     appStore.showError(String(error));
   }
 };
