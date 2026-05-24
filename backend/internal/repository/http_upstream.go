@@ -67,8 +67,10 @@ type poolSettings struct {
 // 记录客户端实例及其元数据，用于连接池管理和淘汰策略
 type upstreamClientEntry struct {
 	client   *http.Client // HTTP 客户端实例
+	cacheKey string       // 缓存键，用于错误恢复时只淘汰当前条目
 	proxyKey string       // 代理标识（用于检测代理变更）
 	poolKey  string       // 连接池配置标识（用于检测配置变更）
+	poisoned int64        // 标记当前连接池不可继续复用（原子访问）
 	lastUsed int64        // 最后使用时间戳（纳秒），用于 LRU 淘汰
 	inFlight int64        // 当前进行中的请求数，>0 时不可淘汰
 }
@@ -144,6 +146,7 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID i
 		// 请求失败，立即减少计数
 		atomic.AddInt64(&entry.inFlight, -1)
 		atomic.StoreInt64(&entry.lastUsed, time.Now().UnixNano())
+		s.handleRecoverableTransportError(entry, err)
 		return nil, err
 	}
 
@@ -193,6 +196,7 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 	if err != nil {
 		atomic.AddInt64(&entry.inFlight, -1)
 		atomic.StoreInt64(&entry.lastUsed, time.Now().UnixNano())
+		s.handleRecoverableTransportError(entry, err)
 		slog.Debug("tls_fingerprint_request_failed", "account_id", accountID, "error", err)
 		return nil, err
 	}
@@ -287,6 +291,7 @@ func (s *httpUpstreamService) getClientEntryWithTLS(proxyURL string, accountID i
 
 	entry := &upstreamClientEntry{
 		client:   client,
+		cacheKey: cacheKey,
 		proxyKey: proxyKey,
 		poolKey:  poolKey,
 	}
@@ -430,6 +435,7 @@ func (s *httpUpstreamService) getClientEntry(proxyURL string, accountID int64, a
 	}
 	entry := &upstreamClientEntry{
 		client:   client,
+		cacheKey: cacheKey,
 		proxyKey: proxyKey,
 		poolKey:  poolKey,
 	}
@@ -452,6 +458,9 @@ func (s *httpUpstreamService) shouldReuseEntry(entry *upstreamClientEntry, isola
 	if entry == nil {
 		return false
 	}
+	if atomic.LoadInt64(&entry.poisoned) != 0 {
+		return false
+	}
 	if isolation == config.ConnectionPoolIsolationAccount && entry.proxyKey != proxyKey {
 		return false
 	}
@@ -459,6 +468,51 @@ func (s *httpUpstreamService) shouldReuseEntry(entry *upstreamClientEntry, isola
 		return false
 	}
 	return true
+}
+
+// handleRecoverableTransportError 在可恢复的连接层错误后移除当前客户端缓存。
+// 典型场景是 HTTP/2 复用连接等待响应头超时、stream reset、EOF 等，说明 Transport
+// 内部可能持有坏的复用连接；删除缓存后下一次请求会创建新的 Transport/连接池。
+func (s *httpUpstreamService) handleRecoverableTransportError(entry *upstreamClientEntry, err error) {
+	if entry == nil || entry.cacheKey == "" || !isRecoverableUpstreamTransportError(err) {
+		return
+	}
+
+	// 先原子标记为不可复用，再删除 map。这样即使其他 goroutine 在删除前命中
+	// RLock 快路径，shouldReuseEntry 也会拒绝复用这个已知可能损坏的 Transport。
+	atomic.StoreInt64(&entry.poisoned, 1)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if current := s.clients[entry.cacheKey]; current == entry {
+		s.removeClientLocked(entry.cacheKey, entry)
+		slog.Warn("upstream_client_evicted_after_recoverable_transport_error",
+			"error", err)
+	}
+}
+
+func isRecoverableUpstreamTransportError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "context canceled") || strings.Contains(msg, "context deadline exceeded") {
+		return false
+	}
+	if strings.Contains(msg, "timeout awaiting response headers") {
+		return true
+	}
+	if strings.Contains(msg, "stream error:") {
+		return true
+	}
+	if strings.Contains(msg, "unexpected eof") {
+		return true
+	}
+	if strings.Contains(msg, "server disconnected") {
+		return true
+	}
+	return false
 }
 
 // removeClientLocked 移除客户端（需持有锁）

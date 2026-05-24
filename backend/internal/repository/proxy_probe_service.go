@@ -48,10 +48,11 @@ const (
 // 代理只服务 AI 上游账号时，在线判断必须探测真实业务目标，不能使用
 // ip-api/httpbin/gstatic 等无关站点，否则会把“只允许 OpenAI 的代理”误判离线。
 var probeURLs = []struct {
+	method string
 	url    string
-	parser string // "openai" or legacy parser names kept for unit-level parsers
+	parser string // "chatgpt_codex" or legacy parser names kept for unit-level parsers
 }{
-	{"https://api.openai.com/v1/models", "openai"},
+	{http.MethodHead, "https://chatgpt.com/backend-api/codex/responses", "chatgpt_codex"},
 }
 
 type proxyProbeService struct {
@@ -75,7 +76,7 @@ func (s *proxyProbeService) ProbeProxy(ctx context.Context, proxyURL string) (*s
 
 	var lastErr error
 	for _, probe := range probeURLs {
-		exitInfo, latencyMs, err := s.probeWithURL(ctx, client, probe.url, probe.parser)
+		exitInfo, latencyMs, err := s.probeWithURL(ctx, client, probe.url, probe.method, probe.parser)
 		if err == nil {
 			return exitInfo, latencyMs, nil
 		}
@@ -85,9 +86,12 @@ func (s *proxyProbeService) ProbeProxy(ctx context.Context, proxyURL string) (*s
 	return nil, 0, fmt.Errorf("all probe URLs failed, last error: %w", lastErr)
 }
 
-func (s *proxyProbeService) probeWithURL(ctx context.Context, client *http.Client, url string, parser string) (*service.ProxyExitInfo, int64, error) {
+func (s *proxyProbeService) probeWithURL(ctx context.Context, client *http.Client, url string, method string, parser string) (*service.ProxyExitInfo, int64, error) {
 	startTime := time.Now()
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if method == "" {
+		method = http.MethodGet
+	}
+	req, err := http.NewRequestWithContext(ctx, method, url, nil)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -100,9 +104,12 @@ func (s *proxyProbeService) probeWithURL(ctx context.Context, client *http.Clien
 
 	latencyMs := time.Since(startTime).Milliseconds()
 
-	if parser == "openai" {
+	if parser == "chatgpt_codex" || parser == "openai" {
+		// 这里判断的是出口到真实业务目标的 reachability，而不是携带账号凭据的
+		// 完整 availability。无认证探测遇到 401/403/404/405/429 等 4xx
+		// 仍说明 TLS、代理、目标域名和边缘服务链路已经打通。
 		if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusInternalServerError {
-			return &service.ProxyExitInfo{Country: "openai"}, latencyMs, nil
+			return &service.ProxyExitInfo{Country: parser}, latencyMs, nil
 		}
 		return nil, latencyMs, fmt.Errorf("request to %s failed with status: %d", url, resp.StatusCode)
 	}

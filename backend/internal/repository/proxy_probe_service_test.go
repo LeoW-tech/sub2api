@@ -53,22 +53,29 @@ func (s *ProxyProbeServiceSuite) TestProbeProxy_UnsupportedProxyScheme() {
 	require.ErrorContains(s.T(), err, "failed to create proxy client")
 }
 
-func (s *ProxyProbeServiceSuite) TestProbeProxy_Success_OpenAIReachability() {
+func (s *ProxyProbeServiceSuite) TestProbeURLsPreferChatGPTCodexResponses() {
+	require.NotEmpty(s.T(), probeURLs)
+	require.Equal(s.T(), "https://chatgpt.com/backend-api/codex/responses", probeURLs[0].url)
+	for _, probe := range probeURLs {
+		require.NotContains(s.T(), probe.url, "api.openai.com/v1/models")
+	}
+}
+
+func (s *ProxyProbeServiceSuite) TestProbeProxy_Success_ChatGPTCodexReachability() {
 	s.setupTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/models" {
+		if r.Method == http.MethodHead && r.URL.Path == "/backend-api/codex/responses" {
 			w.WriteHeader(http.StatusOK)
-			_, _ = io.WriteString(w, `{"error":{"message":"missing api key"}}`)
 			return
 		}
 		// 其他请求返回错误
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
 
-	info, latencyMs, err := s.prober.probeWithURL(s.ctx, s.proxySrv.Client(), s.proxySrv.URL+"/v1/models", "openai")
+	info, latencyMs, err := s.prober.probeWithURL(s.ctx, s.proxySrv.Client(), s.proxySrv.URL+"/backend-api/codex/responses", http.MethodHead, "chatgpt_codex")
 	require.NoError(s.T(), err, "ProbeProxy")
 	require.GreaterOrEqual(s.T(), latencyMs, int64(0), "unexpected latency")
 	require.Equal(s.T(), "", info.IP)
-	require.Equal(s.T(), "openai", info.Country)
+	require.Equal(s.T(), "chatgpt_codex", info.Country)
 }
 
 func (s *ProxyProbeServiceSuite) TestProbeProxy_DoesNotUsePublicIPProbeFallback() {
@@ -97,16 +104,40 @@ func (s *ProxyProbeServiceSuite) TestProbeProxy_AllFailed() {
 	require.ErrorContains(s.T(), err, "all probe URLs failed")
 }
 
-func (s *ProxyProbeServiceSuite) TestProbeProxy_OpenAIReachabilityAcceptsUnauthorized() {
+func (s *ProxyProbeServiceSuite) TestProbeProxy_ChatGPTCodexReachabilityAcceptsUnauthorized() {
 	s.setupTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = io.WriteString(w, `{"error":{"message":"missing api key"}}`)
 	}))
 
-	info, latencyMs, err := s.prober.probeWithURL(s.ctx, s.proxySrv.Client(), s.proxySrv.URL+"/v1/models", "openai")
+	info, latencyMs, err := s.prober.probeWithURL(s.ctx, s.proxySrv.Client(), s.proxySrv.URL+"/backend-api/codex/responses", http.MethodHead, "chatgpt_codex")
 	require.NoError(s.T(), err)
 	require.GreaterOrEqual(s.T(), latencyMs, int64(0), "unexpected latency")
-	require.Equal(s.T(), "openai", info.Country)
+	require.Equal(s.T(), "chatgpt_codex", info.Country)
+}
+
+func (s *ProxyProbeServiceSuite) TestProbeProxy_ChatGPTCodexReachabilityAcceptsMethodAndRateLimit4xx() {
+	for _, statusCode := range []int{http.StatusMethodNotAllowed, http.StatusTooManyRequests} {
+		s.Run(http.StatusText(statusCode), func() {
+			info, latencyMs, err := s.prober.probeWithURL(
+				s.ctx,
+				&http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					require.Equal(s.T(), http.MethodHead, req.Method)
+					return &http.Response{
+						StatusCode: statusCode,
+						Body:       io.NopCloser(strings.NewReader("")),
+						Header:     make(http.Header),
+					}, nil
+				})},
+				"https://chatgpt.com/backend-api/codex/responses",
+				http.MethodHead,
+				"chatgpt_codex",
+			)
+			require.NoError(s.T(), err)
+			require.GreaterOrEqual(s.T(), latencyMs, int64(0), "unexpected latency")
+			require.Equal(s.T(), "chatgpt_codex", info.Country)
+		})
+	}
 }
 
 func (s *ProxyProbeServiceSuite) TestProbeProxy_ProxyServerClosed() {

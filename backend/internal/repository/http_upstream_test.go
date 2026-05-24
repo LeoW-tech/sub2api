@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"sync/atomic"
@@ -274,6 +275,59 @@ func (s *HTTPUpstreamSuite) TestIdleTTLDoesNotEvictActive() {
 	_, _ = svc.getOrCreateClient("", 2, 1)
 
 	require.True(s.T(), hasEntry(svc, entry1), "有活跃请求时不应回收")
+}
+
+// TestIsRecoverableUpstreamTransportError_HTTP2StaleConnection 测试 HTTP/2 复用连接卡死/断流错误识别。
+// 这些错误说明当前 Transport 内的连接池可能复用了坏连接，应丢弃该客户端缓存并重建。
+func (s *HTTPUpstreamSuite) TestIsRecoverableUpstreamTransportError_HTTP2StaleConnection() {
+	cases := []string{
+		`Post "https://chatgpt.com/backend-api/codex/responses": http2: timeout awaiting response headers`,
+		`Get "https://chatgpt.com/": stream error: stream ID 95; INTERNAL_ERROR; received from peer`,
+		`unexpected EOF`,
+		`server disconnected`,
+	}
+	for _, msg := range cases {
+		require.True(s.T(), isRecoverableUpstreamTransportError(errors.New(msg)), "expected recoverable: %s", msg)
+	}
+
+	require.False(s.T(), isRecoverableUpstreamTransportError(errors.New("context canceled")))
+	require.False(s.T(), isRecoverableUpstreamTransportError(errors.New("dial tcp: lookup example.invalid: no such host")))
+}
+
+func (s *HTTPUpstreamSuite) TestHandleRecoverableTransportErrorEvictsOnlyCurrentEntry() {
+	s.cfg.Gateway = config.GatewayConfig{ConnectionPoolIsolation: config.ConnectionPoolIsolationAccountProxy}
+	svc := s.newService()
+
+	entry := mustGetOrCreateClient(s.T(), svc, "", 123, 1)
+	cacheKey := entry.cacheKey
+	require.NotEmpty(s.T(), cacheKey)
+
+	svc.handleRecoverableTransportError(entry, errors.New(`Post "https://chatgpt.com/backend-api/codex/responses": http2: timeout awaiting response headers`))
+	require.False(s.T(), hasEntry(svc, entry), "recoverable error should evict stale client entry")
+
+	newEntry := mustGetOrCreateClient(s.T(), svc, "", 123, 1)
+	require.NotSame(s.T(), entry, newEntry, "next acquire should rebuild client after eviction")
+
+	replacedEntry := mustGetOrCreateClient(s.T(), svc, "", 456, 1)
+	stalePointer := &upstreamClientEntry{cacheKey: replacedEntry.cacheKey, client: &http.Client{}}
+	svc.handleRecoverableTransportError(stalePointer, errors.New(`http2: timeout awaiting response headers`))
+	require.True(s.T(), hasEntry(svc, replacedEntry), "stale pointer must not evict a newer cache entry")
+
+	svc.handleRecoverableTransportError(replacedEntry, errors.New("context canceled"))
+	require.True(s.T(), hasEntry(svc, replacedEntry), "non-recoverable error should keep cache entry")
+}
+
+func (s *HTTPUpstreamSuite) TestPoisonedEntryIsNotReusedBeforeMapDeletion() {
+	s.cfg.Gateway = config.GatewayConfig{ConnectionPoolIsolation: config.ConnectionPoolIsolationAccountProxy}
+	svc := s.newService()
+
+	entry := mustGetOrCreateClient(s.T(), svc, "", 789, 1)
+	atomic.StoreInt64(&entry.poisoned, 1)
+
+	replacement := mustGetOrCreateClient(s.T(), svc, "", 789, 1)
+	require.NotSame(s.T(), entry, replacement, "poisoned entry should not be reused even while still present in map")
+	require.False(s.T(), hasEntry(svc, entry), "poisoned entry should be removed during replacement")
+	require.True(s.T(), hasEntry(svc, replacement), "replacement entry should be cached")
 }
 
 // TestHTTPUpstreamSuite 运行测试套件
