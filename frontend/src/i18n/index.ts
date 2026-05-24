@@ -1,8 +1,26 @@
 import { createI18n } from 'vue-i18n'
+import { supplementalLocales } from './locales/supplemental'
 
 type LocaleCode = 'en' | 'zh'
 
 type LocaleMessages = Record<string, any>
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function mergeLocaleMessages(base: LocaleMessages, supplement: LocaleMessages): LocaleMessages {
+  const merged: LocaleMessages = { ...base }
+
+  for (const [key, value] of Object.entries(supplement)) {
+    const existing = merged[key]
+    merged[key] = isPlainObject(existing) && isPlainObject(value)
+      ? mergeLocaleMessages(existing as LocaleMessages, value as LocaleMessages)
+      : value
+  }
+
+  return merged
+}
 
 const LOCALE_KEY = 'sub2api_locale'
 const DEFAULT_LOCALE: LocaleCode = 'en'
@@ -49,7 +67,10 @@ export async function loadLocaleMessages(locale: LocaleCode): Promise<void> {
 
   const loader = localeLoaders[locale]
   const module = await loader()
-  i18n.global.setLocaleMessage(locale, module.default)
+  i18n.global.setLocaleMessage(
+    locale,
+    mergeLocaleMessages(module.default, supplementalLocales[locale] as LocaleMessages),
+  )
   loadedLocales.add(locale)
 }
 
