@@ -203,6 +203,9 @@ describe("AccountsView capacity filter", () => {
       {
         id: 1,
         name: "Concurrent Account",
+        status: "active",
+        schedulable: true,
+        credentials_status: { has_refresh_token: false },
         current_concurrency: 2,
         current_window_cost: null,
         active_sessions: null,
@@ -210,6 +213,9 @@ describe("AccountsView capacity filter", () => {
       {
         id: 2,
         name: "Idle Account",
+        status: "active",
+        schedulable: true,
+        credentials_status: { has_refresh_token: false },
         current_concurrency: 1,
         current_window_cost: null,
         active_sessions: null,
@@ -250,6 +256,68 @@ describe("AccountsView capacity filter", () => {
     getAllGroupsMock.mockResolvedValue([]);
   });
 
+  it("无RT叠加搜索和状态筛选时，脱敏账号按 credentials_status 判断 RT 并保留匹配项", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+
+    await wrapper.get("button.apply-concurrent-filter").trigger("click");
+    tableParams.search = "target";
+    tableParams.status = "active";
+
+    const accountTestModal = wrapper.findComponent(AccountTestModalStub);
+    await accountTestModal.vm.$emit("tested", {
+      id: 1,
+      name: "target account",
+      status: "active",
+      schedulable: true,
+      credentials: {},
+      credentials_status: { has_refresh_token: false },
+      current_concurrency: 2,
+      current_window_cost: null,
+      active_sessions: null,
+    });
+    await flushPromises();
+
+    expect(accountsRef.value.map((account) => account.id)).toEqual([1, 2]);
+    expect(accountsRef.value[0]).toMatchObject({
+      id: 1,
+      name: "target account",
+      status: "active",
+      schedulable: true,
+      credentials: {},
+      credentials_status: { has_refresh_token: false },
+      current_concurrency: 2,
+      current_window_cost: null,
+      active_sessions: null,
+    });
+  });
+
+  it("无RT叠加搜索和状态筛选时，脱敏账号若 credentials_status 表示有 RT 会被移除", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+
+    await wrapper.get("button.apply-concurrent-filter").trigger("click");
+    tableParams.search = "target";
+    tableParams.status = "active";
+
+    const accountTestModal = wrapper.findComponent(AccountTestModalStub);
+    await accountTestModal.vm.$emit("tested", {
+      id: 1,
+      name: "target account",
+      status: "active",
+      schedulable: true,
+      credentials: {},
+      credentials_status: { has_refresh_token: true },
+      current_concurrency: 2,
+      current_window_cost: null,
+      active_sessions: null,
+    });
+    await flushPromises();
+
+    expect(accountsRef.value.map((account) => account.id)).toEqual([2]);
+    expect(removeManyMock).toHaveBeenCalledWith([1]);
+  });
+
   it("启用无RT筛选后，本地更新会移除补充了RT的账号", async () => {
     const wrapper = mountView();
     await flushPromises();
@@ -268,15 +336,7 @@ describe("AccountsView capacity filter", () => {
     });
     await flushPromises();
 
-    expect(accountsRef.value).toEqual([
-      {
-        id: 2,
-        name: "Idle Account",
-        current_concurrency: 1,
-        current_window_cost: null,
-        active_sessions: null,
-      },
-    ]);
+    expect(accountsRef.value.map((account) => account.id)).toEqual([2]);
     expect(paginationState.total).toBe(1);
     expect(removeManyMock).toHaveBeenCalledWith([1]);
   });

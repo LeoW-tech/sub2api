@@ -2060,12 +2060,13 @@ const accountMatchesCurrentFilters = (account: Account) => {
       return false;
     }
   }
-  const refreshToken =
-    typeof account.credentials?.refresh_token === "string"
-      ? account.credentials.refresh_token.trim()
-      : "";
-  if (filters.rt_status === "has_rt" && refreshToken === "") return false;
-  if (filters.rt_status === "no_rt" && refreshToken !== "") return false;
+  const hasRefreshToken =
+    typeof account.credentials_status?.has_refresh_token === "boolean"
+      ? account.credentials_status.has_refresh_token
+      : typeof account.credentials?.refresh_token === "string" &&
+        account.credentials.refresh_token.trim() !== "";
+  if (filters.rt_status === "has_rt" && !hasRefreshToken) return false;
+  if (filters.rt_status === "no_rt" && hasRefreshToken) return false;
   if (filters.capacity_status === ACCOUNT_CAPACITY_CONCURRENT_QUERY_VALUE) {
     if ((account.current_concurrency ?? 0) <= 0) return false;
   }
