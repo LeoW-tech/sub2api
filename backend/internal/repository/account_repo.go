@@ -615,9 +615,9 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 			field := s.C(dbaccount.FieldCredentials)
 			switch rtStatus {
 			case "has_rt":
-				s.Where(entsql.ExprP("jsonb_typeof(" + field + "->'refresh_token') = 'string' AND btrim(COALESCE(" + field + "->>'refresh_token', '')) <> ''"))
+				s.Where(entsql.ExprP("(jsonb_typeof(" + field + "->'refresh_token') = 'string' AND btrim(COALESCE(" + field + "->>'refresh_token', '')) <> '')"))
 			case "no_rt":
-				s.Where(entsql.ExprP("jsonb_typeof(" + field + "->'refresh_token') <> 'string' OR btrim(COALESCE(" + field + "->>'refresh_token', '')) = ''"))
+				s.Where(entsql.ExprP("(jsonb_typeof(" + field + "->'refresh_token') <> 'string' OR btrim(COALESCE(" + field + "->>'refresh_token', '')) = '')"))
 			}
 		}))
 	}

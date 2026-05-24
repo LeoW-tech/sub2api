@@ -179,7 +179,7 @@ func TestAdminService_ListAccounts_WithSearch(t *testing.T) {
 		}
 		svc := &adminServiceImpl{accountRepo: repo}
 
-		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformGemini, AccountTypeOAuth, StatusActive, "acc", 0, "", "", "", "", "name", "ASC")
+		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformGemini, AccountTypeOAuth, StatusActive, "acc", 0, "", "", "", "", "", "name", "ASC")
 		require.NoError(t, err)
 		require.Equal(t, int64(10), total)
 		require.Equal(t, []Account{{ID: 1, Name: "acc"}}, accounts)
@@ -201,7 +201,7 @@ func TestAdminService_ListAccounts_WithPrivacyMode(t *testing.T) {
 		}
 		svc := &adminServiceImpl{accountRepo: repo}
 
-		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusActive, "acc2", 0, PrivacyModeCFBlocked, "", "", "", "", "")
+		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusActive, "acc2", 0, PrivacyModeCFBlocked, "", "", "", "", "", "")
 		require.NoError(t, err)
 		require.Equal(t, int64(1), total)
 		require.Equal(t, []Account{{ID: 2, Name: "acc2"}}, accounts)
@@ -217,14 +217,13 @@ func TestAdminService_ListAccounts_WithIP(t *testing.T) {
 		}
 		svc := &adminServiceImpl{accountRepo: repo}
 
-		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusActive, "acc3", 0, "", "", "203.0.113.10", "", "name", "ASC")
+		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusActive, "acc3", 0, "", "", "203.0.113.10", "", "", "name", "ASC")
 		require.NoError(t, err)
 		require.Equal(t, int64(1), total)
 		require.Equal(t, []Account{{ID: 3, Name: "acc3"}}, accounts)
 		require.Equal(t, "203.0.113.10", repo.listWithFiltersIP)
 	})
 }
-
 
 func TestAdminService_ListAccounts_WithRTStatus(t *testing.T) {
 	t.Run("rt_status 参数正常传递到 repository 层", func(t *testing.T) {
@@ -239,6 +238,22 @@ func TestAdminService_ListAccounts_WithRTStatus(t *testing.T) {
 		require.Equal(t, int64(1), total)
 		require.Equal(t, []Account{{ID: 5, Name: "acc5"}}, accounts)
 		require.Equal(t, "has_rt", repo.listWithFiltersRTStatus)
+	})
+
+	t.Run("rt_status 可与 status/search 组合传递到 repository 层", func(t *testing.T) {
+		repo := &accountRepoStubForAdminList{
+			listWithFiltersAccounts: []Account{{ID: 6, Name: "target"}},
+			listWithFiltersResult:   &pagination.PaginationResult{Total: 1},
+		}
+		svc := &adminServiceImpl{accountRepo: repo}
+
+		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusError, "target", 0, "", "", "", "no_rt", "", "name", "ASC")
+		require.NoError(t, err)
+		require.Equal(t, int64(1), total)
+		require.Equal(t, []Account{{ID: 6, Name: "target"}}, accounts)
+		require.Equal(t, StatusError, repo.listWithFiltersStatus)
+		require.Equal(t, "target", repo.listWithFiltersSearch)
+		require.Equal(t, "no_rt", repo.listWithFiltersRTStatus)
 	})
 }
 
@@ -256,7 +271,7 @@ func TestAdminService_ListAccounts_WithCapacityStatus(t *testing.T) {
 			concurrencyService: NewConcurrencyService(cache),
 		}
 
-		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusActive, "busy", 0, "", "", "", AccountCapacityStatusConcurrentFilter, "name", "ASC")
+		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusActive, "busy", 0, "", "", "", "", AccountCapacityStatusConcurrentFilter, "name", "ASC")
 		require.NoError(t, err)
 		require.Equal(t, int64(1), total)
 		require.Equal(t, []Account{{ID: 8, Name: "busy"}}, accounts)
@@ -274,7 +289,7 @@ func TestAdminService_ListAccounts_WithCapacityStatus(t *testing.T) {
 			concurrencyService: NewConcurrencyService(cache),
 		}
 
-		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusActive, "", 0, "", "", "", AccountCapacityStatusConcurrentFilter, "name", "ASC")
+		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusActive, "", 0, "", "", "", "", AccountCapacityStatusConcurrentFilter, "name", "ASC")
 		require.NoError(t, err)
 		require.Empty(t, accounts)
 		require.Zero(t, total)
@@ -291,7 +306,7 @@ func TestAdminService_ListAccounts_WithCapacityStatus(t *testing.T) {
 			concurrencyService: NewConcurrencyService(cache),
 		}
 
-		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusActive, "", 0, "", "", "", AccountCapacityStatusConcurrentFilter, "name", "ASC")
+		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusActive, "", 0, "", "", "", "", AccountCapacityStatusConcurrentFilter, "name", "ASC")
 		require.Error(t, err)
 		require.Nil(t, accounts)
 		require.Zero(t, total)

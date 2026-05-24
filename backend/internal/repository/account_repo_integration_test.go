@@ -485,6 +485,54 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 	}
 }
 
+func (s *AccountRepoSuite) TestListWithFilters_RTStatusNoCombinesWithStatusAndSearch() {
+	tx := testEntTx(s.T())
+	client := tx.Client()
+	repo := newAccountRepositoryWithSQL(client, tx, nil)
+	ctx := context.Background()
+
+	mustCreateAccount(s.T(), client, &service.Account{
+		Name:        "target-no-rt-error",
+		Status:      service.StatusError,
+		Credentials: map[string]any{"access_token": "at-only"},
+	})
+	mustCreateAccount(s.T(), client, &service.Account{
+		Name:        "target-has-rt-error",
+		Status:      service.StatusError,
+		Credentials: map[string]any{"refresh_token": "rt-123"},
+	})
+	mustCreateAccount(s.T(), client, &service.Account{
+		Name:        "target-no-rt-active",
+		Status:      service.StatusActive,
+		Credentials: map[string]any{"access_token": "at-only"},
+	})
+	mustCreateAccount(s.T(), client, &service.Account{
+		Name:        "other-no-rt-error",
+		Status:      service.StatusError,
+		Credentials: map[string]any{"access_token": "at-only"},
+	})
+
+	accounts, page, err := repo.ListWithFilters(
+		ctx,
+		pagination.PaginationParams{Page: 1, PageSize: 10, SortBy: "name", SortOrder: "asc"},
+		"",
+		"",
+		service.StatusError,
+		"target",
+		0,
+		"",
+		"",
+		"",
+		"no_rt",
+		"",
+		nil,
+	)
+	s.Require().NoError(err)
+	s.Require().Equal(int64(1), page.Total)
+	s.Require().Len(accounts, 1)
+	s.Require().Equal("target-no-rt-error", accounts[0].Name)
+}
+
 func (s *AccountRepoSuite) TestListWithFilters_AccountIDs() {
 	acc1 := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-a", Platform: service.PlatformOpenAI, Type: service.AccountTypeOAuth})
 	mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-b", Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey})
@@ -498,6 +546,7 @@ func (s *AccountRepoSuite) TestListWithFilters_AccountIDs() {
 		"",
 		"",
 		0,
+		"",
 		"",
 		"",
 		"",
@@ -567,7 +616,7 @@ func (s *AccountRepoSuite) TestPreload_And_VirtualFields() {
 	s.Require().Len(got.Groups, 1, "expected Groups to be populated")
 	s.Require().Equal(group.ID, got.Groups[0].ID)
 
-	accounts, page, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, "", "", "", "acc", 0, "", "", "", "", nil)
+	accounts, page, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, "", "", "", "acc", 0, "", "", "", "", "", nil)
 	s.Require().NoError(err, "ListWithFilters")
 	s.Require().Equal(int64(1), page.Total)
 	s.Require().Len(accounts, 1)
@@ -587,7 +636,7 @@ func (s *AccountRepoSuite) TestListWithFilters_ExitIP() {
 	mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-c", ProxyID: &proxyC.ID})
 	mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-no-proxy"})
 
-	accounts, _, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, "", "", "", "", 0, "", "", "203.0.113.10", "", nil)
+	accounts, _, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, "", "", "", "", 0, "", "", "203.0.113.10", "", "", nil)
 	s.Require().NoError(err)
 	s.Require().Len(accounts, 2)
 	s.Require().ElementsMatch([]string{"acc-a", "acc-b"}, []string{accounts[0].Name, accounts[1].Name})
