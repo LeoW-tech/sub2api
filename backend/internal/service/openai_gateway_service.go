@@ -5305,6 +5305,10 @@ func SetOpenAICompactRoutingForTest(c *gin.Context, enabled bool) {
 	setOpenAICompactRouting(c, enabled)
 }
 
+func ShouldAutoPreferOpenAICompactForOfficialClientForTest(c *gin.Context) bool {
+	return shouldAutoPreferOpenAICompactForOfficialClient(c)
+}
+
 func OpenAICompactSessionSeedKeyForTest() string {
 	return openAICompactSessionSeedKey
 }
@@ -5338,6 +5342,22 @@ func isOpenAICompactRoutingForced(c *gin.Context) bool {
 	}
 	enabled, _ := value.(bool)
 	return enabled
+}
+
+func shouldAutoPreferOpenAICompactForOfficialClient(c *gin.Context) bool {
+	if c == nil {
+		return false
+	}
+	if isOpenAIResponsesCompactPath(c) {
+		return true
+	}
+	if c.Request == nil {
+		return false
+	}
+	return openai.IsCodexOfficialClientByHeaders(
+		c.GetHeader("User-Agent"),
+		c.GetHeader("originator"),
+	)
 }
 
 func normalizeOpenAICompactRequestBody(body []byte) ([]byte, bool, error) {
