@@ -1,6 +1,7 @@
 export interface AccountTestStreamRequest {
   modelId: string
   prompt?: string
+  mode?: 'default' | 'compact'
 }
 
 export interface AccountTestStreamEvent {
@@ -47,7 +48,8 @@ export async function runAccountTestStream(
     },
     body: JSON.stringify({
       model_id: request.modelId,
-      prompt: request.prompt ?? ''
+      prompt: request.prompt ?? '',
+      mode: request.mode ?? 'default'
     }),
     signal: options.signal
   })
