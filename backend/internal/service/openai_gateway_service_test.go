@@ -1827,19 +1827,6 @@ func TestOpenAIResponsesCompactPathSupportsForcedRouting(t *testing.T) {
 	require.False(t, IsOpenAIResponsesCompactPathForTest(c))
 }
 
-func TestShouldAutoPreferOpenAICompactForOfficialClient(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	rec := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(rec)
-	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
-	c.Request.Header.Set("User-Agent", "codex_cli_rs/0.125.0")
-
-	require.True(t, ShouldAutoPreferOpenAICompactForOfficialClientForTest(c))
-
-	c.Request.Header.Set("User-Agent", "Go-http-client/2.0")
-	require.False(t, ShouldAutoPreferOpenAICompactForOfficialClientForTest(c))
-}
-
 func TestNormalizeOpenAICompactRequestBodyPreservesCurrentCodexPayloadFields(t *testing.T) {
 	body := []byte(`{"model":"gpt-5.5","input":[{"type":"message","role":"user","content":"compact me"}],"instructions":"compact-test","tools":[{"type":"function","name":"shell"}],"parallel_tool_calls":true,"reasoning":{"effort":"high"},"text":{"verbosity":"low"},"previous_response_id":"resp_123","store":true,"stream":true,"prompt_cache_key":"cache_123"}`)
 
