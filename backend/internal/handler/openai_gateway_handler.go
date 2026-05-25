@@ -145,6 +145,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	}
 
 	setOpsRequestContext(c, "", false)
+	originalBody := body
+	explicitCompactPath := isOpenAIRemoteCompactPath(c)
+	autoPreferCompact := !explicitCompactPath && service.ShouldAutoPreferOpenAICompactForOfficialClientForTest(c)
+	service.SetOpenAICompactRoutingForTest(c, explicitCompactPath || autoPreferCompact)
 	sessionHashBody := body
 	if service.IsOpenAIResponsesCompactPathForTest(c) {
 		if compactSeed := strings.TrimSpace(gjson.GetBytes(body, "prompt_cache_key").String()); compactSeed != "" {
@@ -269,7 +273,8 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 
 	// Generate session hash (header first; fallback to prompt_cache_key)
 	sessionHash := h.gatewayService.GenerateSessionHash(c, sessionHashBody)
-	requireCompact := isOpenAIRemoteCompactPath(c)
+	requireCompact := service.IsOpenAIResponsesCompactPathForTest(c)
+	autoCompactFallbackTried := false
 
 	maxAccountSwitches := h.maxAccountSwitches
 	switchCount := 0
@@ -295,6 +300,18 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				zap.Error(err),
 				zap.Int("excluded_account_count", len(failedAccountIDs)),
 			)
+			if len(failedAccountIDs) == 0 && autoPreferCompact && !explicitCompactPath && requireCompact && !autoCompactFallbackTried {
+				reqLog.Info("openai.compact_auto_fallback_to_responses",
+					zap.String("reason", "no_available_compact_accounts"),
+				)
+				autoCompactFallbackTried = true
+				requireCompact = false
+				service.SetOpenAICompactRoutingForTest(c, false)
+				body = originalBody
+				sessionHashBody = originalBody
+				sessionHash = h.gatewayService.GenerateSessionHash(c, sessionHashBody)
+				continue
+			}
 			if len(failedAccountIDs) == 0 {
 				markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
 				if errors.Is(err, service.ErrNoAvailableCompactAccounts) {
@@ -485,11 +502,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 }
 
 func isOpenAIRemoteCompactPath(c *gin.Context) bool {
-	if c == nil || c.Request == nil || c.Request.URL == nil {
-		return false
-	}
-	normalizedPath := strings.TrimRight(strings.TrimSpace(c.Request.URL.Path), "/")
-	return strings.HasSuffix(normalizedPath, "/responses/compact")
+	return service.IsOpenAIResponsesCompactPathForTest(c)
 }
 
 func (h *OpenAIGatewayHandler) logOpenAIRemoteCompactOutcome(c *gin.Context, startedAt time.Time) {

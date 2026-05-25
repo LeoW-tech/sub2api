@@ -56,6 +56,7 @@ const (
 	openAIWSRetryBackoffMaxDefault     = 2 * time.Second
 	openAIWSRetryJitterRatioDefault    = 0.2
 	openAICompactSessionSeedKey        = "openai_compact_session_seed"
+	openAICompactRoutingKey            = "openai_compact_routing"
 	codexCLIVersion                    = "0.125.0"
 	// Codex 限额快照仅用于后台展示/诊断，不需要每个成功请求都立即落库。
 	openAICodexSnapshotPersistMinInterval = 30 * time.Second
@@ -5300,6 +5301,14 @@ func IsOpenAIResponsesCompactPathForTest(c *gin.Context) bool {
 	return isOpenAIResponsesCompactPath(c)
 }
 
+func SetOpenAICompactRoutingForTest(c *gin.Context, enabled bool) {
+	setOpenAICompactRouting(c, enabled)
+}
+
+func ShouldAutoPreferOpenAICompactForOfficialClientForTest(c *gin.Context) bool {
+	return shouldAutoPreferOpenAICompactForOfficialClient(c)
+}
+
 func OpenAICompactSessionSeedKeyForTest() string {
 	return openAICompactSessionSeedKey
 }
@@ -5309,8 +5318,46 @@ func NormalizeOpenAICompactRequestBodyForTest(body []byte) ([]byte, bool, error)
 }
 
 func isOpenAIResponsesCompactPath(c *gin.Context) bool {
+	if isOpenAICompactRoutingForced(c) {
+		return true
+	}
 	suffix := strings.TrimSpace(openAIResponsesRequestPathSuffix(c))
 	return suffix == "/compact" || strings.HasPrefix(suffix, "/compact/")
+}
+
+func setOpenAICompactRouting(c *gin.Context, enabled bool) {
+	if c == nil {
+		return
+	}
+	c.Set(openAICompactRoutingKey, enabled)
+}
+
+func isOpenAICompactRoutingForced(c *gin.Context) bool {
+	if c == nil {
+		return false
+	}
+	value, ok := c.Get(openAICompactRoutingKey)
+	if !ok {
+		return false
+	}
+	enabled, _ := value.(bool)
+	return enabled
+}
+
+func shouldAutoPreferOpenAICompactForOfficialClient(c *gin.Context) bool {
+	if c == nil {
+		return false
+	}
+	if isOpenAIResponsesCompactPath(c) {
+		return true
+	}
+	if c.Request == nil {
+		return false
+	}
+	return openai.IsCodexOfficialClientByHeaders(
+		c.GetHeader("User-Agent"),
+		c.GetHeader("originator"),
+	)
 }
 
 func normalizeOpenAICompactRequestBody(body []byte) ([]byte, bool, error) {
@@ -5366,6 +5413,9 @@ func resolveOpenAICompactSessionID(c *gin.Context) string {
 }
 
 func openAIResponsesRequestPathSuffix(c *gin.Context) string {
+	if isOpenAICompactRoutingForced(c) {
+		return "/compact"
+	}
 	if c == nil || c.Request == nil || c.Request.URL == nil {
 		return ""
 	}

@@ -1812,6 +1812,34 @@ func TestOpenAIResponsesRequestPathSuffix(t *testing.T) {
 	}
 }
 
+func TestOpenAIResponsesCompactPathSupportsForcedRouting(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+
+	require.False(t, IsOpenAIResponsesCompactPathForTest(c))
+
+	SetOpenAICompactRoutingForTest(c, true)
+	require.True(t, IsOpenAIResponsesCompactPathForTest(c))
+
+	SetOpenAICompactRoutingForTest(c, false)
+	require.False(t, IsOpenAIResponsesCompactPathForTest(c))
+}
+
+func TestShouldAutoPreferOpenAICompactForOfficialClient(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+	c.Request.Header.Set("User-Agent", "codex_cli_rs/0.125.0")
+
+	require.True(t, ShouldAutoPreferOpenAICompactForOfficialClientForTest(c))
+
+	c.Request.Header.Set("User-Agent", "Go-http-client/2.0")
+	require.False(t, ShouldAutoPreferOpenAICompactForOfficialClientForTest(c))
+}
+
 func TestNormalizeOpenAICompactRequestBodyPreservesCurrentCodexPayloadFields(t *testing.T) {
 	body := []byte(`{"model":"gpt-5.5","input":[{"type":"message","role":"user","content":"compact me"}],"instructions":"compact-test","tools":[{"type":"function","name":"shell"}],"parallel_tool_calls":true,"reasoning":{"effort":"high"},"text":{"verbosity":"low"},"previous_response_id":"resp_123","store":true,"stream":true,"prompt_cache_key":"cache_123"}`)
 
@@ -1845,6 +1873,21 @@ func TestOpenAIBuildUpstreamRequestOpenAIPassthroughPreservesCompactPath(t *test
 	require.Equal(t, "application/json", req.Header.Get("Accept"))
 	require.Equal(t, codexCLIVersion, req.Header.Get("Version"))
 	require.NotEmpty(t, req.Header.Get("Session_Id"))
+}
+
+func TestOpenAIBuildUpstreamRequestOpenAIPassthroughSupportsForcedCompactRouting(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader([]byte(`{"model":"gpt-5"}`)))
+	SetOpenAICompactRoutingForTest(c, true)
+
+	svc := &OpenAIGatewayService{}
+	account := &Account{Type: AccountTypeOAuth}
+
+	req, err := svc.buildUpstreamRequestOpenAIPassthrough(c.Request.Context(), c, account, []byte(`{"model":"gpt-5"}`), "token")
+	require.NoError(t, err)
+	require.Equal(t, chatgptCodexURL+"/compact", req.URL.String())
 }
 
 func TestOpenAIBuildUpstreamRequestCompactForcesJSONAcceptForOAuth(t *testing.T) {
