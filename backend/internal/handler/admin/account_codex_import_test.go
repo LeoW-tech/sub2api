@@ -140,6 +140,13 @@ func TestNormalizeCodexSessionJSONExtractsCredentialsAndIgnoresSessionToken(t *t
 	if item.TokenExpiresAt == nil {
 		t.Fatalf("TokenExpiresAt should be parsed from accessToken")
 	}
+	if item.Extra["codex_cli_only"] != true {
+		t.Fatalf("codex_cli_only = %v, want true", item.Extra["codex_cli_only"])
+	}
+	joinedWarnings := strings.Join(item.WarningTexts, "\n")
+	if !strings.Contains(joinedWarnings, "仅允许 Codex 官方客户端") {
+		t.Fatalf("warnings = %q, want codex-only warning", joinedWarnings)
+	}
 }
 
 func TestMergeCodexImportCredentialsClearsStaleRefreshFieldsWhenIncomingHasNoRefreshToken(t *testing.T) {

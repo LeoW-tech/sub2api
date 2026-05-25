@@ -75,6 +75,20 @@ func accountTestShouldSuppressStatusMutation(ctx context.Context) bool {
 	return suppress
 }
 
+func (s *AccountTestService) reconcileSuccessfulTestState(ctx context.Context, account *Account) {
+	if s == nil || s.accountRepo == nil || account == nil || accountTestShouldSuppressStatusMutation(ctx) {
+		return
+	}
+	if account.Status != StatusError {
+		return
+	}
+	if err := s.accountRepo.ClearError(ctx, account.ID); err != nil {
+		return
+	}
+	account.Status = StatusActive
+	account.ErrorMessage = ""
+}
+
 // isOpenAIImageModel checks if the model is an OpenAI image generation model (e.g. gpt-image-2).
 func isOpenAIImageModel(model string) bool {
 	return strings.HasPrefix(strings.ToLower(model), "gpt-image-")
@@ -645,6 +659,8 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
 	}
 
+	s.reconcileSuccessfulTestState(ctx, account)
+
 	// Process SSE stream
 	return s.processOpenAIStream(c, resp.Body)
 }
@@ -704,6 +720,8 @@ func (s *AccountTestService) testOpenAIChatCompletionsConnection(
 		}
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Chat Completions API (/v1/chat/completions) returned %d: %s", resp.StatusCode, string(body)))
 	}
+
+	s.reconcileSuccessfulTestState(ctx, account)
 
 	return s.processOpenAIChatCompletionsStream(c, resp.Body)
 }
@@ -817,6 +835,8 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 		}
 		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
 	}
+
+	s.reconcileSuccessfulTestState(ctx, account)
 
 	s.sendEvent(c, TestEvent{Type: "content", Text: "Compact probe succeeded"})
 	s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
@@ -1699,11 +1719,18 @@ func (s *AccountTestService) sendErrorAndEnd(c *gin.Context, errorMsg string) er
 func (s *AccountTestService) RunTestBackground(ctx context.Context, accountID int64, modelID string) (*ScheduledTestResult, error) {
 	startedAt := time.Now()
 
+	mode := AccountTestModeDefault
+	if s != nil && s.accountRepo != nil {
+		if account, err := s.accountRepo.GetByID(ctx, accountID); err == nil && account != nil && account.IsOpenAI() && account.IsOAuth() {
+			mode = AccountTestModeCompact
+		}
+	}
+
 	w := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(w)
 	ginCtx.Request = (&http.Request{}).WithContext(ctx)
 
-	testErr := s.TestAccountConnection(ginCtx, accountID, modelID, "", AccountTestModeDefault)
+	testErr := s.TestAccountConnection(ginCtx, accountID, modelID, "", mode)
 
 	finishedAt := time.Now()
 	body := w.Body.String()

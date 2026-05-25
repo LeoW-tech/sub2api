@@ -572,7 +572,9 @@ func normalizeCodexImportEntry(entry codexImportEntry) (*codexImportAccount, err
 		item.WarningTexts = append(item.WarningTexts, "无法从 accessToken 解析过期时间，导入后需自行确认令牌有效性")
 	}
 	if item.RefreshToken == "" {
+		item.Extra["codex_cli_only"] = true
 		item.WarningTexts = append(item.WarningTexts, "未包含 refresh_token，accessToken 过期后无法自动续期")
+		item.WarningTexts = append(item.WarningTexts, "未包含 refresh_token，已默认限制为仅允许 Codex 官方客户端使用")
 	}
 
 	setCodexCredentialIfNotEmpty(item.Credentials, "email", item.Email)
