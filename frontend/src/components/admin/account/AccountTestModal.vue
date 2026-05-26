@@ -272,13 +272,10 @@ const errorMessage = ref('')
 const availableModels = ref<ClaudeModel[]>([])
 const selectedModelId = ref('')
 const testPrompt = ref('')
-const testMode = ref<'default' | 'compact'>('default')
 const loadingModels = ref(false)
 let abortController: AbortController | null = null
 const generatedImages = ref<PreviewImage[]>([])
 const previewImageUrl = ref('')
-const isOpenAIAccount = computed(() => props.account?.platform === 'openai')
-const isOpenAIOAuthAccount = computed(() => props.account?.platform === 'openai' && props.account?.type === 'oauth')
 const prioritizedGeminiModels = ['gemini-3.1-flash-image', 'gemini-2.5-flash-image', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-3-flash-preview', 'gemini-3-pro-preview', 'gemini-2.0-flash']
 const supportsGeminiImageTest = computed(() => {
   const modelID = selectedModelId.value.toLowerCase()
@@ -312,7 +309,6 @@ watch(
   async (newVal) => {
     if (newVal && props.account) {
       testPrompt.value = ''
-      testMode.value = isOpenAIOAuthAccount.value ? 'compact' : 'default'
       resetState()
       await loadAvailableModels()
     } else {
@@ -408,8 +404,7 @@ const startTest = async () => {
       props.account.id,
       {
         modelId: selectedModelId.value,
-        prompt: supportsImageTest.value ? testPrompt.value.trim() : '',
-        mode: isOpenAIAccount.value ? testMode.value : 'default'
+        prompt: supportsImageTest.value ? testPrompt.value.trim() : ''
       },
       {
         signal: abortController.signal,

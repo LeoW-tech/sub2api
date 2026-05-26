@@ -26,9 +26,7 @@ vi.mock('@/composables/useClipboard', () => ({
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
   const messages: Record<string, string> = {
-    'admin.accounts.imagePromptDefault': 'Generate a cute orange cat astronaut sticker on a clean pastel background.',
-    'admin.accounts.openai.testModeDefault': 'Responses',
-    'admin.accounts.openai.testModeCompact': 'Responses Compact'
+    'admin.accounts.imagePromptDefault': 'Generate a cute orange cat astronaut sticker on a clean pastel background.'
   }
   return {
     ...actual,
@@ -151,8 +149,7 @@ describe('AccountTestModal', () => {
     const [, request] = (global.fetch as any).mock.calls[0]
     expect(JSON.parse(request.body)).toEqual({
       model_id: 'gemini-3.1-flash-image',
-      prompt: 'draw a tiny orange cat astronaut',
-      mode: 'default'
+      prompt: 'draw a tiny orange cat astronaut'
     })
 
     const preview = wrapper.find('img[alt="test-image-1"]')
@@ -183,51 +180,5 @@ describe('AccountTestModal', () => {
         })
       ]
     ])
-  })
-
-  it('OpenAI OAuth 默认以 compact 模式测试', async () => {
-    getAvailableModels.mockResolvedValueOnce([
-      { id: 'gpt-5.5', display_name: 'GPT-5.5' }
-    ])
-
-    const wrapper = mount(AccountTestModal, {
-      props: {
-        show: false,
-        account: {
-          id: 7,
-          name: 'OpenAI OAuth Test',
-          platform: 'openai',
-          type: 'oauth',
-          status: 'active'
-        }
-      } as any,
-      global: {
-        stubs: {
-          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
-          Select: { template: '<div class="select-stub"></div>' },
-          TextArea: {
-            props: ['modelValue'],
-            emits: ['update:modelValue'],
-            template: '<textarea class="textarea-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
-          },
-          Icon: true
-        }
-      }
-    })
-
-    await wrapper.setProps({ show: true })
-    await flushPromises()
-    ;(wrapper.vm as any).selectedModelId = 'gpt-5.5'
-    await (wrapper.vm as any).startTest()
-    await flushPromises()
-    await flushPromises()
-
-    expect(global.fetch).toHaveBeenCalledTimes(1)
-    const [, request] = (global.fetch as any).mock.calls[0]
-    expect(JSON.parse(request.body)).toEqual({
-      model_id: 'gpt-5.5',
-      prompt: '',
-      mode: 'compact'
-    })
   })
 })
