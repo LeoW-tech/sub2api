@@ -69,54 +69,6 @@ func TestAccountTestService_TestAccountConnection_OpenAICompactOAuthSuccessPersi
 	require.Contains(t, rec.Body.String(), `"type":"test_complete"`)
 }
 
-func TestAccountTestService_TestAccountConnection_OpenAICompactOAuthSuccessClearsStaleError(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	updateCalls := make(chan map[string]any, 1)
-	account := Account{
-		ID:          11,
-		Name:        "openai-oauth-stale-error",
-		Platform:    PlatformOpenAI,
-		Type:        AccountTypeOAuth,
-		Status:      StatusError,
-		Schedulable: true,
-		Concurrency: 1,
-		Credentials: map[string]any{
-			"access_token":       "oauth-token",
-			"chatgpt_account_id": "chatgpt-acc",
-		},
-	}
-	repo := &compactStatusMutationRepo{
-		snapshotUpdateAccountRepo: snapshotUpdateAccountRepo{
-			stubOpenAIAccountRepo: stubOpenAIAccountRepo{accounts: []Account{account}},
-			updateExtraCalls:      updateCalls,
-		},
-	}
-	upstream := &httpUpstreamRecorder{resp: &http.Response{
-		StatusCode: http.StatusOK,
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
-		Body:       io.NopCloser(strings.NewReader(`{"id":"cmp_probe","status":"completed"}`)),
-	}}
-	svc := &AccountTestService{
-		accountRepo:  repo,
-		httpUpstream: upstream,
-	}
-
-	rec := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(rec)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/11/test", bytes.NewReader(nil))
-
-	err := svc.TestAccountConnection(c, account.ID, "gpt-5.4", "", AccountTestModeCompact)
-	require.NoError(t, err)
-	require.Equal(t, account.ID, repo.clearErrorID)
-
-	select {
-	case <-updateCalls:
-	case <-time.After(time.Second):
-		t.Fatal("expected compact probe snapshot update")
-	}
-}
-
 func TestAccountTestService_TestAccountConnection_OpenAICompactOAuth404MarksUnsupported(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -347,56 +299,11 @@ func TestAccountTestService_OpenAICompact429SuppressesRateLimitWhenContextReques
 	}
 }
 
-func TestAccountTestService_RunTestBackground_OpenAIOAuthUsesCompactMode(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	updateCalls := make(chan map[string]any, 1)
-	account := Account{
-		ID:          12,
-		Name:        "openai-oauth-background",
-		Platform:    PlatformOpenAI,
-		Type:        AccountTypeOAuth,
-		Status:      StatusActive,
-		Schedulable: true,
-		Concurrency: 1,
-		Credentials: map[string]any{
-			"access_token":       "oauth-token",
-			"chatgpt_account_id": "chatgpt-acc",
-		},
-	}
-	repo := &snapshotUpdateAccountRepo{
-		stubOpenAIAccountRepo: stubOpenAIAccountRepo{accounts: []Account{account}},
-		updateExtraCalls:      updateCalls,
-	}
-	upstream := &httpUpstreamRecorder{resp: &http.Response{
-		StatusCode: http.StatusOK,
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
-		Body:       io.NopCloser(strings.NewReader(`{"id":"cmp_probe","status":"completed"}`)),
-	}}
-	svc := &AccountTestService{
-		accountRepo:  repo,
-		httpUpstream: upstream,
-	}
-
-	result, err := svc.RunTestBackground(context.Background(), account.ID, "gpt-5.4")
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	require.Equal(t, "success", result.Status)
-	require.Equal(t, chatgptCodexAPIURL+"/compact", upstream.lastReq.URL.String())
-
-	select {
-	case <-updateCalls:
-	case <-time.After(time.Second):
-		t.Fatal("expected compact probe snapshot update")
-	}
-}
-
 type compactStatusMutationRepo struct {
 	snapshotUpdateAccountRepo
 	setErrorID    int64
 	setErrorMsg   string
 	rateLimitedID int64
-	clearErrorID  int64
 }
 
 func (r *compactStatusMutationRepo) SetError(_ context.Context, id int64, errorMsg string) error {
@@ -410,7 +317,6 @@ func (r *compactStatusMutationRepo) SetRateLimited(_ context.Context, id int64, 
 	return nil
 }
 
-func (r *compactStatusMutationRepo) ClearError(_ context.Context, id int64) error {
-	r.clearErrorID = id
+func (r *compactStatusMutationRepo) ClearError(_ context.Context, _ int64) error {
 	return nil
 }

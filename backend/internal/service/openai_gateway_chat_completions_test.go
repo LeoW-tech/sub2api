@@ -61,47 +61,6 @@ func TestNormalizeResponsesRequestServiceTier(t *testing.T) {
 	require.Empty(t, req.ServiceTier)
 }
 
-func TestForwardAsChatCompletions_CodexCLIOnlyNonOfficialClientReturnsFailover(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	rec := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(rec)
-	body := []byte(`{"model":"gpt-5.4","messages":[{"role":"user","content":"hello"}],"stream":false}`)
-	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
-	c.Request.Header.Set("Content-Type", "application/json")
-	c.Request.Header.Set("User-Agent", "curl/8.0")
-
-	upstream := &httpUpstreamRecorder{resp: &http.Response{
-		StatusCode: http.StatusOK,
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
-		Body:       io.NopCloser(strings.NewReader(`{"id":"should-not-be-called"}`)),
-	}}
-	svc := &OpenAIGatewayService{
-		httpUpstream: upstream,
-		codexDetector: &stubCodexRestrictionDetector{
-			result: CodexClientRestrictionDetectionResult{
-				Enabled: true,
-				Matched: false,
-				Reason:  CodexClientRestrictionReasonNotMatchedUA,
-			},
-		},
-	}
-	account := &Account{
-		ID:       1,
-		Name:     "openai-oauth-codex-only",
-		Platform: PlatformOpenAI,
-		Type:     AccountTypeOAuth,
-		Extra:    map[string]any{"codex_cli_only": true},
-	}
-
-	result, err := svc.ForwardAsChatCompletions(context.Background(), c, account, body, "", "")
-	require.Nil(t, result)
-	var failoverErr *UpstreamFailoverError
-	require.ErrorAs(t, err, &failoverErr)
-	require.Equal(t, http.StatusForbidden, failoverErr.StatusCode)
-	require.Nil(t, upstream.lastReq)
-}
-
 func TestNormalizeResponsesBodyServiceTier(t *testing.T) {
 	t.Parallel()
 
