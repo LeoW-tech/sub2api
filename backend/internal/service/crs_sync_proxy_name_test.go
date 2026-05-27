@@ -124,7 +124,7 @@ func (r *crsSyncTestAccountRepo) ListSchedulableUngroupedByPlatforms(context.Con
 func (r *crsSyncTestAccountRepo) SetRateLimited(context.Context, int64, time.Time) error {
 	panic("unexpected")
 }
-func (r *crsSyncTestAccountRepo) SetModelRateLimit(context.Context, int64, string, time.Time) error {
+func (r *crsSyncTestAccountRepo) SetModelRateLimit(context.Context, int64, string, time.Time, ...string) error {
 	panic("unexpected")
 }
 func (r *crsSyncTestAccountRepo) SetOverloaded(context.Context, int64, time.Time) error {
