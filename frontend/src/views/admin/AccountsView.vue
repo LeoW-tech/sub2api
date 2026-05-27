@@ -458,6 +458,11 @@
                 formatRelativeTime(value)
               }}</span>
             </template>
+            <template #cell-created_at="{ value }">
+              <span class="text-sm text-gray-500 dark:text-dark-400">{{
+                formatDateTime(value)
+              }}</span>
+            </template>
             <template #cell-expires_at="{ row, value }">
               <div class="flex flex-col items-start gap-1">
                 <span class="text-sm text-gray-500 dark:text-dark-400">{{
@@ -853,6 +858,7 @@ const ACCOUNT_SORTABLE_KEYS = new Set([
   "priority",
   "rate_multiplier",
   "last_used_at",
+  "created_at",
   "expires_at",
 ]);
 const loadInitialAccountSortState = (): AccountSortState => {
@@ -1556,6 +1562,11 @@ const allColumns = computed(() => {
     {
       key: "last_used_at",
       label: t("admin.accounts.columns.lastUsed"),
+      sortable: true,
+    },
+    {
+      key: "created_at",
+      label: t("admin.accounts.columns.createdAt"),
       sortable: true,
     },
     {
