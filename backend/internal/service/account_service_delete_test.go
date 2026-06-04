@@ -183,6 +183,10 @@ func (s *accountRepoStub) ResumeAccountsByProxyNetwork(ctx context.Context, prox
 	panic("unexpected ResumeAccountsByProxyNetwork call")
 }
 
+func (s *accountRepoStub) ResumeAllAccountsPausedByProxyNetwork(ctx context.Context) ([]int64, error) {
+	panic("unexpected ResumeAllAccountsPausedByProxyNetwork call")
+}
+
 func (s *accountRepoStub) PauseAccountByNetwork(ctx context.Context, accountID int64) (bool, error) {
 	panic("unexpected PauseAccountByNetwork call")
 }

@@ -42,6 +42,13 @@ func (s *proxyNetworkAccountRepoStub) ResumeAccountsByProxyNetwork(ctx context.C
 	return []int64{101}, nil
 }
 
+func (s *proxyNetworkAccountRepoStub) ResumeAllAccountsPausedByProxyNetwork(ctx context.Context) ([]int64, error) {
+	if s.resumeProxyErr != nil {
+		return nil, s.resumeProxyErr
+	}
+	return []int64{101, 102}, nil
+}
+
 func (s *proxyNetworkAccountRepoStub) PauseAccountByNetwork(ctx context.Context, accountID int64) (bool, error) {
 	s.pausedAccountIDs = append(s.pausedAccountIDs, accountID)
 	return true, s.pauseAccountErr
@@ -92,10 +99,10 @@ func (s *proxyNetworkProxyRepoStub) Update(ctx context.Context, proxy *Proxy) er
 }
 
 type proxyExitInfoProberStub struct {
-	exitInfo   *ProxyExitInfo
-	latencyMs  int64
-	err        error
-	proxyURLs  []string
+	exitInfo  *ProxyExitInfo
+	latencyMs int64
+	err       error
+	proxyURLs []string
 }
 
 func (s *proxyExitInfoProberStub) ProbeProxy(ctx context.Context, proxyURL string) (*ProxyExitInfo, int64, error) {
@@ -103,7 +110,7 @@ func (s *proxyExitInfoProberStub) ProbeProxy(ctx context.Context, proxyURL strin
 	return s.exitInfo, s.latencyMs, s.err
 }
 
-func TestAdminService_TestProxy_OfflinePausesAccounts(t *testing.T) {
+func TestAdminService_TestProxy_OfflineDoesNotPauseAccounts(t *testing.T) {
 	accountRepo := &proxyNetworkAccountRepoStub{}
 	proxyRepo := &proxyNetworkProxyRepoStub{
 		proxies: map[int64]*Proxy{
@@ -128,13 +135,36 @@ func TestAdminService_TestProxy_OfflinePausesAccounts(t *testing.T) {
 	require.False(t, result.Success)
 	require.Equal(t, "dial tcp timeout", result.Message)
 
-	require.Len(t, proxyRepo.updatedProxies, 1)
-	updated := proxyRepo.updatedProxies[0]
-	require.Equal(t, ProxyNetworkStatusOffline, updated.NetworkStatus)
-	require.NotNil(t, updated.NetworkCheckedAt)
-	require.Equal(t, "dial tcp timeout", updated.NetworkErrorMessage)
-	require.Equal(t, []int64{7}, accountRepo.pausedProxyIDs)
+	require.Empty(t, proxyRepo.updatedProxies)
+	require.Empty(t, accountRepo.pausedProxyIDs)
 	require.Empty(t, accountRepo.resumedProxyIDs)
+}
+
+func TestAdminService_TestProxyForNetworkMonitor_OfflineCanPauseAccounts(t *testing.T) {
+	accountRepo := &proxyNetworkAccountRepoStub{}
+	proxyRepo := &proxyNetworkProxyRepoStub{
+		proxies: map[int64]*Proxy{
+			7: &Proxy{
+				ID:       7,
+				Name:     "proxy-7",
+				Protocol: "http",
+				Host:     "127.0.0.1",
+				Port:     8080,
+			},
+		},
+	}
+	svc := &adminServiceImpl{
+		accountRepo: accountRepo,
+		proxyRepo:   proxyRepo,
+		proxyProber: &proxyExitInfoProberStub{err: errors.New("dial tcp timeout")},
+	}
+
+	result, err := svc.TestProxyForNetworkMonitor(context.Background(), 7, true)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.False(t, result.Success)
+	require.Equal(t, "dial tcp timeout", result.Message)
+	require.Equal(t, []int64{7}, accountRepo.pausedProxyIDs)
 }
 
 func TestAdminService_TestProxy_OnlineResumesAutoPausedAccounts(t *testing.T) {

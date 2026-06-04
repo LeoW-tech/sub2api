@@ -13,9 +13,11 @@ import (
 )
 
 const (
-	proxyNetworkMonitorInterval    = 5 * time.Minute
-	proxyNetworkMonitorPageSize    = 200
-	proxyNetworkMonitorConcurrency = 5
+	proxyNetworkMonitorInterval          = 5 * time.Minute
+	proxyNetworkMonitorFailureRetryDelay = 2 * time.Minute
+	proxyNetworkMonitorFailureThreshold  = 3
+	proxyNetworkMonitorPageSize          = 200
+	proxyNetworkMonitorConcurrency       = 5
 )
 
 var ErrProxyNetworkScanRunning = errors.New("proxy network scan already running")
@@ -33,8 +35,21 @@ type proxyNetworkMonitorNotifier interface {
 	SendText(ctx context.Context, text string) error
 }
 
+type proxyNetworkMonitorAdminService interface {
+	TestProxyForNetworkMonitor(ctx context.Context, id int64, pauseOnFailure bool) (*ProxyTestResult, error)
+	ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error)
+}
+
+type proxyNetworkMonitorFailureState struct {
+	ConsecutiveFailures int
+	LastError           string
+	LastFailureAt       time.Time
+	LastSuccessAt       time.Time
+	NextRetryAt         time.Time
+}
+
 type ProxyNetworkMonitorService struct {
-	adminService AdminService
+	adminService proxyNetworkMonitorAdminService
 	proxyRepo    ProxyRepository
 	notifier     proxyNetworkMonitorNotifier
 
@@ -45,13 +60,17 @@ type ProxyNetworkMonitorService struct {
 	running     atomic.Bool
 	scanRunning atomic.Bool
 	lastSummary atomic.Pointer[ProxyNetworkScanSummary]
+
+	stateMu       sync.Mutex
+	failureStates map[int64]proxyNetworkMonitorFailureState
 }
 
-func NewProxyNetworkMonitorService(adminService AdminService, proxyRepo ProxyRepository, notifier proxyNetworkMonitorNotifier) *ProxyNetworkMonitorService {
+func NewProxyNetworkMonitorService(adminService proxyNetworkMonitorAdminService, proxyRepo ProxyRepository, notifier proxyNetworkMonitorNotifier) *ProxyNetworkMonitorService {
 	return &ProxyNetworkMonitorService{
-		adminService: adminService,
-		proxyRepo:    proxyRepo,
-		notifier:     notifier,
+		adminService:  adminService,
+		proxyRepo:     proxyRepo,
+		notifier:      notifier,
+		failureStates: map[int64]proxyNetworkMonitorFailureState{},
 	}
 }
 
@@ -124,6 +143,10 @@ func (s *ProxyNetworkMonitorService) IntervalSeconds() int {
 }
 
 func (s *ProxyNetworkMonitorService) RunFullScan(ctx context.Context) (*ProxyNetworkScanSummary, error) {
+	return s.runFullScan(ctx, false, time.Now().UTC(), true)
+}
+
+func (s *ProxyNetworkMonitorService) runFullScan(ctx context.Context, startupGrace bool, now time.Time, fullScan bool) (*ProxyNetworkScanSummary, error) {
 	if s == nil || s.adminService == nil || s.proxyRepo == nil {
 		return nil, nil
 	}
@@ -140,7 +163,8 @@ func (s *ProxyNetworkMonitorService) RunFullScan(ctx context.Context) (*ProxyNet
 	if err != nil {
 		return nil, err
 	}
-	summary.Total = len(proxies)
+	eligibleProxies := s.filterProxiesForScan(proxies, now, startupGrace || fullScan)
+	summary.Total = len(eligibleProxies)
 
 	var (
 		mu sync.Mutex
@@ -148,7 +172,7 @@ func (s *ProxyNetworkMonitorService) RunFullScan(ctx context.Context) (*ProxyNet
 	)
 	sem := make(chan struct{}, proxyNetworkMonitorConcurrency)
 
-	for _, proxy := range proxies {
+	for _, proxy := range eligibleProxies {
 		proxyID := proxy.ID
 		wg.Add(1)
 		go func() {
@@ -164,7 +188,8 @@ func (s *ProxyNetworkMonitorService) RunFullScan(ctx context.Context) (*ProxyNet
 			}
 			defer func() { <-sem }()
 
-			result, testErr := s.adminService.TestProxy(ctx, proxyID)
+			pauseOnFailure := !startupGrace && s.shouldPauseOnNextFailure(proxyID)
+			result, testErr := s.adminService.TestProxyForNetworkMonitor(ctx, proxyID, pauseOnFailure)
 
 			mu.Lock()
 			defer mu.Unlock()
@@ -173,10 +198,21 @@ func (s *ProxyNetworkMonitorService) RunFullScan(ctx context.Context) (*ProxyNet
 				return
 			}
 			if result != nil && result.Success {
+				s.clearFailureState(proxyID, now)
 				summary.Online++
 				return
 			}
-			summary.Offline++
+
+			errorMessage := "proxy network probe failed"
+			if result != nil && result.Message != "" {
+				errorMessage = result.Message
+			}
+			state := s.recordFailure(proxyID, errorMessage, now)
+			if pauseOnFailure && state.ConsecutiveFailures >= proxyNetworkMonitorFailureThreshold {
+				summary.Offline++
+				return
+			}
+			summary.Errors++
 		}()
 	}
 
@@ -198,30 +234,117 @@ func (s *ProxyNetworkMonitorService) RunFullScan(ctx context.Context) (*ProxyNet
 }
 
 func (s *ProxyNetworkMonitorService) runLoop(ctx context.Context) {
-	run := func(trigger string) {
+	run := func(trigger string, startupGrace bool, fullScan bool) {
 		if ctx.Err() != nil {
 			return
 		}
 		scanCtx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 		defer cancel()
-		if _, err := s.RunFullScan(scanCtx); err != nil && !errors.Is(err, ErrProxyNetworkScanRunning) {
+		if _, err := s.runFullScan(scanCtx, startupGrace, time.Now().UTC(), fullScan); err != nil && !errors.Is(err, ErrProxyNetworkScanRunning) {
 			slog.Warn("proxy_network_monitor.full_scan_failed", "trigger", trigger, "error", err)
 		}
 	}
 
-	run("startup")
-
-	ticker := time.NewTicker(proxyNetworkMonitorInterval)
-	defer ticker.Stop()
+	run("startup", true, true)
+	nextFullScanAt := time.Now().UTC().Add(proxyNetworkMonitorInterval)
 
 	for {
+		now := time.Now().UTC()
+		delay := s.nextScanDelay(now, nextFullScanAt)
+		timer := time.NewTimer(delay)
 		select {
-		case <-ticker.C:
-			run("interval")
+		case <-timer.C:
+			runAt := time.Now().UTC()
+			fullScan := !runAt.Before(nextFullScanAt)
+			run("interval", false, fullScan)
+			if fullScan {
+				nextFullScanAt = time.Now().UTC().Add(proxyNetworkMonitorInterval)
+			}
 		case <-ctx.Done():
+			timer.Stop()
 			return
 		}
 	}
+}
+
+func (s *ProxyNetworkMonitorService) filterProxiesForScan(proxies []Proxy, now time.Time, force bool) []Proxy {
+	if force {
+		return proxies
+	}
+	out := make([]Proxy, 0, len(proxies))
+	for _, proxy := range proxies {
+		if s.shouldScanProxy(proxy.ID, now) {
+			out = append(out, proxy)
+		}
+	}
+	return out
+}
+
+func (s *ProxyNetworkMonitorService) shouldScanProxy(proxyID int64, now time.Time) bool {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+	state, ok := s.failureStates[proxyID]
+	if !ok || state.ConsecutiveFailures == 0 {
+		return false
+	}
+	return !now.Before(state.NextRetryAt)
+}
+
+func (s *ProxyNetworkMonitorService) shouldPauseOnNextFailure(proxyID int64) bool {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+	state := s.failureStates[proxyID]
+	return state.ConsecutiveFailures+1 >= proxyNetworkMonitorFailureThreshold
+}
+
+func (s *ProxyNetworkMonitorService) recordFailure(proxyID int64, message string, now time.Time) proxyNetworkMonitorFailureState {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+	if s.failureStates == nil {
+		s.failureStates = map[int64]proxyNetworkMonitorFailureState{}
+	}
+	state := s.failureStates[proxyID]
+	state.ConsecutiveFailures++
+	state.LastError = message
+	state.LastFailureAt = now
+	state.NextRetryAt = now.Add(proxyNetworkMonitorFailureRetryDelay)
+	s.failureStates[proxyID] = state
+	return state
+}
+
+func (s *ProxyNetworkMonitorService) clearFailureState(proxyID int64, now time.Time) {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+	if s.failureStates == nil {
+		return
+	}
+	state := s.failureStates[proxyID]
+	state.ConsecutiveFailures = 0
+	state.LastError = ""
+	state.LastSuccessAt = now
+	state.NextRetryAt = time.Time{}
+	s.failureStates[proxyID] = state
+}
+
+func (s *ProxyNetworkMonitorService) nextScanDelay(now time.Time, nextFullScanAt time.Time) time.Duration {
+	next := nextFullScanAt
+	if next.IsZero() {
+		next = now.Add(proxyNetworkMonitorInterval)
+	}
+	s.stateMu.Lock()
+	for _, state := range s.failureStates {
+		if state.ConsecutiveFailures <= 0 || state.NextRetryAt.IsZero() {
+			continue
+		}
+		if state.NextRetryAt.Before(next) {
+			next = state.NextRetryAt
+		}
+	}
+	s.stateMu.Unlock()
+	if !next.After(now) {
+		return 0
+	}
+	return next.Sub(now)
 }
 
 func (s *ProxyNetworkMonitorService) listAllProxies(ctx context.Context) ([]Proxy, error) {

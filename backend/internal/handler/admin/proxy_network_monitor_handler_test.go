@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -60,12 +61,32 @@ func (s *proxyNetworkMonitorFake) LastSummary() *service.ProxyNetworkScanSummary
 	return s.lastSummary
 }
 
+type proxyNetworkMonitorResumerFake struct {
+	*stubAdminService
+	resumeCalls int
+	resumeIDs   []int64
+	err         error
+}
+
+func (s *proxyNetworkMonitorResumerFake) ResumeAllAccountsPausedByProxyNetwork(ctx context.Context) ([]int64, error) {
+	s.resumeCalls++
+	if s.err != nil {
+		return nil, s.err
+	}
+	s.resumeIDs = []int64{101, 102}
+	return s.resumeIDs, nil
+}
+
 func newProxyNetworkMonitorTestRouter(repo *testSettingRepo, monitor *proxyNetworkMonitorFake) *gin.Engine {
+	return newProxyNetworkMonitorTestRouterWithAdmin(repo, monitor, nil)
+}
+
+func newProxyNetworkMonitorTestRouterWithAdmin(repo *testSettingRepo, monitor *proxyNetworkMonitorFake, adminService service.AdminService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
 	settingService := service.NewSettingService(repo, &config.Config{})
-	handler := NewProxyHandler(nil)
+	handler := NewProxyHandler(adminService)
 	handler.SetNetworkMonitorDependencies(settingService, monitor)
 
 	router.GET("/api/v1/admin/proxies/network-monitor", handler.GetNetworkMonitorStatus)
@@ -130,7 +151,8 @@ func TestProxyHandler_UpdateNetworkMonitorStatus_StartsMonitor(t *testing.T) {
 func TestProxyHandler_UpdateNetworkMonitorStatus_StopsMonitor(t *testing.T) {
 	repo := newTestSettingRepo()
 	monitor := &proxyNetworkMonitorFake{running: true, scanRunning: true}
-	router := newProxyNetworkMonitorTestRouter(repo, monitor)
+	resumer := &proxyNetworkMonitorResumerFake{stubAdminService: newStubAdminService()}
+	router := newProxyNetworkMonitorTestRouterWithAdmin(repo, monitor, resumer)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/proxies/network-monitor", bytes.NewBufferString(`{"enabled":false}`))
@@ -143,6 +165,8 @@ func TestProxyHandler_UpdateNetworkMonitorStatus_StopsMonitor(t *testing.T) {
 	require.Equal(t, 1, monitor.stopCalls)
 	require.False(t, monitor.running)
 	require.False(t, monitor.scanRunning)
+	require.Equal(t, 1, resumer.resumeCalls)
+	require.Equal(t, []int64{101, 102}, resumer.resumeIDs)
 }
 
 func TestProxyHandler_GetNetworkMonitorStatus_MissingSettingDefaultsEnabled(t *testing.T) {

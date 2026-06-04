@@ -526,6 +526,14 @@ func (s *stubAdminService) TestProxy(ctx context.Context, id int64) (*service.Pr
 	return &service.ProxyTestResult{Success: true, Message: "ok"}, nil
 }
 
+func (s *stubAdminService) TestProxyForNetworkMonitor(ctx context.Context, id int64, pauseOnFailure bool) (*service.ProxyTestResult, error) {
+	return s.TestProxy(ctx, id)
+}
+
+func (s *stubAdminService) ResumeAllAccountsPausedByProxyNetwork(ctx context.Context) ([]int64, error) {
+	return []int64{}, nil
+}
+
 func (s *stubAdminService) CheckProxyQuality(ctx context.Context, id int64) (*service.ProxyQualityCheckResult, error) {
 	return &service.ProxyQualityCheckResult{
 		ProxyID:        id,

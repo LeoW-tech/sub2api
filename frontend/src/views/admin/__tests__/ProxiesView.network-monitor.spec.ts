@@ -114,7 +114,7 @@ describe('admin ProxiesView network monitor', () => {
     expect(getNetworkMonitorStatus).toHaveBeenCalledTimes(1)
   })
 
-  it('updates network monitor and shows success when toggled', async () => {
+  it('updates network monitor and shows success when toggled on', async () => {
     getNetworkMonitorStatus.mockResolvedValue(networkMonitorStatus())
     updateNetworkMonitor.mockResolvedValue(networkMonitorStatus({ enabled: true, running: true }))
     const wrapper = mountView()
@@ -126,6 +126,20 @@ describe('admin ProxiesView network monitor', () => {
     expect(updateNetworkMonitor).toHaveBeenCalledWith(true)
     expect(wrapper.text()).toContain('admin.proxies.networkMonitorRunning')
     expect(showSuccess).toHaveBeenCalledWith('admin.proxies.networkMonitorEnabled')
+  })
+
+  it('disables network monitor and shows restore success when toggled off', async () => {
+    getNetworkMonitorStatus.mockResolvedValue(networkMonitorStatus({ enabled: true, running: true }))
+    updateNetworkMonitor.mockResolvedValue(networkMonitorStatus({ enabled: false, running: false }))
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('button[role="switch"]').trigger('click')
+    await flushPromises()
+
+    expect(updateNetworkMonitor).toHaveBeenCalledWith(false)
+    expect(wrapper.text()).toContain('admin.proxies.networkMonitorDisabled')
+    expect(showSuccess).toHaveBeenCalledWith('admin.proxies.networkMonitorDisabledSuccess')
   })
 
   it('rolls back network monitor state and shows error when update fails', async () => {

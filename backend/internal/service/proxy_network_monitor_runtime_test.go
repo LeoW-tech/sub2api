@@ -183,7 +183,7 @@ type proxyNetworkMonitorRuntimeAdminService struct {
 	AdminService
 }
 
-func (s *proxyNetworkMonitorRuntimeAdminService) TestProxy(ctx context.Context, proxyID int64) (*ProxyTestResult, error) {
+func (s *proxyNetworkMonitorRuntimeAdminService) TestProxyForNetworkMonitor(ctx context.Context, proxyID int64, pauseOnFailure bool) (*ProxyTestResult, error) {
 	return &ProxyTestResult{Success: true}, nil
 }
 
@@ -207,7 +207,7 @@ func newBlockingProxyNetworkMonitorAdminService() *blockingProxyNetworkMonitorAd
 	}
 }
 
-func (s *blockingProxyNetworkMonitorAdminService) TestProxy(ctx context.Context, proxyID int64) (*ProxyTestResult, error) {
+func (s *blockingProxyNetworkMonitorAdminService) TestProxyForNetworkMonitor(ctx context.Context, proxyID int64, pauseOnFailure bool) (*ProxyTestResult, error) {
 	s.calls.Add(1)
 	s.once.Do(func() { close(s.started) })
 	select {

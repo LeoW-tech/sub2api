@@ -142,6 +142,9 @@ func (r *crsSyncTestAccountRepo) PauseAccountsByProxyNetwork(context.Context, in
 func (r *crsSyncTestAccountRepo) ResumeAccountsByProxyNetwork(context.Context, int64) ([]int64, error) {
 	panic("unexpected")
 }
+func (r *crsSyncTestAccountRepo) ResumeAllAccountsPausedByProxyNetwork(context.Context) ([]int64, error) {
+	panic("unexpected")
+}
 func (r *crsSyncTestAccountRepo) PauseAccountByNetwork(context.Context, int64) (bool, error) {
 	panic("unexpected")
 }

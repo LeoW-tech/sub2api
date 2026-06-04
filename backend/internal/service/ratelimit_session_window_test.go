@@ -60,6 +60,9 @@ func (m *sessionWindowMockRepo) PauseAccountsByProxyNetwork(context.Context, int
 func (m *sessionWindowMockRepo) ResumeAccountsByProxyNetwork(context.Context, int64) ([]int64, error) {
 	panic("unexpected")
 }
+func (m *sessionWindowMockRepo) ResumeAllAccountsPausedByProxyNetwork(context.Context) ([]int64, error) {
+	panic("unexpected")
+}
 func (m *sessionWindowMockRepo) PauseAccountByNetwork(context.Context, int64) (bool, error) {
 	panic("unexpected")
 }

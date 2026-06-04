@@ -67,6 +67,7 @@ type AccountRepository interface {
 	ClearTempUnschedulable(ctx context.Context, id int64) error
 	PauseAccountsByProxyNetwork(ctx context.Context, proxyID int64) ([]int64, error)
 	ResumeAccountsByProxyNetwork(ctx context.Context, proxyID int64) ([]int64, error)
+	ResumeAllAccountsPausedByProxyNetwork(ctx context.Context) ([]int64, error)
 	PauseAccountByNetwork(ctx context.Context, accountID int64) (bool, error)
 	RestoreAccountFromNetworkPause(ctx context.Context, accountID int64) (bool, error)
 	ClearNetworkAutoPause(ctx context.Context, accountID int64) error

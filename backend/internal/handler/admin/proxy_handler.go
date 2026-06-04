@@ -29,6 +29,10 @@ type proxyNetworkMonitorController interface {
 	LastSummary() *service.ProxyNetworkScanSummary
 }
 
+type proxyNetworkAutoPauseResumer interface {
+	ResumeAllAccountsPausedByProxyNetwork(ctx context.Context) ([]int64, error)
+}
+
 // NewProxyHandler creates a new admin proxy handler
 func NewProxyHandler(adminService service.AdminService) *ProxyHandler {
 	return &ProxyHandler{
@@ -96,6 +100,12 @@ func (h *ProxyHandler) UpdateNetworkMonitorStatus(c *gin.Context) {
 		h.proxyNetworkMonitor.Start()
 	} else {
 		h.proxyNetworkMonitor.Stop()
+		if resumer, ok := h.adminService.(proxyNetworkAutoPauseResumer); ok {
+			if _, err := resumer.ResumeAllAccountsPausedByProxyNetwork(c.Request.Context()); err != nil {
+				response.ErrorFrom(c, err)
+				return
+			}
+		}
 	}
 
 	status, ok := h.networkMonitorStatus(c.Request.Context())

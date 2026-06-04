@@ -159,6 +159,9 @@ func (m *mockAccountRepoForPlatform) PauseAccountsByProxyNetwork(ctx context.Con
 func (m *mockAccountRepoForPlatform) ResumeAccountsByProxyNetwork(ctx context.Context, proxyID int64) ([]int64, error) {
 	return nil, nil
 }
+func (m *mockAccountRepoForPlatform) ResumeAllAccountsPausedByProxyNetwork(ctx context.Context) ([]int64, error) {
+	return nil, nil
+}
 func (m *mockAccountRepoForPlatform) PauseAccountByNetwork(ctx context.Context, accountID int64) (bool, error) {
 	return false, nil
 }

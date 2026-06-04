@@ -769,11 +769,21 @@ export interface ProxyIPOption {
   proxy_names: string[]
 }
 
+export interface ProxyNetworkMonitorSummary {
+  started_at: string
+  finished_at: string
+  total: number
+  online: number
+  offline: number
+  errors: number
+}
+
 export interface ProxyNetworkMonitorStatus {
   enabled: boolean
   running?: boolean
   scan_running?: boolean
   interval_seconds?: number
+  last_summary?: ProxyNetworkMonitorSummary | null
 }
 
 export interface UpdateProxyNetworkMonitorRequest {

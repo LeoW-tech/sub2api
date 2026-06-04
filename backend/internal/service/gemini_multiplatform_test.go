@@ -150,6 +150,9 @@ func (m *mockAccountRepoForGemini) PauseAccountsByProxyNetwork(ctx context.Conte
 func (m *mockAccountRepoForGemini) ResumeAccountsByProxyNetwork(ctx context.Context, proxyID int64) ([]int64, error) {
 	return nil, nil
 }
+func (m *mockAccountRepoForGemini) ResumeAllAccountsPausedByProxyNetwork(ctx context.Context) ([]int64, error) {
+	return nil, nil
+}
 func (m *mockAccountRepoForGemini) PauseAccountByNetwork(ctx context.Context, accountID int64) (bool, error) {
 	return false, nil
 }

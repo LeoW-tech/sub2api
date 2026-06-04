@@ -1309,6 +1309,35 @@ func (r *accountRepository) ResumeAccountsByProxyNetwork(ctx context.Context, pr
 	return ids, nil
 }
 
+func (r *accountRepository) ResumeAllAccountsPausedByProxyNetwork(ctx context.Context) ([]int64, error) {
+	ids, err := collectInt64Rows(ctx, r.sql, `
+		SELECT id
+		FROM accounts
+		WHERE deleted_at IS NULL
+			AND network_auto_paused = TRUE
+	`)
+	if err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		return []int64{}, nil
+	}
+
+	if _, err := r.sql.ExecContext(ctx, `
+		UPDATE accounts
+		SET schedulable = TRUE,
+			network_auto_paused = FALSE,
+			updated_at = NOW()
+		WHERE id = ANY($1)
+	`, pq.Array(ids)); err != nil {
+		return nil, err
+	}
+
+	r.enqueueNetworkBulkChanged(ctx, ids)
+	r.syncSchedulerAccountSnapshots(ctx, ids)
+	return ids, nil
+}
+
 func (r *accountRepository) PauseAccountByNetwork(ctx context.Context, accountID int64) (bool, error) {
 	result, err := r.sql.ExecContext(ctx, `
 		UPDATE accounts

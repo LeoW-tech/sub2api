@@ -145,10 +145,16 @@ func (s *proxyNetworkMonitorNotifierStub) lastMessage() string {
 
 type proxyNetworkMonitorAdminServiceStub struct {
 	AdminService
+	testProxyFn    func(ctx context.Context, proxyID int64, pauseOnFailure bool) (*ProxyTestResult, error)
+	pauseFlags     []bool
 	listAccountsFn func(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, networkStatus, exitIP, rtStatus, capacityStatus string, sortBy, sortOrder string) ([]Account, int64, error)
 }
 
-func (s *proxyNetworkMonitorAdminServiceStub) TestProxy(ctx context.Context, proxyID int64) (*ProxyTestResult, error) {
+func (s *proxyNetworkMonitorAdminServiceStub) TestProxyForNetworkMonitor(ctx context.Context, proxyID int64, pauseOnFailure bool) (*ProxyTestResult, error) {
+	s.pauseFlags = append(s.pauseFlags, pauseOnFailure)
+	if s.testProxyFn != nil {
+		return s.testProxyFn(ctx, proxyID, pauseOnFailure)
+	}
 	return &ProxyTestResult{Success: true}, nil
 }
 
@@ -181,8 +187,10 @@ func TestProxyNetworkMonitorService_RunFullScan(t *testing.T) {
 		proxyProber: &proxyNetworkMonitorProberStub{},
 	}
 	svc := NewProxyNetworkMonitorService(adminSvc, proxyRepo, nil)
+	base := time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)
+	svc.failureStates[2] = proxyNetworkMonitorFailureState{ConsecutiveFailures: 2, NextRetryAt: base}
 
-	summary, err := svc.RunFullScan(context.Background())
+	summary, err := svc.runFullScan(context.Background(), false, base, true)
 	require.NoError(t, err)
 	require.NotNil(t, summary)
 	require.Equal(t, 3, summary.Total)
@@ -198,6 +206,124 @@ func TestProxyNetworkMonitorService_RunFullScan(t *testing.T) {
 	require.Equal(t, summary.Total, lastSummary.Total)
 	require.False(t, summary.StartedAt.IsZero())
 	require.False(t, summary.FinishedAt.IsZero())
+}
+
+func TestProxyNetworkMonitorService_DebouncesFailuresBeforePausing(t *testing.T) {
+	proxyRepo := &proxyNetworkMonitorProxyRepoStub{
+		proxies: map[int64]*Proxy{
+			1: {ID: 1, Name: "proxy-1", Protocol: "http", Host: "127.0.0.1", Port: 8081},
+		},
+	}
+	adminSvc := &proxyNetworkMonitorAdminServiceStub{
+		testProxyFn: func(ctx context.Context, proxyID int64, pauseOnFailure bool) (*ProxyTestResult, error) {
+			return &ProxyTestResult{Success: false, Message: "timeout"}, nil
+		},
+	}
+	svc := NewProxyNetworkMonitorService(adminSvc, proxyRepo, nil)
+	base := time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)
+
+	summary, err := svc.runFullScan(context.Background(), false, base, true)
+	require.NoError(t, err)
+	require.Equal(t, 0, summary.Offline)
+	require.Equal(t, 1, summary.Errors)
+	require.Equal(t, []bool{false}, adminSvc.pauseFlags)
+
+	summary, err = svc.runFullScan(context.Background(), false, base.Add(proxyNetworkMonitorFailureRetryDelay), false)
+	require.NoError(t, err)
+	require.Equal(t, 0, summary.Offline)
+	require.Equal(t, 1, summary.Errors)
+	require.Equal(t, []bool{false, false}, adminSvc.pauseFlags)
+
+	summary, err = svc.runFullScan(context.Background(), false, base.Add(2*proxyNetworkMonitorFailureRetryDelay), false)
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Offline)
+	require.Equal(t, 0, summary.Errors)
+	require.Equal(t, []bool{false, false, true}, adminSvc.pauseFlags)
+}
+
+func TestProxyNetworkMonitorService_SuccessClearsFailureDebounce(t *testing.T) {
+	proxyRepo := &proxyNetworkMonitorProxyRepoStub{
+		proxies: map[int64]*Proxy{
+			1: {ID: 1, Name: "proxy-1", Protocol: "http", Host: "127.0.0.1", Port: 8081},
+		},
+	}
+	call := 0
+	adminSvc := &proxyNetworkMonitorAdminServiceStub{
+		testProxyFn: func(ctx context.Context, proxyID int64, pauseOnFailure bool) (*ProxyTestResult, error) {
+			call++
+			if call <= 2 {
+				return &ProxyTestResult{Success: false, Message: "timeout"}, nil
+			}
+			return &ProxyTestResult{Success: true}, nil
+		},
+	}
+	svc := NewProxyNetworkMonitorService(adminSvc, proxyRepo, nil)
+	base := time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)
+
+	_, err := svc.runFullScan(context.Background(), false, base, true)
+	require.NoError(t, err)
+	_, err = svc.runFullScan(context.Background(), false, base.Add(proxyNetworkMonitorFailureRetryDelay), false)
+	require.NoError(t, err)
+	summary, err := svc.runFullScan(context.Background(), false, base.Add(2*proxyNetworkMonitorFailureRetryDelay), false)
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Online)
+	require.Equal(t, []bool{false, false, true}, adminSvc.pauseFlags)
+
+	state := svc.failureStates[1]
+	require.Equal(t, 0, state.ConsecutiveFailures)
+}
+
+func TestProxyNetworkMonitorService_StartupScanNeverPauses(t *testing.T) {
+	proxyRepo := &proxyNetworkMonitorProxyRepoStub{
+		proxies: map[int64]*Proxy{
+			1: {ID: 1, Name: "proxy-1", Protocol: "http", Host: "127.0.0.1", Port: 8081},
+		},
+	}
+	adminSvc := &proxyNetworkMonitorAdminServiceStub{
+		testProxyFn: func(ctx context.Context, proxyID int64, pauseOnFailure bool) (*ProxyTestResult, error) {
+			return &ProxyTestResult{Success: false, Message: "startup timeout"}, nil
+		},
+	}
+	svc := NewProxyNetworkMonitorService(adminSvc, proxyRepo, nil)
+
+	summary, err := svc.runFullScan(context.Background(), true, time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC), true)
+	require.NoError(t, err)
+	require.Equal(t, 0, summary.Offline)
+	require.Equal(t, 1, summary.Errors)
+	require.Equal(t, []bool{false}, adminSvc.pauseFlags)
+}
+
+func TestProxyNetworkMonitorService_FailedProxyRetryDelayIsTwoMinutes(t *testing.T) {
+	svc := NewProxyNetworkMonitorService(&proxyNetworkMonitorAdminServiceStub{}, &proxyNetworkMonitorProxyRepoStub{}, nil)
+	base := time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)
+	svc.recordFailure(1, "timeout", base)
+
+	require.Equal(t, proxyNetworkMonitorFailureRetryDelay, svc.nextScanDelay(base, base.Add(proxyNetworkMonitorInterval)))
+	require.Equal(t, 2*time.Minute, proxyNetworkMonitorFailureRetryDelay)
+}
+
+func TestProxyNetworkMonitorService_RetryScanOnlyIncludesFailedDueProxies(t *testing.T) {
+	proxyRepo := &proxyNetworkMonitorProxyRepoStub{
+		proxies: map[int64]*Proxy{
+			1: {ID: 1, Name: "proxy-1", Protocol: "http", Host: "127.0.0.1", Port: 8081},
+			2: {ID: 2, Name: "proxy-2", Protocol: "http", Host: "127.0.0.2", Port: 8082},
+		},
+	}
+	seen := []int64{}
+	adminSvc := &proxyNetworkMonitorAdminServiceStub{
+		testProxyFn: func(ctx context.Context, proxyID int64, pauseOnFailure bool) (*ProxyTestResult, error) {
+			seen = append(seen, proxyID)
+			return &ProxyTestResult{Success: true}, nil
+		},
+	}
+	svc := NewProxyNetworkMonitorService(adminSvc, proxyRepo, nil)
+	base := time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)
+	svc.failureStates[2] = proxyNetworkMonitorFailureState{ConsecutiveFailures: 1, NextRetryAt: base}
+
+	summary, err := svc.runFullScan(context.Background(), false, base, false)
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Total)
+	require.Equal(t, []int64{2}, seen)
 }
 
 func TestProxyNetworkMonitorService_RunFullScan_PreventsOverlap(t *testing.T) {

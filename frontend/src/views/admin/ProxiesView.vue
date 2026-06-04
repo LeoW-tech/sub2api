@@ -36,6 +36,49 @@
             />
           </div>
 
+          <div class="flex min-w-[260px] flex-col gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs dark:border-dark-600 dark:bg-dark-800">
+            <div class="flex items-center justify-between gap-3">
+              <div class="min-w-0">
+                <div class="font-medium text-gray-900 dark:text-white">
+                  {{ t('admin.proxies.networkMonitorTitle') }}
+                </div>
+                <div class="text-gray-500 dark:text-gray-400">
+                  {{ networkMonitorStatusLabel }}
+                  <span v-if="networkMonitorStatus?.scan_running"> · {{ t('admin.proxies.networkMonitorScanning') }}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                :aria-checked="networkMonitorStatus?.enabled ? 'true' : 'false'"
+                :disabled="networkMonitorUpdating || networkMonitorLoading"
+                :class="[
+                  'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+                  networkMonitorStatus?.enabled ? 'bg-primary-600' : 'bg-gray-300 dark:bg-dark-500'
+                ]"
+                @click="toggleNetworkMonitor"
+              >
+                <span
+                  :class="[
+                    'inline-block h-5 w-5 rounded-full bg-white shadow transition-transform',
+                    networkMonitorStatus?.enabled ? 'translate-x-6' : 'translate-x-1'
+                  ]"
+                />
+              </button>
+            </div>
+            <div class="flex flex-wrap gap-x-3 gap-y-1 text-gray-500 dark:text-gray-400">
+              <span v-if="networkMonitorStatus?.interval_seconds">{{ t('admin.proxies.networkMonitorInterval', { seconds: networkMonitorStatus.interval_seconds }) }}</span>
+              <span v-if="networkMonitorStatus?.last_summary">
+                {{ t('admin.proxies.networkMonitorSummary', {
+                  total: networkMonitorStatus.last_summary.total,
+                  online: networkMonitorStatus.last_summary.online,
+                  offline: networkMonitorStatus.last_summary.offline,
+                  errors: networkMonitorStatus.last_summary.errors
+                }) }}
+              </span>
+            </div>
+          </div>
+
           <!-- Right: All action buttons -->
           <div class="flex flex-1 flex-wrap items-center justify-end gap-2">
             <button
@@ -881,7 +924,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
-import type { Proxy, ProxyAccountSummary, ProxyProtocol, ProxyQualityCheckResult } from '@/types'
+import type { Proxy, ProxyAccountSummary, ProxyNetworkMonitorStatus, ProxyProtocol, ProxyQualityCheckResult } from '@/types'
 import type { Column } from '@/components/common/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -946,6 +989,15 @@ const editStatusOptions = computed(() => [
 ])
 
 const proxies = ref<Proxy[]>([])
+const networkMonitorStatus = ref<ProxyNetworkMonitorStatus | null>(null)
+const networkMonitorLoading = ref(false)
+const networkMonitorUpdating = ref(false)
+const networkMonitorStatusLabel = computed(() => {
+  if (!networkMonitorStatus.value) return t('admin.proxies.networkMonitorUnknown')
+  if (!networkMonitorStatus.value.enabled) return t('admin.proxies.networkMonitorDisabled')
+  if (networkMonitorStatus.value.running) return t('admin.proxies.networkMonitorRunning')
+  return t('admin.proxies.networkMonitorStopped')
+})
 const visiblePasswordIds = reactive(new Set<number>())
 const copyMenuProxyId = ref<number | null>(null)
 const loading = ref(false)
@@ -1077,6 +1129,35 @@ const buildProxyQueryFilters = () => ({
   sort_by: sortState.sort_by,
   sort_order: sortState.sort_order
 })
+
+const loadNetworkMonitorStatus = async () => {
+  networkMonitorLoading.value = true
+  try {
+    networkMonitorStatus.value = await adminAPI.proxies.getNetworkMonitorStatus()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || error.message || t('admin.proxies.networkMonitorLoadFailed'))
+  } finally {
+    networkMonitorLoading.value = false
+  }
+}
+
+const toggleNetworkMonitor = async () => {
+  if (networkMonitorUpdating.value) return
+  const nextEnabled = !networkMonitorStatus.value?.enabled
+  networkMonitorUpdating.value = true
+  try {
+    networkMonitorStatus.value = await adminAPI.proxies.updateNetworkMonitor(nextEnabled)
+    appStore.showSuccess(
+      nextEnabled
+        ? t('admin.proxies.networkMonitorEnabled')
+        : t('admin.proxies.networkMonitorDisabledSuccess')
+    )
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || error.message || t('admin.proxies.networkMonitorUpdateFailed'))
+  } finally {
+    networkMonitorUpdating.value = false
+  }
+}
 
 const loadProxies = async () => {
   if (abortController) {
@@ -1877,6 +1958,7 @@ function closeCopyMenu() {
 
 onMounted(() => {
   loadProxies()
+  loadNetworkMonitorStatus()
   document.addEventListener('click', closeCopyMenu)
 })
 

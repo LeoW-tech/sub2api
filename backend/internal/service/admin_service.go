@@ -111,6 +111,8 @@ type AdminService interface {
 	GetProxyAccounts(ctx context.Context, proxyID int64) ([]ProxyAccountSummary, error)
 	CheckProxyExists(ctx context.Context, host string, port int, username, password string) (bool, error)
 	TestProxy(ctx context.Context, id int64) (*ProxyTestResult, error)
+	TestProxyForNetworkMonitor(ctx context.Context, id int64, pauseOnFailure bool) (*ProxyTestResult, error)
+	ResumeAllAccountsPausedByProxyNetwork(ctx context.Context) ([]int64, error)
 	CheckProxyQuality(ctx context.Context, id int64) (*ProxyQualityCheckResult, error)
 
 	// Redeem code management
@@ -3261,6 +3263,14 @@ func (s *adminServiceImpl) ExpireRedeemCode(ctx context.Context, id int64) (*Red
 }
 
 func (s *adminServiceImpl) TestProxy(ctx context.Context, id int64) (*ProxyTestResult, error) {
+	return s.testProxy(ctx, id, false)
+}
+
+func (s *adminServiceImpl) TestProxyForNetworkMonitor(ctx context.Context, id int64, pauseOnFailure bool) (*ProxyTestResult, error) {
+	return s.testProxy(ctx, id, pauseOnFailure)
+}
+
+func (s *adminServiceImpl) testProxy(ctx context.Context, id int64, pauseOnFailure bool) (*ProxyTestResult, error) {
 	proxy, err := s.proxyRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -3274,8 +3284,10 @@ func (s *adminServiceImpl) TestProxy(ctx context.Context, id int64) (*ProxyTestR
 			Message:   err.Error(),
 			UpdatedAt: time.Now(),
 		})
-		if updateErr := s.applyProxyNetworkResult(ctx, proxy, nil, err); updateErr != nil {
-			return nil, updateErr
+		if pauseOnFailure {
+			if updateErr := s.applyProxyNetworkResult(ctx, proxy, nil, err, true); updateErr != nil {
+				return nil, updateErr
+			}
 		}
 		return &ProxyTestResult{
 			Success: false,
@@ -3295,7 +3307,7 @@ func (s *adminServiceImpl) TestProxy(ctx context.Context, id int64) (*ProxyTestR
 		City:        exitInfo.City,
 		UpdatedAt:   time.Now(),
 	})
-	if err := s.applyProxyNetworkResult(ctx, proxy, exitInfo, nil); err != nil {
+	if err := s.applyProxyNetworkResult(ctx, proxy, exitInfo, nil, true); err != nil {
 		return nil, err
 	}
 	return &ProxyTestResult{
@@ -3310,7 +3322,7 @@ func (s *adminServiceImpl) TestProxy(ctx context.Context, id int64) (*ProxyTestR
 	}, nil
 }
 
-func (s *adminServiceImpl) applyProxyNetworkResult(ctx context.Context, proxy *Proxy, exitInfo *ProxyExitInfo, probeErr error) error {
+func (s *adminServiceImpl) applyProxyNetworkResult(ctx context.Context, proxy *Proxy, exitInfo *ProxyExitInfo, probeErr error, pauseOnFailure bool) error {
 	if proxy == nil {
 		return nil
 	}
@@ -3322,6 +3334,9 @@ func (s *adminServiceImpl) applyProxyNetworkResult(ctx context.Context, proxy *P
 		proxy.NetworkErrorMessage = probeErr.Error()
 		if err := s.proxyRepo.Update(ctx, proxy); err != nil {
 			return err
+		}
+		if !pauseOnFailure {
+			return nil
 		}
 		_, err := s.accountRepo.PauseAccountsByProxyNetwork(ctx, proxy.ID)
 		return err
@@ -3375,6 +3390,13 @@ func (s *adminServiceImpl) reconcileAccountWithoutProxy(ctx context.Context, acc
 		return err
 	}
 	return s.accountRepo.ClearNetworkAutoPause(ctx, account.ID)
+}
+
+func (s *adminServiceImpl) ResumeAllAccountsPausedByProxyNetwork(ctx context.Context) ([]int64, error) {
+	if s == nil || s.accountRepo == nil {
+		return nil, nil
+	}
+	return s.accountRepo.ResumeAllAccountsPausedByProxyNetwork(ctx)
 }
 
 func (s *adminServiceImpl) CheckProxyQuality(ctx context.Context, id int64) (*ProxyQualityCheckResult, error) {
