@@ -28,88 +28,274 @@
           {{ platformDescription }}
         </p>
 
-        <!-- Client Tabs -->
-        <div v-if="clientTabs.length" class="border-b border-gray-200 dark:border-dark-700">
-          <nav class="-mb-px flex space-x-6" aria-label="Client">
-            <button
-              v-for="tab in clientTabs"
-              :key="tab.id"
-              @click="activeClientTab = tab.id"
-              :class="[
-                'whitespace-nowrap py-2.5 px-1 border-b-2 font-medium text-sm transition-colors',
-                activeClientTab === tab.id
-                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              ]"
-            >
-              <span class="flex items-center gap-2">
-                <component :is="tab.icon" class="w-4 h-4" />
-                {{ tab.label }}
+        <template v-if="isOpenAICodex">
+          <!-- Beginner one-command setup -->
+          <section class="rounded-xl border border-primary-200 dark:border-primary-800 bg-primary-50/60 dark:bg-primary-900/10 p-4 space-y-4">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">
+                  {{ t('keys.useKeyModal.openai.beginner.title') }}
+                </h3>
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                  {{ t('keys.useKeyModal.openai.beginner.description') }}
+                </p>
+              </div>
+              <span class="inline-flex w-fit items-center rounded-full bg-primary-100 px-3 py-1 text-xs font-medium text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
+                {{ detectedSystemLabel }}
               </span>
-            </button>
-          </nav>
-        </div>
+            </div>
 
-        <!-- OS/Shell Tabs -->
-        <div v-if="showShellTabs" class="border-b border-gray-200 dark:border-dark-700">
-          <nav class="-mb-px flex space-x-4" aria-label="Tabs">
-            <button
-              v-for="tab in currentTabs"
-              :key="tab.id"
-              @click="activeTab = tab.id"
-              :class="[
-                'whitespace-nowrap py-2.5 px-1 border-b-2 font-medium text-sm transition-colors',
-                activeTab === tab.id
-                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              ]"
-            >
-              <span class="flex items-center gap-2">
-                <component :is="tab.icon" class="w-4 h-4" />
-                {{ tab.label }}
-              </span>
-            </button>
-          </nav>
-        </div>
+            <div v-if="!isSupportedOneClickSystem" class="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200">
+              {{ t('keys.useKeyModal.openai.unsupportedSystem') }}
+            </div>
 
-        <!-- Code Blocks (Stacked for multi-file platforms) -->
-        <div class="space-y-4">
-          <div
-            v-for="(file, index) in currentFiles"
-            :key="index"
-            class="relative"
-          >
-            <!-- File Hint (if exists) -->
-            <p v-if="file.hint" class="text-xs text-amber-600 dark:text-amber-400 mb-1.5 flex items-center gap-1">
-              <Icon name="exclamationCircle" size="sm" class="flex-shrink-0" />
-              {{ file.hint }}
-            </p>
-            <div class="bg-gray-900 dark:bg-dark-900 rounded-xl overflow-hidden">
-              <!-- Code Header -->
-              <div class="flex items-center justify-between px-4 py-2 bg-gray-800 dark:bg-dark-800 border-b border-gray-700 dark:border-dark-700">
-                <span class="text-xs text-gray-400 font-mono">{{ file.path }}</span>
+            <div class="grid gap-3 md:grid-cols-2">
+              <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-dark-700 dark:bg-dark-800">
+                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  1. {{ t('keys.useKeyModal.openai.installCodexTitle') }}
+                </p>
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                  {{ t('keys.useKeyModal.openai.installCodexDescription') }}
+                </p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <a
+                    href="https://chatgpt.com/codex/for-work/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400"
+                  >
+                    {{ t('keys.useKeyModal.openai.downloadCodex') }}
+                  </a>
+                  <button
+                    type="button"
+                    data-testid="copy-snippet-button"
+                    class="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-dark-700 dark:text-gray-200 dark:hover:bg-dark-600"
+                    @click="copySnippet('https://chatgpt.com/codex/for-work/')"
+                  >
+                    {{ t('keys.useKeyModal.openai.copyDownloadLink') }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-dark-700 dark:bg-dark-800">
+                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  2. {{ t('keys.useKeyModal.openai.quitCodexTitle') }}
+                </p>
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                  {{ t('keys.useKeyModal.openai.quitCodexDescription') }}
+                </p>
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-dark-700 dark:bg-dark-800">
+              <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    3. {{ terminalStepTitle }}
+                  </p>
+                  <ol class="mt-2 list-decimal space-y-1 pl-5 text-sm text-gray-600 dark:text-gray-400">
+                    <li v-for="step in terminalSteps" :key="step">{{ step }}</li>
+                  </ol>
+                </div>
+                <div class="w-full max-w-xs rounded-lg bg-gray-950 p-3 font-mono text-xs text-green-300 shadow-inner" :class="detectedSystem === 'windows' ? 'bg-blue-950 text-blue-100' : ''">
+                  <div class="mb-2 flex items-center gap-1.5">
+                    <span class="h-2.5 w-2.5 rounded-full bg-red-400"></span>
+                    <span class="h-2.5 w-2.5 rounded-full bg-yellow-400"></span>
+                    <span class="h-2.5 w-2.5 rounded-full bg-green-400"></span>
+                    <span class="ml-2 text-[11px] text-gray-300">{{ terminalWindowTitle }}</span>
+                  </div>
+                  <div>{{ terminalPromptPreview }}</div>
+                </div>
+              </div>
+              <div class="mt-3 flex flex-wrap gap-2">
                 <button
-                  @click="copyContent(file.content, index)"
-                  class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors"
-                  :class="copiedIndex === index
-                    ? 'bg-green-500/20 text-green-400'
-                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white'"
+                  v-for="item in terminalCopyItems"
+                  :key="item"
+                  type="button"
+                  data-testid="copy-snippet-button"
+                  class="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-dark-700 dark:text-gray-200 dark:hover:bg-dark-600"
+                  @click="copySnippet(item)"
                 >
-                  <svg v-if="copiedIndex === index" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                  <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
-                  </svg>
-                  {{ copiedIndex === index ? t('keys.useKeyModal.copied') : t('keys.useKeyModal.copy') }}
+                  {{ t('keys.useKeyModal.openai.copyInput') }}：{{ item }}
                 </button>
               </div>
-              <!-- Code Content -->
-              <pre class="p-4 text-sm font-mono text-gray-100 overflow-x-auto"><code v-if="file.highlighted" v-html="file.highlighted"></code><code v-else v-text="file.content"></code></pre>
+            </div>
+
+            <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-dark-700 dark:bg-dark-800">
+              <div class="mb-2 flex items-center justify-between gap-3">
+                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  4. {{ t('keys.useKeyModal.openai.copyCommandTitle') }}
+                </p>
+                <button
+                  type="button"
+                  class="btn btn-primary btn-sm"
+                  @click="copySnippet(oneClickCommand)"
+                >
+                  {{ t('keys.useKeyModal.openai.copyCommand') }}
+                </button>
+              </div>
+              <pre class="max-h-72 overflow-auto rounded-lg bg-gray-950 p-4 text-xs text-gray-100"><code data-testid="codex-one-click-command" v-text="oneClickCommand"></code></pre>
+            </div>
+          </section>
+
+          <!-- Professional manual setup -->
+          <section class="rounded-xl border border-gray-200 dark:border-dark-700 p-4 space-y-4">
+            <div>
+              <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">
+                {{ t('keys.useKeyModal.openai.professional.title') }}
+              </h3>
+              <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                {{ t('keys.useKeyModal.openai.professional.description') }}
+              </p>
+            </div>
+
+            <div class="grid gap-3 md:grid-cols-2">
+              <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-800">
+                <p class="text-sm font-medium text-gray-900 dark:text-gray-100">macOS</p>
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                  {{ t('keys.useKeyModal.openai.professional.macOpenDir') }}
+                </p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <button type="button" data-testid="copy-snippet-button" class="rounded-lg bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:bg-dark-700 dark:text-gray-200" @click="copySnippet('Command + Shift + G')">Command + Shift + G</button>
+                  <button type="button" data-testid="copy-snippet-button" class="rounded-lg bg-white px-2.5 py-1 text-xs font-mono font-medium text-gray-700 hover:bg-gray-100 dark:bg-dark-700 dark:text-gray-200" @click="copySnippet('~/.codex')">~/.codex</button>
+                </div>
+              </div>
+              <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-800">
+                <p class="text-sm font-medium text-gray-900 dark:text-gray-100">Windows</p>
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                  {{ t('keys.useKeyModal.openai.professional.windowsOpenDir') }}
+                </p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <button type="button" data-testid="copy-snippet-button" class="rounded-lg bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:bg-dark-700 dark:text-gray-200" @click="copySnippet('Win + R')">Win + R</button>
+                  <button type="button" data-testid="copy-snippet-button" class="rounded-lg bg-white px-2.5 py-1 text-xs font-mono font-medium text-gray-700 hover:bg-gray-100 dark:bg-dark-700 dark:text-gray-200" @click="copySnippet('%USERPROFILE%\\.codex')">%USERPROFILE%\.codex</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-4">
+              <div
+                v-for="(file, index) in codexManualFiles"
+                :key="index"
+                class="relative"
+              >
+                <p v-if="file.hint" class="text-xs text-amber-600 dark:text-amber-400 mb-1.5 flex items-center gap-1">
+                  <Icon name="exclamationCircle" size="sm" class="flex-shrink-0" />
+                  {{ file.hint }}
+                </p>
+                <div class="bg-gray-900 dark:bg-dark-900 rounded-xl overflow-hidden">
+                  <div class="flex items-center justify-between px-4 py-2 bg-gray-800 dark:bg-dark-800 border-b border-gray-700 dark:border-dark-700">
+                    <span class="text-xs text-gray-400 font-mono">{{ file.path }}</span>
+                    <div class="flex gap-2">
+                      <button
+                        type="button"
+                        data-testid="download-config-button"
+                        @click="downloadConfigFile(file)"
+                        class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
+                      >
+                        {{ t('keys.useKeyModal.download') }}
+                      </button>
+                      <button
+                        type="button"
+                        @click="copyContent(file.content, index)"
+                        class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors"
+                        :class="copiedIndex === index
+                          ? 'bg-green-500/20 text-green-400'
+                          : 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white'"
+                      >
+                        {{ copiedIndex === index ? t('keys.useKeyModal.copied') : t('keys.useKeyModal.copy') }}
+                      </button>
+                    </div>
+                  </div>
+                  <pre class="p-4 text-sm font-mono text-gray-100 overflow-x-auto"><code v-if="file.highlighted" v-html="file.highlighted"></code><code v-else v-text="file.content"></code></pre>
+                </div>
+              </div>
+            </div>
+          </section>
+        </template>
+
+        <template v-else>
+          <!-- Client Tabs -->
+          <div v-if="clientTabs.length" class="border-b border-gray-200 dark:border-dark-700">
+            <nav class="-mb-px flex space-x-6" aria-label="Client">
+              <button
+                v-for="tab in clientTabs"
+                :key="tab.id"
+                @click="activeClientTab = tab.id"
+                :class="[
+                  'whitespace-nowrap py-2.5 px-1 border-b-2 font-medium text-sm transition-colors',
+                  activeClientTab === tab.id
+                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                ]"
+              >
+                <span class="flex items-center gap-2">
+                  <component :is="tab.icon" class="w-4 h-4" />
+                  {{ tab.label }}
+                </span>
+              </button>
+            </nav>
+          </div>
+
+          <!-- OS/Shell Tabs -->
+          <div v-if="showShellTabs" class="border-b border-gray-200 dark:border-dark-700">
+            <nav class="-mb-px flex space-x-4" aria-label="Tabs">
+              <button
+                v-for="tab in currentTabs"
+                :key="tab.id"
+                @click="activeTab = tab.id"
+                :class="[
+                  'whitespace-nowrap py-2.5 px-1 border-b-2 font-medium text-sm transition-colors',
+                  activeTab === tab.id
+                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                ]"
+              >
+                <span class="flex items-center gap-2">
+                  <component :is="tab.icon" class="w-4 h-4" />
+                  {{ tab.label }}
+                </span>
+              </button>
+            </nav>
+          </div>
+
+          <!-- Code Blocks (Stacked for multi-file platforms) -->
+          <div class="space-y-4">
+            <div
+              v-for="(file, index) in currentFiles"
+              :key="index"
+              class="relative"
+            >
+              <!-- File Hint (if exists) -->
+              <p v-if="file.hint" class="text-xs text-amber-600 dark:text-amber-400 mb-1.5 flex items-center gap-1">
+                <Icon name="exclamationCircle" size="sm" class="flex-shrink-0" />
+                {{ file.hint }}
+              </p>
+              <div class="bg-gray-900 dark:bg-dark-900 rounded-xl overflow-hidden">
+                <!-- Code Header -->
+                <div class="flex items-center justify-between px-4 py-2 bg-gray-800 dark:bg-dark-800 border-b border-gray-700 dark:border-dark-700">
+                  <span class="text-xs text-gray-400 font-mono">{{ file.path }}</span>
+                  <button
+                    @click="copyContent(file.content, index)"
+                    class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors"
+                    :class="copiedIndex === index
+                      ? 'bg-green-500/20 text-green-400'
+                      : 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white'"
+                  >
+                    <svg v-if="copiedIndex === index" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+                    </svg>
+                    {{ copiedIndex === index ? t('keys.useKeyModal.copied') : t('keys.useKeyModal.copy') }}
+                  </button>
+                </div>
+                <!-- Code Content -->
+                <pre class="p-4 text-sm font-mono text-gray-100 overflow-x-auto"><code v-if="file.highlighted" v-html="file.highlighted"></code><code v-else v-text="file.content"></code></pre>
+              </div>
             </div>
           </div>
-        </div>
-
+        </template>
         <!-- Usage Note -->
         <div v-if="showPlatformNote" class="flex items-start gap-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
           <Icon name="infoCircle" size="md" class="text-blue-500 flex-shrink-0 mt-0.5" />
@@ -267,15 +453,9 @@ const clientTabs = computed((): TabConfig[] => {
   if (!props.platform) return []
   switch (props.platform) {
     case 'openai': {
-      const tabs: TabConfig[] = [
-        { id: 'codex', label: t('keys.useKeyModal.cliTabs.codexCli'), icon: TerminalIcon },
-        { id: 'codex-ws', label: t('keys.useKeyModal.cliTabs.codexCliWs'), icon: TerminalIcon },
+      return [
+        { id: 'codex', label: t('keys.useKeyModal.cliTabs.codexCli'), icon: TerminalIcon }
       ]
-      if (props.allowMessagesDispatch) {
-        tabs.push({ id: 'claude', label: t('keys.useKeyModal.cliTabs.claudeCode'), icon: TerminalIcon })
-      }
-      tabs.push({ id: 'opencode', label: t('keys.useKeyModal.cliTabs.opencode'), icon: TerminalIcon })
-      return tabs
     }
     case 'gemini':
       return [
@@ -309,7 +489,9 @@ const openaiTabs: TabConfig[] = [
   { id: 'windows', label: 'Windows', icon: WindowsIcon }
 ]
 
-const showShellTabs = computed(() => activeClientTab.value !== 'opencode')
+const isOpenAICodex = computed(() => props.platform === 'openai' && activeClientTab.value === 'codex')
+
+const showShellTabs = computed(() => !isOpenAICodex.value && activeClientTab.value !== 'opencode')
 
 const currentTabs = computed(() => {
   if (!showShellTabs.value) return []
@@ -355,7 +537,59 @@ const platformNote = computed(() => {
   }
 })
 
-const showPlatformNote = computed(() => activeClientTab.value !== 'opencode')
+const showPlatformNote = computed(() => !isOpenAICodex.value && activeClientTab.value !== 'opencode')
+
+type DetectedSystem = 'mac' | 'windows' | 'other'
+
+const detectedSystem = computed<DetectedSystem>(() => {
+  const userAgent = window.navigator.userAgent.toLowerCase()
+  if (userAgent.includes('mac')) return 'mac'
+  if (userAgent.includes('win')) return 'windows'
+  return 'other'
+})
+
+const isSupportedOneClickSystem = computed(() => detectedSystem.value === 'mac' || detectedSystem.value === 'windows')
+
+const detectedSystemLabel = computed(() => {
+  if (detectedSystem.value === 'mac') return t('keys.useKeyModal.openai.detectedMac')
+  if (detectedSystem.value === 'windows') return t('keys.useKeyModal.openai.detectedWindows')
+  return t('keys.useKeyModal.openai.detectedOther')
+})
+
+const terminalStepTitle = computed(() =>
+  detectedSystem.value === 'windows'
+    ? t('keys.useKeyModal.openai.openPowerShellTitle')
+    : t('keys.useKeyModal.openai.openTerminalTitle')
+)
+
+const terminalSteps = computed(() => {
+  if (detectedSystem.value === 'windows') {
+    return [
+      t('keys.useKeyModal.openai.windowsTerminalStep1'),
+      t('keys.useKeyModal.openai.windowsTerminalStep2'),
+      t('keys.useKeyModal.openai.windowsTerminalStep3')
+    ]
+  }
+  return [
+    t('keys.useKeyModal.openai.macTerminalStep1'),
+    t('keys.useKeyModal.openai.macTerminalStep2'),
+    t('keys.useKeyModal.openai.macTerminalStep3')
+  ]
+})
+
+const terminalCopyItems = computed(() =>
+  detectedSystem.value === 'windows'
+    ? ['powershell']
+    : ['终端', 'Terminal']
+)
+
+const terminalWindowTitle = computed(() =>
+  detectedSystem.value === 'windows' ? 'Windows PowerShell' : 'Terminal'
+)
+
+const terminalPromptPreview = computed(() =>
+  detectedSystem.value === 'windows' ? 'PS C:\\Users\\you>' : '$'
+)
 
 const escapeHtml = (value: string) => value
   .replace(/&/g, '&amp;')
@@ -525,8 +759,7 @@ ${keyword('$env:')}${variable('GEMINI_MODEL')}${operator('=')}${string(`"${model
   return { path, content, highlighted }
 }
 
-function generateOpenAIFiles(baseUrl: string, apiKey: string): FileConfig[] {
-  const isWindows = activeTab.value === 'windows'
+function generateOpenAIFiles(baseUrl: string, apiKey: string, isWindows = activeTab.value === 'windows'): FileConfig[] {
   const configDir = isWindows ? '%userprofile%\\.codex' : '~/.codex'
 
   // config.toml content
@@ -605,6 +838,154 @@ goals = true`
       content: authContent
     }
   ]
+}
+
+const codexManualFiles = computed((): FileConfig[] => {
+  const files = generateOpenAIFiles(props.baseUrl || window.location.origin, props.apiKey, false)
+  return files.map((file) => ({
+    ...file,
+    path: file.path.endsWith('config.toml') ? 'config.toml' : 'auth.json'
+  }))
+})
+
+const oneClickCommand = computed(() => {
+  const configFile = codexManualFiles.value.find((file) => file.path === 'config.toml')
+  const authFile = codexManualFiles.value.find((file) => file.path === 'auth.json')
+  if (!configFile || !authFile) return ''
+  return detectedSystem.value === 'windows'
+    ? generateWindowsCodexCommand(configFile.content, authFile.content)
+    : generateMacCodexCommand(configFile.content, authFile.content)
+})
+
+function generateMacCodexCommand(configContent: string, authContent: string): string {
+  return `CODEX_DIR="$HOME/.codex"
+CONFIG_FILE="$CODEX_DIR/config.toml"
+AUTH_FILE="$CODEX_DIR/auth.json"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+
+big_error() {
+  echo ""
+  echo "============================================================"
+  echo "❌❌❌  配置失败  ❌❌❌"
+  echo "============================================================"
+  printf "%b\n" "$1"
+  echo "============================================================"
+  echo ""
+}
+
+if [ ! -d "$CODEX_DIR" ]; then
+  big_error "未找到 Codex 配置目录：$CODEX_DIR\n请先安装 Codex App，并打开一次完成初始化。\n官方下载：https://chatgpt.com/codex/for-work/\n安装完成后，请回到网页从第一步重新执行配置。"
+  exit 1
+fi
+
+if pgrep -if '(^|/)Codex( |$)' >/dev/null 2>&1; then
+  big_error "检测到 Codex App 仍在运行。\n请先右键 Dock / 菜单栏里的 Codex，选择退出，确保它已完全退出后再重新执行本命令。"
+  exit 1
+fi
+
+[ -f "$CONFIG_FILE" ] && cp "$CONFIG_FILE" "$CONFIG_FILE.sub2api.bak-$STAMP"
+[ -f "$AUTH_FILE" ] && cp "$AUTH_FILE" "$AUTH_FILE.sub2api.bak-$STAMP"
+
+cat > "$CONFIG_FILE" <<'SUB2API_CONFIG_TOML'
+${configContent}
+SUB2API_CONFIG_TOML
+
+cat > "$AUTH_FILE" <<'SUB2API_AUTH_JSON'
+${authContent}
+SUB2API_AUTH_JSON
+
+if ! grep -Fq 'model = "gpt-5.5"' "$CONFIG_FILE" || ! grep -Fq 'wire_api = "responses"' "$CONFIG_FILE" || ! grep -Fq 'base_url = "${props.baseUrl || window.location.origin}"' "$CONFIG_FILE"; then
+  big_error "config.toml 写入后校验失败。旧配置已备份在 $CODEX_DIR，请联系网页右上角客服咨询。"
+  exit 1
+fi
+
+if ! grep -Fq '"OPENAI_API_KEY": "${props.apiKey}"' "$AUTH_FILE"; then
+  big_error "auth.json 写入后校验失败。旧配置已备份在 $CODEX_DIR，请联系网页右上角客服咨询。"
+  exit 1
+fi
+
+open "$CODEX_DIR"
+echo ""
+echo "============================================================"
+echo "✅✅✅  配置成功！Codex CLI 已完成接入  ✅✅✅"
+echo "============================================================"
+echo "已写入："
+echo "  $CONFIG_FILE"
+echo "  $AUTH_FILE"
+echo ""
+echo "旧配置已自动备份在同一目录中。"
+echo "现在可以打开 Codex 开始使用。"
+echo "如有疑问，请点击网页右上角联系客服咨询。"
+echo "============================================================"`
+}
+
+function generateWindowsCodexCommand(configContent: string, authContent: string): string {
+  return `$codexDir = Join-Path $env:USERPROFILE '.codex'
+$configFile = Join-Path $codexDir 'config.toml'
+$authFile = Join-Path $codexDir 'auth.json'
+$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+
+function Show-Sub2ApiError([string]$message) {
+  Write-Host ''
+  Write-Host '============================================================' -ForegroundColor Red
+  Write-Host '❌❌❌  配置失败  ❌❌❌' -ForegroundColor Red
+  Write-Host '============================================================' -ForegroundColor Red
+  Write-Host $message -ForegroundColor Yellow
+  Write-Host '============================================================' -ForegroundColor Red
+  Write-Host ''
+}
+
+if (!(Test-Path $codexDir)) {
+  Show-Sub2ApiError "未找到 Codex 配置目录：$codexDir\`n请先安装 Codex App，并打开一次完成初始化。\`n官方下载：https://chatgpt.com/codex/for-work/\`n安装完成后，请回到网页从第一步重新执行配置。"
+  exit 1
+}
+
+$codexProcess = Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -match '^Codex$|^codex$' }
+if ($codexProcess) {
+  Show-Sub2ApiError "检测到 Codex App 仍在运行。\`n请先右键任务栏里的 Codex，选择退出，确保它已完全退出后再重新执行本命令。"
+  exit 1
+}
+
+if (Test-Path $configFile) { Copy-Item $configFile "$configFile.sub2api.bak-$stamp" -Force }
+if (Test-Path $authFile) { Copy-Item $authFile "$authFile.sub2api.bak-$stamp" -Force }
+
+$configContent = @'
+${configContent}
+'@
+
+$authContent = @'
+${authContent}
+'@
+
+Set-Content -Path $configFile -Value $configContent -Encoding UTF8
+Set-Content -Path $authFile -Value $authContent -Encoding UTF8
+
+$writtenConfig = Get-Content -Path $configFile -Raw
+$writtenAuth = Get-Content -Path $authFile -Raw
+
+if (!$writtenConfig.Contains('model = "gpt-5.5"') -or !$writtenConfig.Contains('wire_api = "responses"') -or !$writtenConfig.Contains('base_url = "${props.baseUrl || window.location.origin}"')) {
+  Show-Sub2ApiError "config.toml 写入后校验失败。旧配置已备份在 $codexDir，请联系网页右上角客服咨询。"
+  exit 1
+}
+
+if (!$writtenAuth.Contains('"OPENAI_API_KEY": "${props.apiKey}"')) {
+  Show-Sub2ApiError "auth.json 写入后校验失败。旧配置已备份在 $codexDir，请联系网页右上角客服咨询。"
+  exit 1
+}
+
+Invoke-Item $codexDir
+Write-Host ''
+Write-Host '============================================================' -ForegroundColor Green
+Write-Host '✅✅✅  配置成功！Codex CLI 已完成接入  ✅✅✅' -ForegroundColor Green
+Write-Host '============================================================' -ForegroundColor Green
+Write-Host '已写入：'
+Write-Host "  $configFile"
+Write-Host "  $authFile"
+Write-Host ''
+Write-Host '旧配置已自动备份在同一目录中。'
+Write-Host '现在可以打开 Codex 开始使用。'
+Write-Host '如有疑问，请点击网页右上角联系客服咨询。'
+Write-Host '============================================================' -ForegroundColor Green`
 }
 
 function generateOpenCodeConfig(platform: string, baseUrl: string, apiKey: string, pathLabel?: string): FileConfig {
@@ -1060,5 +1441,24 @@ const copyContent = async (content: string, index: number) => {
       copiedIndex.value = null
     }, 2000)
   }
+}
+
+const copySnippet = async (content: string) => {
+  await clipboardCopy(content, t('keys.copied'))
+}
+
+const downloadConfigFile = (file: FileConfig) => {
+  const filename = file.path.endsWith('config.toml') ? 'config.toml'
+    : file.path.endsWith('auth.json') ? 'auth.json'
+      : file.path.split(/[\\/]/).pop() || 'config.txt'
+  const blob = new Blob([file.content], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 }
 </script>
