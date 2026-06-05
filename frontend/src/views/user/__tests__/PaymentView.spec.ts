@@ -180,6 +180,82 @@ function oauthOrderFixture() {
   }
 }
 
+
+describe('PaymentView help image', () => {
+  beforeEach(() => {
+    routeState.path = '/purchase'
+    routeState.query = {}
+    routerReplace.mockReset().mockResolvedValue(undefined)
+    routerPush.mockReset().mockResolvedValue(undefined)
+    routerResolve.mockClear()
+    createOrder.mockReset()
+    refreshUser.mockReset()
+    fetchActiveSubscriptions.mockReset().mockResolvedValue(undefined)
+    showError.mockReset()
+    showInfo.mockReset()
+    showWarning.mockReset()
+    bridgeInvoke.mockReset()
+    window.localStorage.clear()
+    ;(window as Window & { WeixinJSBridge?: { invoke: typeof bridgeInvoke } }).WeixinJSBridge = undefined
+  })
+
+  it('renders the help image full width with auto height instead of the fixed compact height', async () => {
+    getCheckoutInfo.mockReset().mockResolvedValue({
+      data: {
+        ...checkoutInfoFixture().data,
+        help_image_url: 'https://example.test/payment-help.png',
+      },
+    })
+
+    const wrapper = shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    const helpImage = wrapper.find('img[src="https://example.test/payment-help.png"]')
+
+    expect(helpImage.exists()).toBe(true)
+    expect(helpImage.classes()).toContain('w-full')
+    expect(helpImage.classes()).toContain('h-auto')
+    expect(helpImage.classes()).not.toContain('h-40')
+  })
+
+  it('opens the help image preview when the image is clicked', async () => {
+    getCheckoutInfo.mockReset().mockResolvedValue({
+      data: {
+        ...checkoutInfoFixture().data,
+        help_image_url: 'https://example.test/payment-help.png',
+      },
+    })
+
+    const wrapper = shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+
+    await flushPromises()
+    await wrapper.find('img[src="https://example.test/payment-help.png"]').trigger('click')
+
+    const previewImages = wrapper.findAll('img[src="https://example.test/payment-help.png"]')
+
+    expect(previewImages).toHaveLength(2)
+    expect(previewImages[1].classes()).toContain('max-h-[85vh]')
+    expect(previewImages[1].classes()).toContain('max-w-[90vw]')
+  })
+})
+
 describe('PaymentView WeChat JSAPI flow', () => {
   beforeEach(() => {
     routeState.path = '/purchase'

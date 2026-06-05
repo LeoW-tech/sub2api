@@ -6020,6 +6020,7 @@ export default {
         noLimit: '留空表示不限制',
         helpImage: '帮助图片',
         helpImagePlaceholder: '上传或输入图片链接',
+        helpImageHint: '推荐上传宽 896px 左右的横向图片，宽度会自适应页面，高度按比例展示，文件需小于 300KB',
         helpTextPlaceholder: '输入帮助说明文本...',
         providerEasypay: '易支付',
         providerAlipay: '支付宝官方',

@@ -5862,6 +5862,7 @@ export default {
         noLimit: 'Empty = no limit',
         helpImage: 'Help Image',
         helpImagePlaceholder: 'Upload or enter image URL',
+        helpImageHint: 'Recommended: upload a horizontal image around 896px wide. It adapts to page width, keeps its aspect ratio, and must be under 300KB.',
         helpTextPlaceholder: 'Enter help text...',
         providerEasypay: 'EasyPay',
         providerAlipay: 'Alipay (Direct)',

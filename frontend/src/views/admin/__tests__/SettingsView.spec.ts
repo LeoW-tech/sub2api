@@ -219,6 +219,7 @@ vi.mock("vue-i18n", async () => {
       "默认关闭。开启后仅影响本网关在 OpenAI 账号间的实验性调度选择逻辑，不代表上游 OpenAI 官方能力。",
     "admin.settings.site.uploadImage": "上传图片",
     "admin.settings.site.remove": "移除",
+    "admin.settings.payment.helpImageHint": "推荐上传宽 896px 左右的横向图片，宽度会自适应页面，高度按比例展示，文件需小于 300KB",
     "admin.settings.platformQuota.platform": "平台",
     "admin.settings.platformQuota.daily": "日限额 (USD)",
     "admin.settings.platformQuota.weekly": "周限额 (USD)",
@@ -335,6 +336,10 @@ const ImageUploadStub = defineComponent({
       type: String,
       default: "",
     },
+    hint: {
+      type: String,
+      default: "",
+    },
   },
   setup(props) {
     return () =>
@@ -344,6 +349,7 @@ const ImageUploadStub = defineComponent({
         "data-upload-label": props.uploadLabel,
         "data-remove-label": props.removeLabel,
         "data-placeholder": props.placeholder,
+        "data-hint": props.hint,
       });
   },
 });
@@ -965,6 +971,9 @@ describe("admin SettingsView payment visible method controls", () => {
     );
     expect(paymentHelpImageUpload?.attributes("data-remove-label")).toBe(
       "移除",
+    );
+    expect(paymentHelpImageUpload?.attributes("data-hint")).toBe(
+      "推荐上传宽 896px 左右的横向图片，宽度会自适应页面，高度按比例展示，文件需小于 300KB",
     );
   });
 });

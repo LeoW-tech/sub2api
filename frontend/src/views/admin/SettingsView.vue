@@ -6159,6 +6159,7 @@
                       v-model="form.payment_help_image_url"
                       :upload-label="t('admin.settings.site.uploadImage')"
                       :remove-label="t('admin.settings.site.remove')"
+                      :hint="t('admin.settings.payment.helpImageHint')"
                       :placeholder="
                         t('admin.settings.payment.helpImagePlaceholder')
                       "
