@@ -4,6 +4,7 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -175,6 +176,41 @@ func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 		require.Equal(t, http.StatusTooManyRequests, w.Code)
 		require.Contains(t, w.Body.String(), "USAGE_LIMIT_EXCEEDED")
 	})
+}
+
+func TestAPIKeyAuth_InsufficientBalanceReturnsBilingualMessage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	apiKeyRepo := &stubApiKeyRepo{
+		getByKey: func(ctx context.Context, key string) (*service.APIKey, error) {
+			return &service.APIKey{
+				ID:     100,
+				UserID: 7,
+				Key:    key,
+				Status: service.StatusActive,
+				User: &service.User{
+					ID:      7,
+					Role:    service.RoleUser,
+					Status:  service.StatusActive,
+					Balance: 0,
+				},
+			}, nil
+		},
+	}
+	cfg := &config.Config{RunMode: config.RunModeStandard}
+	apiKeyService := service.NewAPIKeyService(apiKeyRepo, nil, nil, nil, nil, nil, cfg)
+	router := newAuthTestRouter(apiKeyService, nil, cfg)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/t", nil)
+	req.Header.Set("x-api-key", "test-key")
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusForbidden, w.Code)
+	var resp ErrorResponse
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.Equal(t, "INSUFFICIENT_BALANCE", resp.Code)
+	require.Equal(t, "余额不足，请充值或联系管理员（Insufficient account balance. Please top up or contact administrator.）", resp.Message)
 }
 
 func TestAPIKeyAuthSetsGroupContext(t *testing.T) {
