@@ -55,6 +55,8 @@ func GetForcePlatformFromContext(c *gin.Context) (string, bool) {
 	return platform, ok
 }
 
+const insufficientBalanceMessage = "余额不足，请充值或联系管理员（Insufficient account balance. Please top up or contact administrator.）"
+
 // ErrorResponse 标准错误响应结构
 type ErrorResponse struct {
 	Code    string `json:"code"`

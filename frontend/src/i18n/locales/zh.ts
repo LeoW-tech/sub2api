@@ -736,6 +736,7 @@ export default {
       description: '将以下环境变量添加到您的终端配置文件或直接在终端中运行。',
       copy: '复制',
       copied: '已复制',
+      download: '下载',
       note: '这些环境变量将在当前终端会话中生效。如需永久配置，请将其添加到 ~/.bashrc、~/.zshrc 或相应的配置文件中。',
       noGroupTitle: '请先分配分组',
       noGroupDescription:
@@ -745,7 +746,38 @@ export default {
         configTomlHint: '请确保以下内容位于 config.toml 文件的开头部分',
         note: '请确保配置目录存在。macOS/Linux 用户可运行 mkdir -p ~/.codex 创建目录。',
         noteWindows:
-          '按 Win+R，输入 %userprofile%\\.codex 打开配置目录。如目录不存在，请先手动创建。'
+          '按 Win+R，输入 %userprofile%\\.codex 打开配置目录。如目录不存在，请先手动创建。',
+        detectedMac: '检测到你正在使用 macOS',
+        detectedWindows: '检测到你正在使用 Windows',
+        detectedOther: '未检测到 macOS 或 Windows',
+        unsupportedSystem: '当前一键配置仅支持 macOS 和 Windows，请使用方法二手动配置。',
+        installCodexTitle: '请先安装 Codex App',
+        installCodexDescription: '如果还没有安装 Codex App，请先前往官方下载并打开一次完成初始化，然后再回来配置。',
+        downloadCodex: '打开 Codex 官方下载页面',
+        copyDownloadLink: '复制下载链接',
+        quitCodexTitle: '请彻底退出 Codex App',
+        quitCodexDescription: '不能只关闭窗口。请右键 Dock、菜单栏或任务栏里的 Codex，选择退出，确保它不在后台运行。',
+        openTerminalTitle: '打开终端',
+        openPowerShellTitle: '打开 PowerShell',
+        macTerminalStep1: '按 Command + Space 打开聚焦搜索。',
+        macTerminalStep2: '输入“终端”或“Terminal”。',
+        macTerminalStep3: '回车打开后，粘贴下方命令并回车执行。',
+        windowsTerminalStep1: '按 Win + R 打开运行窗口。',
+        windowsTerminalStep2: '输入 powershell。',
+        windowsTerminalStep3: '回车打开后，粘贴下方命令并回车执行。',
+        copyInput: '复制',
+        copyCommandTitle: '复制并执行一键配置命令',
+        copyCommand: '复制一键配置命令',
+        beginner: {
+          title: '方法一：小白一键配置',
+          description: '按步骤复制一条命令到终端执行，系统会自动备份旧文件、写入新配置并校验。'
+        },
+        professional: {
+          title: '方法二：专业人士使用',
+          description: '手动打开配置目录，将下面两个文件放入目录中。适合熟悉配置文件的用户。',
+          macOpenDir: '打开 Finder 后按 Command + Shift + G，粘贴 ~/.codex 并回车进入配置目录。',
+          windowsOpenDir: '按 Win + R，粘贴 %USERPROFILE%\\.codex 并回车打开配置目录。'
+        }
       },
       cliTabs: {
         claudeCode: 'Claude Code',
