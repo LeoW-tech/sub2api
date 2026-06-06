@@ -317,7 +317,6 @@ func TestAccountListETagChangesWhenCapacityStatusChanges(t *testing.T) {
 	require.NotEqual(t, withCapacity.Header().Get("ETag"), withoutCapacity.Header().Get("ETag"))
 }
 
-
 func TestAccountListRejectsInvalidRTStatusFilter(t *testing.T) {
 	router, _ := setupAccountDataRouter()
 
