@@ -756,18 +756,31 @@ export default {
         downloadCodex: '打开 Codex 官方下载页面',
         copyDownloadLink: '复制下载链接',
         quitCodexTitle: '请彻底退出 Codex App',
+        quitCodexDescriptionPrefix: '请确保此时此刻，Codex App 没有在运行中，是关闭状态。',
         quitCodexDescription: '不能只关闭窗口。请右键 Dock、菜单栏或任务栏里的 Codex，选择退出，确保它不在后台运行。',
         openTerminalTitle: '打开终端',
+        openTerminalAppTitle: '第三步：打开终端APP',
         openPowerShellTitle: '打开 PowerShell',
         macTerminalStep1: '按 Command + Space 打开聚焦搜索。',
-        macTerminalStep2: '输入“终端”或“Terminal”。',
-        macTerminalStep3: '回车打开后，粘贴下方命令并回车执行。',
+        macTerminalStep2: '系统语言是中文，请输入“终端”；系统语言是英文，请输入“Terminal”，回车打开终端APP。',
         windowsTerminalStep1: '按 Win + R 打开运行窗口。',
-        windowsTerminalStep2: '输入 powershell。',
-        windowsTerminalStep3: '回车打开后，粘贴下方命令并回车执行。',
+        windowsTerminalStep2: '输入 powershell，回车打开 PowerShell。',
+        terminalPreviewCaption: '终端APP示意图',
+        powerShellPreviewCaption: 'PowerShell 示意图',
         copyInput: '复制',
         copyCommandTitle: '复制并执行一键配置命令',
-        copyCommand: '复制一键配置命令',
+        copyCommandDescription: '不用阅读命令内容，复制后按下面步骤粘贴执行即可。',
+        copyCommand: '一键复制配置命令',
+        commandStep1: '点击【一键复制配置命令】。',
+        commandStep2Mac: '在终端APP中右键粘贴，或按 Command + V 粘贴，然后回车执行。',
+        commandStep2Windows: '在 PowerShell 中右键粘贴，或按 Ctrl + V 粘贴，然后回车执行。',
+        commandStep3: '等待配置完成即可，配置成功会有明显提示。',
+        steps: {
+          install: '第一步：请先安装 Codex App',
+          quit: '第二步：请彻底退出 Codex App',
+          openTerminal: '第三步：打开终端APP',
+          copyCommand: '第四步：复制并执行一键配置命令'
+        },
         beginner: {
           title: '方法一：小白一键配置',
           description: '按步骤复制一条命令到终端执行，系统会自动备份旧文件、写入新配置并校验。'
@@ -776,7 +789,15 @@ export default {
           title: '方法二：专业人士使用',
           description: '手动打开配置目录，将下面两个文件放入目录中。适合熟悉配置文件的用户。',
           macOpenDir: '打开 Finder 后按 Command + Shift + G，粘贴 ~/.codex 并回车进入配置目录。',
-          windowsOpenDir: '按 Win + R，粘贴 %USERPROFILE%\\.codex 并回车打开配置目录。'
+          windowsOpenDir: '按 Win + R，粘贴 %USERPROFILE%\\.codex 并回车打开配置目录。',
+          configTomlDownloadHint: '直接点击下载 config.toml，将文件放入刚才打开的目录中即可。',
+          configTomlCopyHint: '或者点击复制，将以下内容放在 config.toml 文件的开头部分。',
+          authJsonDownloadHint: '直接点击下载 auth.json，将文件放入刚才打开的目录中即可。',
+          steps: {
+            openDir: '第一步：打开配置目录',
+            configToml: '第二步：配置 config.toml 文件',
+            authJson: '第三步：配置 auth.json 文件'
+          }
         }
       },
       cliTabs: {

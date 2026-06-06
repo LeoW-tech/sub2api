@@ -756,18 +756,31 @@ export default {
         downloadCodex: 'Open official Codex download page',
         copyDownloadLink: 'Copy download link',
         quitCodexTitle: 'Fully quit the Codex App',
+        quitCodexDescriptionPrefix: 'Make sure the Codex App is not running right now and is fully closed.',
         quitCodexDescription: 'Do not just close the window. Right-click Codex in the Dock, menu bar, or taskbar and quit it so it is not running in the background.',
         openTerminalTitle: 'Open Terminal',
+        openTerminalAppTitle: 'Step 3: Open the Terminal app',
         openPowerShellTitle: 'Open PowerShell',
         macTerminalStep1: 'Press Command + Space to open Spotlight Search.',
-        macTerminalStep2: 'Type Terminal.',
-        macTerminalStep3: 'Press Enter, paste the command below, then press Enter again.',
+        macTerminalStep2: 'If your system language is Chinese, type 终端; if it is English, type Terminal. Press Enter to open the Terminal app.',
         windowsTerminalStep1: 'Press Win + R to open Run.',
-        windowsTerminalStep2: 'Type powershell.',
-        windowsTerminalStep3: 'Press Enter, paste the command below, then press Enter again.',
+        windowsTerminalStep2: 'Type powershell, then press Enter to open PowerShell.',
+        terminalPreviewCaption: 'Terminal app preview',
+        powerShellPreviewCaption: 'PowerShell preview',
         copyInput: 'Copy',
         copyCommandTitle: 'Copy and run the one-click setup command',
-        copyCommand: 'Copy one-click setup command',
+        copyCommandDescription: 'You do not need to read the command. Copy it, paste it, and run it by following the steps below.',
+        copyCommand: 'Copy setup command',
+        commandStep1: 'Click [Copy setup command].',
+        commandStep2Mac: 'In the Terminal app, right-click to paste or press Command + V, then press Enter to run.',
+        commandStep2Windows: 'In PowerShell, right-click to paste or press Ctrl + V, then press Enter to run.',
+        commandStep3: 'Wait for setup to finish. A clear success message will appear when it is done.',
+        steps: {
+          install: 'Step 1: Install the Codex App first',
+          quit: 'Step 2: Fully quit the Codex App',
+          openTerminal: 'Step 3: Open the Terminal app',
+          copyCommand: 'Step 4: Copy and run the setup command'
+        },
         beginner: {
           title: 'Method 1: Beginner one-click setup',
           description: 'Copy one command into Terminal/PowerShell. It backs up old files, writes the new config, and verifies the result.'
@@ -776,7 +789,15 @@ export default {
           title: 'Method 2: For advanced users',
           description: 'Open the config directory manually and place the following two files there. For users familiar with config files.',
           macOpenDir: 'Open Finder, press Command + Shift + G, paste ~/.codex, then press Enter to open the config directory.',
-          windowsOpenDir: 'Press Win + R, paste %USERPROFILE%\\.codex, then press Enter to open the config directory.'
+          windowsOpenDir: 'Press Win + R, paste %USERPROFILE%\\.codex, then press Enter to open the config directory.',
+          configTomlDownloadHint: 'Click Download config.toml and place the file in the directory you just opened.',
+          configTomlCopyHint: 'Or click Copy and put the following content at the beginning of config.toml.',
+          authJsonDownloadHint: 'Click Download auth.json and place the file in the directory you just opened.',
+          steps: {
+            openDir: 'Step 1: Open the config directory',
+            configToml: 'Step 2: Configure config.toml',
+            authJson: 'Step 3: Configure auth.json'
+          }
         },
       },
       cliTabs: {

@@ -87,8 +87,8 @@ describe('UseKeyModal', () => {
     expect(wrapper.text()).toContain('keys.useKeyModal.openai.beginner.title')
     expect(wrapper.text()).toContain('keys.useKeyModal.openai.professional.title')
     expect(wrapper.text()).toContain('keys.useKeyModal.openai.detectedMac')
-    expect(wrapper.text()).toContain('keys.useKeyModal.openai.installCodexTitle')
-    expect(wrapper.text()).toContain('keys.useKeyModal.openai.quitCodexTitle')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.steps.install')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.steps.quit')
     expect(wrapper.text()).toContain('keys.useKeyModal.openai.copyCommand')
     expect(wrapper.text()).not.toContain('keys.useKeyModal.cliTabs.codexCliWs')
     expect(wrapper.text()).not.toContain('keys.useKeyModal.cliTabs.opencode')
@@ -116,19 +116,20 @@ describe('UseKeyModal', () => {
       }
     })
 
-    const command = wrapper.find('[data-testid="codex-one-click-command"]').text()
+    const commandButton = wrapper.find('[data-testid="copy-codex-one-click-command"]')
 
-    expect(command).toContain('$HOME/.codex')
-    expect(command).toContain('[ ! -d "$CODEX_DIR" ]')
-    expect(command).toContain('pgrep -if')
-    expect(command).toContain('$CONFIG_FILE.sub2api.bak-')
-    expect(command).toContain('$AUTH_FILE.sub2api.bak-')
-    expect(command).toContain('model = "gpt-5.5"')
-    expect(command).toContain('"OPENAI_API_KEY": "sk-test"')
-    expect(command).toContain('open "$CODEX_DIR"')
-    expect(command).toContain('配置成功')
-    expect(command).toContain('现在可以打开 Codex 开始使用')
-    expect(command).toContain('网页右上角联系客服咨询')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.steps.install')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.steps.quit')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.steps.openTerminal')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.steps.copyCommand')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.quitCodexDescriptionPrefix')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.steps.openTerminal')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.macTerminalStep2')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.terminalPreviewCaption')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.commandStep2Mac')
+    expect(commandButton.exists()).toBe(true)
+    expect(wrapper.find('[data-testid="codex-one-click-command"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('CODEX_DIR="$HOME/.codex"')
   })
 
   it('renders Windows PowerShell one-click command with safety checks', () => {
@@ -153,20 +154,14 @@ describe('UseKeyModal', () => {
       }
     })
 
-    const command = wrapper.find('[data-testid="codex-one-click-command"]').text()
-
     expect(wrapper.text()).toContain('keys.useKeyModal.openai.detectedWindows')
-    expect(command).toContain('$env:USERPROFILE')
-    expect(command).toContain('Test-Path $codexDir')
-    expect(command).toContain('Get-Process')
-    expect(command).toContain('$configFile.sub2api.bak-')
-    expect(command).toContain('$authFile.sub2api.bak-')
-    expect(command).toContain('model = "gpt-5.5"')
-    expect(command).toContain('"OPENAI_API_KEY": "sk-test"')
-    expect(command).toContain('Invoke-Item $codexDir')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.commandStep2Windows')
+    expect(wrapper.find('[data-testid="copy-codex-one-click-command"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="codex-one-click-command"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('$codexDir = Join-Path')
   })
 
-  it('renders copyable professional directory hints and download buttons', () => {
+  it('renders professional setup as directory, config.toml, and auth.json steps', () => {
     const wrapper = mount(UseKeyModal, {
       props: {
         show: true,
@@ -188,6 +183,19 @@ describe('UseKeyModal', () => {
 
     expect(wrapper.text()).toContain('~/.codex')
     expect(wrapper.text()).toContain('%USERPROFILE%\\.codex')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.professional.steps.openDir')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.professional.steps.configToml')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.professional.steps.authJson')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.professional.configTomlDownloadHint')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.professional.authJsonDownloadHint')
+
+    const configSection = wrapper.find('[data-testid="professional-config-toml-step"]')
+    const authSection = wrapper.find('[data-testid="professional-auth-json-step"]')
+    expect(configSection.text().indexOf('keys.useKeyModal.openai.professional.configTomlDownloadHint'))
+      .toBeLessThan(configSection.text().indexOf('model_provider = "OpenAI"'))
+    expect(authSection.text().indexOf('keys.useKeyModal.openai.professional.authJsonDownloadHint'))
+      .toBeLessThan(authSection.text().indexOf('"OPENAI_API_KEY": "sk-test"'))
+
     expect(wrapper.findAll('[data-testid="copy-snippet-button"]').length).toBeGreaterThanOrEqual(4)
     expect(wrapper.findAll('[data-testid="download-config-button"]')).toHaveLength(2)
   })
