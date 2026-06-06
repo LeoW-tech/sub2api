@@ -768,10 +768,7 @@ export default {
         terminalPreviewCaption: 'Terminal app preview',
         powerShellPreviewCaption: 'PowerShell preview',
         copyInput: 'Copy',
-        copyCommandTitle: 'Copy and run the one-click setup command',
-        copyCommandDescription: 'You do not need to read the command. Copy it, paste it, and run it by following the steps below.',
         copyCommand: 'Copy setup command',
-        commandStep1: 'Click [Copy setup command].',
         commandStep2Mac: 'In the Terminal app, right-click to paste or press Command + V, then press Enter to run.',
         commandStep2Windows: 'In PowerShell, right-click to paste or press Ctrl + V, then press Enter to run.',
         commandStep3: 'Wait for setup to finish. A clear success message will appear when it is done.',
@@ -782,8 +779,7 @@ export default {
           copyCommand: 'Step 4: Copy and run the setup command'
         },
         beginner: {
-          title: 'Method 1: Beginner one-click setup',
-          description: 'Copy one command into Terminal/PowerShell. It backs up old files, writes the new config, and verifies the result.'
+          title: 'Method 1: Beginner one-click setup'
         },
         professional: {
           title: 'Method 2: For advanced users',

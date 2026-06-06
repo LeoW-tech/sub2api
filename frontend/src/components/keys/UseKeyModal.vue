@@ -36,9 +36,6 @@
                 <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">
                   {{ t('keys.useKeyModal.openai.beginner.title') }}
                 </h3>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                  {{ t('keys.useKeyModal.openai.beginner.description') }}
-                </p>
               </div>
               <span class="inline-flex w-fit items-center rounded-full bg-primary-100 px-3 py-1 text-xs font-medium text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
                 {{ detectedSystemLabel }}
@@ -128,26 +125,20 @@
             </div>
 
             <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-dark-700 dark:bg-dark-800">
-              <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    {{ t('keys.useKeyModal.openai.steps.copyCommand') }}
-                  </p>
-                  <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    {{ t('keys.useKeyModal.openai.copyCommandDescription') }}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  data-testid="copy-codex-one-click-command"
-                  class="btn btn-primary btn-sm"
-                  @click="copySnippet(oneClickCommand)"
-                >
-                  {{ t('keys.useKeyModal.openai.copyCommand') }}
-                </button>
-              </div>
+              <p class="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                {{ t('keys.useKeyModal.openai.steps.copyCommand') }}
+              </p>
               <ol class="list-decimal space-y-1 pl-5 text-sm text-gray-600 dark:text-gray-400">
-                <li>{{ t('keys.useKeyModal.openai.commandStep1') }}</li>
+                <li>
+                  <button
+                    type="button"
+                    data-testid="copy-codex-one-click-command"
+                    class="btn btn-primary btn-sm"
+                    @click="copySnippet(oneClickCommand)"
+                  >
+                    {{ t('keys.useKeyModal.openai.copyCommand') }}
+                  </button>
+                </li>
                 <li>{{ commandPasteStep }}</li>
                 <li>{{ t('keys.useKeyModal.openai.commandStep3') }}</li>
               </ol>

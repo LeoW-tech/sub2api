@@ -768,10 +768,7 @@ export default {
         terminalPreviewCaption: '终端APP示意图',
         powerShellPreviewCaption: 'PowerShell 示意图',
         copyInput: '复制',
-        copyCommandTitle: '复制并执行一键配置命令',
-        copyCommandDescription: '不用阅读命令内容，复制后按下面步骤粘贴执行即可。',
         copyCommand: '一键复制配置命令',
-        commandStep1: '点击【一键复制配置命令】。',
         commandStep2Mac: '在终端APP中右键粘贴，或按 Command + V 粘贴，然后回车执行。',
         commandStep2Windows: '在 PowerShell 中右键粘贴，或按 Ctrl + V 粘贴，然后回车执行。',
         commandStep3: '等待配置完成即可，配置成功会有明显提示。',
@@ -782,8 +779,7 @@ export default {
           copyCommand: '第四步：复制并执行一键配置命令'
         },
         beginner: {
-          title: '方法一：小白一键配置',
-          description: '按步骤复制一条命令到终端执行，系统会自动备份旧文件、写入新配置并校验。'
+          title: '方法一：小白一键配置'
         },
         professional: {
           title: '方法二：专业人士使用',
