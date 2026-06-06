@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -54,10 +55,13 @@ func (s *ProxyProbeServiceSuite) TestProbeProxy_UnsupportedProxyScheme() {
 }
 
 func (s *ProxyProbeServiceSuite) TestProbeURLsPreferChatGPTCodexResponses() {
-	require.NotEmpty(s.T(), probeURLs)
+	require.Len(s.T(), probeURLs, 1)
+	require.Equal(s.T(), http.MethodHead, probeURLs[0].method)
 	require.Equal(s.T(), "https://chatgpt.com/backend-api/codex/responses", probeURLs[0].url)
 	for _, probe := range probeURLs {
 		require.NotContains(s.T(), probe.url, "api.openai.com/v1/models")
+		require.NotContains(s.T(), probe.url, "ip-api.com")
+		require.NotContains(s.T(), probe.url, "httpbin.org")
 	}
 }
 
@@ -116,8 +120,8 @@ func (s *ProxyProbeServiceSuite) TestProbeProxy_ChatGPTCodexReachabilityAcceptsU
 	require.Equal(s.T(), "chatgpt_codex", info.Country)
 }
 
-func (s *ProxyProbeServiceSuite) TestProbeProxy_ChatGPTCodexReachabilityAcceptsMethodAndRateLimit4xx() {
-	for _, statusCode := range []int{http.StatusMethodNotAllowed, http.StatusTooManyRequests} {
+func (s *ProxyProbeServiceSuite) TestProbeProxy_ChatGPTCodexReachabilityAcceptsExpected4xx() {
+	for _, statusCode := range []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusMethodNotAllowed, http.StatusTooManyRequests} {
 		s.Run(http.StatusText(statusCode), func() {
 			info, latencyMs, err := s.prober.probeWithURL(
 				s.ctx,
@@ -136,6 +140,39 @@ func (s *ProxyProbeServiceSuite) TestProbeProxy_ChatGPTCodexReachabilityAcceptsM
 			require.NoError(s.T(), err)
 			require.GreaterOrEqual(s.T(), latencyMs, int64(0), "unexpected latency")
 			require.Equal(s.T(), "chatgpt_codex", info.Country)
+		})
+	}
+}
+
+func (s *ProxyProbeServiceSuite) TestProbeProxy_ChatGPTCodexConnectionErrorsAreClassified() {
+	cases := []struct {
+		name      string
+		err       error
+		errorType string
+	}{
+		{name: "upstream eof", err: io.EOF, errorType: "upstream_eof"},
+		{name: "tls timeout", err: errors.New("net/http: TLS handshake timeout"), errorType: "tls_handshake_timeout"},
+		{name: "io timeout", err: errors.New("dial tcp 203.0.113.10:443: i/o timeout"), errorType: "io_timeout"},
+	}
+
+	for _, tc := range cases {
+		s.Run(tc.name, func() {
+			_, _, err := s.prober.probeWithURL(
+				s.ctx,
+				&http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					require.Equal(s.T(), http.MethodHead, req.Method)
+					return nil, tc.err
+				})},
+				"https://chatgpt.com/backend-api/codex/responses",
+				http.MethodHead,
+				"chatgpt_codex",
+			)
+
+			require.Error(s.T(), err)
+			require.ErrorContains(s.T(), err, "Codex probe target unreachable via proxy")
+			require.ErrorContains(s.T(), err, "method=HEAD")
+			require.ErrorContains(s.T(), err, "target=chatgpt.com")
+			require.ErrorContains(s.T(), err, "error_type="+tc.errorType)
 		})
 	}
 }

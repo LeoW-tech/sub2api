@@ -287,10 +287,31 @@
             </div>
           </template>
 
-          <template #cell-status="{ value }">
-            <span :class="['badge', value === 'active' ? 'badge-success' : 'badge-danger']">
-              {{ t('admin.accounts.status.' + value) }}
-            </span>
+          <template #cell-status="{ row, value }">
+            <div class="flex flex-col gap-1">
+              <span :class="['badge', value === 'active' ? 'badge-success' : 'badge-danger']">
+                {{ t('admin.accounts.status.' + value) }}
+              </span>
+              <span
+                v-if="isActiveOfflineProxy(row)"
+                class="badge badge-danger"
+                :title="t('admin.proxies.networkStatusOfflineActiveHint')"
+              >
+                {{ t('admin.proxies.networkStatusOfflineActive') }}
+              </span>
+              <span
+                v-if="isActiveOfflineProxy(row)"
+                class="max-w-40 text-xs leading-snug text-red-600 dark:text-red-400"
+              >
+                {{ t('admin.proxies.networkStatusOfflineActiveHint') }}
+              </span>
+              <span
+                v-else-if="row.network_status === 'online'"
+                class="badge badge-success"
+              >
+                {{ t('admin.proxies.networkStatusOnline') }}
+              </span>
+            </div>
           </template>
 
           <template #cell-actions="{ row }">
@@ -1500,6 +1521,9 @@ const stopTestingProxy = (proxyId: number) => {
   testingProxyIds.value = next
 }
 
+const isActiveOfflineProxy = (proxy: Pick<Proxy, 'status' | 'network_status'>) =>
+  proxy.status === 'active' && proxy.network_status === 'offline'
+
 const startQualityCheckingProxy = (proxyId: number) => {
   qualityCheckingProxyIds.value = new Set([...qualityCheckingProxyIds.value, proxyId])
 }
@@ -1522,7 +1546,15 @@ const runProxyTest = async (proxyId: number, notify: boolean) => {
           : t('admin.proxies.proxyWorking')
         appStore.showSuccess(message)
       } else {
-        appStore.showError(result.message || t('admin.proxies.proxyTestFailed'))
+        const baseMessage = result.message || t('admin.proxies.proxyTestFailed')
+        const proxy = proxies.value.find((item) => item.id === proxyId)
+        if (proxy && isActiveOfflineProxy(proxy)) {
+          const expectedMessage = t('admin.proxies.offlineProxyTestExpected')
+          appStore.showInfo(expectedMessage)
+          appStore.showError(`${expectedMessage}: ${baseMessage}`)
+        } else {
+          appStore.showError(baseMessage)
+        }
       }
     }
     return result

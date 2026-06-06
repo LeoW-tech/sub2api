@@ -7,14 +7,18 @@ const {
   listProxies,
   getNetworkMonitorStatus,
   updateNetworkMonitor,
+  testProxy,
   showError,
-  showSuccess
+  showSuccess,
+  showInfo
 } = vi.hoisted(() => ({
   listProxies: vi.fn(),
   getNetworkMonitorStatus: vi.fn(),
   updateNetworkMonitor: vi.fn(),
+  testProxy: vi.fn(),
   showError: vi.fn(),
-  showSuccess: vi.fn()
+  showSuccess: vi.fn(),
+  showInfo: vi.fn()
 }))
 
 vi.mock('@/api/admin', () => ({
@@ -22,7 +26,8 @@ vi.mock('@/api/admin', () => ({
     proxies: {
       list: listProxies,
       getNetworkMonitorStatus,
-      updateNetworkMonitor
+      updateNetworkMonitor,
+      testProxy
     }
   }
 }))
@@ -31,7 +36,7 @@ vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
     showError,
     showSuccess,
-    showInfo: vi.fn()
+    showInfo
   })
 }))
 
@@ -57,7 +62,17 @@ const mountView = () =>
         TablePageLayout: {
           template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
         },
-        DataTable: true,
+        DataTable: {
+          props: ['columns', 'data', 'loading'],
+          template: `
+            <div>
+              <div v-for="row in data" :key="row.id" class="proxy-row">
+                <slot name="cell-status" :row="row" :value="row.status" />
+                <slot name="cell-actions" :row="row" />
+              </div>
+            </div>
+          `
+        },
         Pagination: true,
         BaseDialog: true,
         ConfirmDialog: true,
@@ -94,6 +109,8 @@ describe('admin ProxiesView network monitor', () => {
     updateNetworkMonitor.mockReset()
     showError.mockReset()
     showSuccess.mockReset()
+    showInfo.mockReset()
+    testProxy.mockReset()
 
     listProxies.mockResolvedValue({
       items: [],
@@ -112,6 +129,72 @@ describe('admin ProxiesView network monitor', () => {
 
     expect(listProxies).toHaveBeenCalledTimes(1)
     expect(getNetworkMonitorStatus).toHaveBeenCalledTimes(1)
+  })
+
+  it('clearly marks active offline proxies in the status cell', async () => {
+    listProxies.mockResolvedValue({
+      items: [
+        {
+          id: 11,
+          name: 'offline-proxy',
+          protocol: 'http',
+          host: '127.0.0.1',
+          port: 8080,
+          username: null,
+          status: 'active',
+          network_status: 'offline',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z'
+        }
+      ],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('admin.accounts.status.active')
+    expect(wrapper.text()).toContain('admin.proxies.networkStatusOfflineActive')
+    expect(wrapper.text()).toContain('admin.proxies.networkStatusOfflineActiveHint')
+  })
+
+  it('explains that a failed manual test is expected for active offline proxies', async () => {
+    listProxies.mockResolvedValue({
+      items: [
+        {
+          id: 12,
+          name: 'offline-proxy',
+          protocol: 'http',
+          host: '127.0.0.1',
+          port: 8080,
+          username: null,
+          status: 'active',
+          network_status: 'offline',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z'
+        }
+      ],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1
+    })
+    testProxy.mockResolvedValue({ success: false, message: 'Codex probe target unreachable via proxy' })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('.proxy-row button').trigger('click')
+    await flushPromises()
+
+    expect(testProxy).toHaveBeenCalledWith(12)
+    expect(showInfo).toHaveBeenCalledWith('admin.proxies.offlineProxyTestExpected')
+    expect(showError).toHaveBeenCalledWith(
+      expect.stringContaining('admin.proxies.offlineProxyTestExpected')
+    )
   })
 
   it('updates network monitor and shows success when toggled on', async () => {

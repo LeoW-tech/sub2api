@@ -3,10 +3,12 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -98,6 +100,9 @@ func (s *proxyProbeService) probeWithURL(ctx context.Context, client *http.Clien
 
 	resp, err := client.Do(req)
 	if err != nil {
+		if parser == "chatgpt_codex" || parser == "openai" {
+			return nil, 0, formatCodexProbeError(method, url, err)
+		}
 		return nil, 0, fmt.Errorf("proxy connection failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -111,7 +116,7 @@ func (s *proxyProbeService) probeWithURL(ctx context.Context, client *http.Clien
 		if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusInternalServerError {
 			return &service.ProxyExitInfo{Country: parser}, latencyMs, nil
 		}
-		return nil, latencyMs, fmt.Errorf("request to %s failed with status: %d", url, resp.StatusCode)
+		return nil, latencyMs, formatCodexProbeHTTPStatusError(method, url, resp.StatusCode)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -138,6 +143,51 @@ func (s *proxyProbeService) probeWithURL(ctx context.Context, client *http.Clien
 	default:
 		return nil, latencyMs, fmt.Errorf("unknown parser: %s", parser)
 	}
+}
+
+func formatCodexProbeError(method string, rawURL string, err error) error {
+	return fmt.Errorf(
+		"Codex probe target unreachable via proxy: method=%s target=%s error_type=%s detail=%v: %w",
+		method,
+		probeTargetHost(rawURL),
+		classifyProxyProbeError(err),
+		err,
+		err,
+	)
+}
+
+func formatCodexProbeHTTPStatusError(method string, rawURL string, statusCode int) error {
+	return fmt.Errorf(
+		"Codex probe target unreachable via proxy: method=%s target=%s error_type=http_status failed with status: %d",
+		method,
+		probeTargetHost(rawURL),
+		statusCode,
+	)
+}
+
+func classifyProxyProbeError(err error) string {
+	if err == nil {
+		return "proxy_connect_failed"
+	}
+	message := strings.ToLower(err.Error())
+	if errors.Is(err, io.EOF) || strings.Contains(message, "eof") {
+		return "upstream_eof"
+	}
+	if strings.Contains(message, "tls handshake timeout") {
+		return "tls_handshake_timeout"
+	}
+	if strings.Contains(message, "i/o timeout") || strings.Contains(message, "timeout") || errors.Is(err, context.DeadlineExceeded) {
+		return "io_timeout"
+	}
+	return "proxy_connect_failed"
+}
+
+func probeTargetHost(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err == nil && parsed.Hostname() != "" {
+		return parsed.Hostname()
+	}
+	return rawURL
 }
 
 func (s *proxyProbeService) parseIPAPI(body []byte, latencyMs int64) (*service.ProxyExitInfo, int64, error) {
