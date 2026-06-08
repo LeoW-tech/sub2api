@@ -187,6 +187,9 @@ func (m *mockAccountRepoForGemini) ClearNetworkAutoPause(ctx context.Context, ac
 func (m *mockAccountRepoForGemini) UpdateSessionWindow(ctx context.Context, id int64, start, end *time.Time, status string) error {
 	return nil
 }
+func (m *mockAccountRepoForGemini) UpdateSessionWindowEnd(ctx context.Context, id int64, end time.Time) error {
+	return nil
+}
 func (m *mockAccountRepoForGemini) UpdateExtra(ctx context.Context, id int64, updates map[string]any) error {
 	return nil
 }
@@ -199,6 +202,10 @@ func (m *mockAccountRepoForGemini) IncrementQuotaUsed(ctx context.Context, id in
 }
 
 func (m *mockAccountRepoForGemini) ResetQuotaUsed(ctx context.Context, id int64) error {
+	return nil
+}
+
+func (m *mockAccountRepoForGemini) RevertProxyFallback(ctx context.Context, accountID int64) error {
 	return nil
 }
 

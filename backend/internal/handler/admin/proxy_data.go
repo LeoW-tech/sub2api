@@ -46,6 +46,11 @@ func (h *ProxyHandler) ExportData(c *gin.Context) {
 		}
 	}
 
+	proxyNameByID := make(map[int64]string, len(proxies))
+	for i := range proxies {
+		proxyNameByID[proxies[i].ID] = proxies[i].Name
+	}
+
 	dataProxies := make([]DataProxy, 0, len(proxies))
 	for i := range proxies {
 		p := proxies[i]
@@ -54,6 +59,15 @@ func (h *ProxyHandler) ExportData(c *gin.Context) {
 		if p.ExitIPCheckedAt != nil {
 			ts := p.ExitIPCheckedAt.Unix()
 			exitIPCheckedAt = &ts
+		}
+		var expiresAt *int64
+		if p.ExpiresAt != nil {
+			ts := p.ExpiresAt.Unix()
+			expiresAt = &ts
+		}
+		backupProxyName := ""
+		if p.BackupProxyID != nil {
+			backupProxyName = proxyNameByID[*p.BackupProxyID]
 		}
 		dataProxies = append(dataProxies, DataProxy{
 			ProxyKey:         key,
@@ -67,6 +81,10 @@ func (h *ProxyHandler) ExportData(c *gin.Context) {
 			Status:           p.Status,
 			ExitIP:           p.ExitIP,
 			ExitIPCheckedAt:  exitIPCheckedAt,
+			ExpiresAt:        expiresAt,
+			FallbackMode:     p.FallbackMode,
+			BackupProxyName:  backupProxyName,
+			ExpiryWarnDays:   p.ExpiryWarnDays,
 		})
 	}
 
@@ -107,12 +125,16 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 
 	proxyByKey := make(map[string]service.Proxy, len(existingProxies))
 	proxyByExternalKey := make(map[string]service.Proxy, len(existingProxies))
+	proxyNameToIDs := make(map[string][]int64, len(existingProxies))
 	for i := range existingProxies {
 		p := existingProxies[i]
 		key := buildProxyKey(p.Protocol, p.Host, p.Port, p.Username, p.Password)
 		proxyByKey[key] = p
 		if trimmed := strings.TrimSpace(p.ExternalKey); trimmed != "" {
 			proxyByExternalKey[trimmed] = p
+		}
+		if name := strings.TrimSpace(p.Name); name != "" {
+			proxyNameToIDs[name] = append(proxyNameToIDs[name], p.ID)
 		}
 	}
 
@@ -140,7 +162,9 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 		if existing, ok := proxyByKey[key]; ok {
 			result.ProxyReused++
 			if shouldUpdateImportedProxy(&existing, item, normalizedStatus) {
-				if _, err := h.adminService.UpdateProxy(ctx, existing.ID, buildImportedProxyUpdate(item, normalizedStatus)); err != nil {
+				updateInput := buildImportedProxyUpdate(item, normalizedStatus)
+				updateInput.BackupProxyID = importedBackupProxyID(item, proxyNameToIDs)
+				if _, err := h.adminService.UpdateProxy(ctx, existing.ID, updateInput); err != nil {
 					result.Errors = append(result.Errors, DataImportError{
 						Kind:     "proxy",
 						Name:     item.Name,
@@ -155,7 +179,9 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 		if existing, ok := proxyByExternalKey[externalKey]; externalKey != "" && ok {
 			result.ProxyReused++
 			if shouldUpdateImportedProxy(&existing, item, normalizedStatus) {
-				if _, err := h.adminService.UpdateProxy(ctx, existing.ID, buildImportedProxyUpdate(item, normalizedStatus)); err != nil {
+				updateInput := buildImportedProxyUpdate(item, normalizedStatus)
+				updateInput.BackupProxyID = importedBackupProxyID(item, proxyNameToIDs)
+				if _, err := h.adminService.UpdateProxy(ctx, existing.ID, updateInput); err != nil {
 					result.Errors = append(result.Errors, DataImportError{
 						Kind:     "proxy",
 						Name:     item.Name,
@@ -169,6 +195,12 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 			continue
 		}
 
+		var backupProxyID *int64
+		if name := strings.TrimSpace(item.BackupProxyName); name != "" {
+			if ids := proxyNameToIDs[name]; len(ids) == 1 {
+				backupProxyID = int64Ptr(ids[0])
+			}
+		}
 		created, err := h.adminService.CreateProxy(ctx, &service.CreateProxyInput{
 			Name:            defaultProxyName(item.Name),
 			ExternalKey:     externalKey,
@@ -179,6 +211,10 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 			Password:        item.Password,
 			ExitIP:          strings.TrimSpace(item.ExitIP),
 			ExitIPCheckedAt: unixPtrToTime(item.ExitIPCheckedAt),
+			ExpiresAt:       unixPtrToTime(item.ExpiresAt),
+			FallbackMode:    strings.TrimSpace(item.FallbackMode),
+			BackupProxyID:   backupProxyID,
+			ExpiryWarnDays:  importedExpiryWarnDays(item.ExpiryWarnDays),
 		})
 		if err != nil {
 			result.ProxyFailed++
@@ -197,7 +233,14 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 		}
 
 		if normalizedStatus != "" && normalizedStatus != created.Status {
-			if _, err := h.adminService.UpdateProxy(ctx, created.ID, &service.UpdateProxyInput{Status: normalizedStatus}); err != nil {
+			updateInput := buildImportedProxyUpdate(item, normalizedStatus)
+			updateInput.Name = created.Name
+			updateInput.Protocol = created.Protocol
+			updateInput.Host = created.Host
+			updateInput.Port = created.Port
+			updateInput.Username = created.Username
+			updateInput.Password = created.Password
+			if _, err := h.adminService.UpdateProxy(ctx, created.ID, updateInput); err != nil {
 				result.Errors = append(result.Errors, DataImportError{
 					Kind:     "proxy",
 					Name:     item.Name,

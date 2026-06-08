@@ -166,6 +166,9 @@ func (r *crsSyncTestAccountRepo) ClearModelRateLimits(context.Context, int64) er
 func (r *crsSyncTestAccountRepo) UpdateSessionWindow(context.Context, int64, *time.Time, *time.Time, string) error {
 	panic("unexpected")
 }
+func (r *crsSyncTestAccountRepo) UpdateSessionWindowEnd(context.Context, int64, time.Time) error {
+	panic("unexpected")
+}
 func (r *crsSyncTestAccountRepo) UpdateExtra(context.Context, int64, map[string]any) error {
 	panic("unexpected")
 }
@@ -176,6 +179,9 @@ func (r *crsSyncTestAccountRepo) IncrementQuotaUsed(context.Context, int64, floa
 	panic("unexpected")
 }
 func (r *crsSyncTestAccountRepo) ResetQuotaUsed(context.Context, int64) error {
+	panic("unexpected")
+}
+func (r *crsSyncTestAccountRepo) RevertProxyFallback(context.Context, int64) error {
 	panic("unexpected")
 }
 
@@ -228,6 +234,18 @@ func (r *crsSyncTestProxyRepo) CountAccountsByProxyID(context.Context, int64) (i
 	panic("unexpected")
 }
 func (r *crsSyncTestProxyRepo) ListAccountSummariesByProxyID(context.Context, int64) ([]ProxyAccountSummary, error) {
+	panic("unexpected")
+}
+func (r *crsSyncTestProxyRepo) SweepExpiredProxies(context.Context, time.Time) (int64, error) {
+	panic("unexpected")
+}
+func (r *crsSyncTestProxyRepo) ListAllForFallback(context.Context) ([]Proxy, error) {
+	panic("unexpected")
+}
+func (r *crsSyncTestProxyRepo) CountExpired(context.Context) (int64, error) {
+	panic("unexpected")
+}
+func (r *crsSyncTestProxyRepo) CountExpiringSoon(context.Context, time.Time) (int64, error) {
 	panic("unexpected")
 }
 

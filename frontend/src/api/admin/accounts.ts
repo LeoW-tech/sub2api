@@ -903,6 +903,19 @@ export async function setPrivacy(id: number): Promise<Account> {
   return data;
 }
 
+
+/**
+ * Revert account proxy to original before fallback
+ * @param id - Account ID
+ * @returns Success confirmation
+ */
+export async function revertProxyFallback(id: number): Promise<{ message: string }> {
+  const { data } = await apiClient.post<{ message: string }>(
+    `/admin/accounts/${id}/revert-proxy-fallback`,
+  );
+  return data;
+}
+
 export const accountsAPI = {
   list,
   listWithEtag,
@@ -947,6 +960,7 @@ export const accountsAPI = {
   batchRefresh,
   trueRefreshToken,
   setPrivacy,
+  revertProxyFallback,
 };
 
 export default accountsAPI;

@@ -178,6 +178,18 @@ func (s *proxyNetworkMonitorRuntimeProxyRepo) CountAccountsByProxyID(ctx context
 func (s *proxyNetworkMonitorRuntimeProxyRepo) ListAccountSummariesByProxyID(ctx context.Context, proxyID int64) ([]ProxyAccountSummary, error) {
 	return nil, nil
 }
+func (s *proxyNetworkMonitorRuntimeProxyRepo) SweepExpiredProxies(ctx context.Context, now time.Time) (int64, error) {
+	return 0, nil
+}
+func (s *proxyNetworkMonitorRuntimeProxyRepo) ListAllForFallback(ctx context.Context) ([]Proxy, error) {
+	return nil, nil
+}
+func (s *proxyNetworkMonitorRuntimeProxyRepo) CountExpired(ctx context.Context) (int64, error) {
+	return 0, nil
+}
+func (s *proxyNetworkMonitorRuntimeProxyRepo) CountExpiringSoon(ctx context.Context, now time.Time) (int64, error) {
+	return 0, nil
+}
 
 type proxyNetworkMonitorRuntimeAdminService struct {
 	AdminService

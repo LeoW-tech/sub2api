@@ -44,6 +44,10 @@ type DataProxy struct {
 	Status           string `json:"status"`
 	ExitIP           string `json:"exit_ip,omitempty"`
 	ExitIPCheckedAt  *int64 `json:"exit_ip_checked_at,omitempty"`
+	ExpiresAt        *int64 `json:"expires_at,omitempty"`
+	FallbackMode     string `json:"fallback_mode,omitempty"`
+	BackupProxyName  string `json:"backup_proxy_name,omitempty"`
+	ExpiryWarnDays   int    `json:"expiry_warn_days,omitempty"`
 }
 
 // DataAccount 是管理员显式备份导出使用的账号结构，故意不走 dto.Account 的脱敏路径，
@@ -131,6 +135,10 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 
 	proxyKeyByID := make(map[int64]string, len(proxies))
 	proxyByID := make(map[int64]service.Proxy, len(proxies))
+	proxyNameByID := make(map[int64]string, len(proxies))
+	for i := range proxies {
+		proxyNameByID[proxies[i].ID] = proxies[i].Name
+	}
 	dataProxies := make([]DataProxy, 0, len(proxies))
 	for i := range proxies {
 		p := proxies[i]
@@ -141,6 +149,15 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 		if p.ExitIPCheckedAt != nil {
 			ts := p.ExitIPCheckedAt.Unix()
 			exitIPCheckedAt = &ts
+		}
+		var expiresAt *int64
+		if p.ExpiresAt != nil {
+			ts := p.ExpiresAt.Unix()
+			expiresAt = &ts
+		}
+		backupProxyName := ""
+		if p.BackupProxyID != nil {
+			backupProxyName = proxyNameByID[*p.BackupProxyID]
 		}
 		dataProxies = append(dataProxies, DataProxy{
 			ProxyKey:         key,
@@ -154,6 +171,10 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 			Status:           p.Status,
 			ExitIP:           p.ExitIP,
 			ExitIPCheckedAt:  exitIPCheckedAt,
+			ExpiresAt:        expiresAt,
+			FallbackMode:     p.FallbackMode,
+			BackupProxyName:  backupProxyName,
+			ExpiryWarnDays:   p.ExpiryWarnDays,
 		})
 	}
 
@@ -304,12 +325,19 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 			}
 			result.ProxyReused++
 			updateInput := buildImportedProxyUpdate(item, normalizedStatus)
+			updateInput.BackupProxyID = importedBackupProxyID(item, proxyNameToIDs)
 			if proxy, getErr := h.adminService.GetProxy(ctx, existingID); getErr == nil && proxy != nil && shouldUpdateImportedProxy(proxy, item, normalizedStatus) {
 				_, _ = h.adminService.UpdateProxy(ctx, existingID, updateInput)
 			}
 			continue
 		}
 
+		var backupProxyID *int64
+		if name := strings.TrimSpace(item.BackupProxyName); name != "" {
+			if ids := proxyNameToIDs[name]; len(ids) == 1 {
+				backupProxyID = int64Ptr(ids[0])
+			}
+		}
 		created, createErr := h.adminService.CreateProxy(ctx, &service.CreateProxyInput{
 			Name:            defaultProxyName(item.Name),
 			ExternalKey:     strings.TrimSpace(item.ProxyExternalKey),
@@ -320,6 +348,10 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 			Password:        item.Password,
 			ExitIP:          strings.TrimSpace(item.ExitIP),
 			ExitIPCheckedAt: unixPtrToTime(item.ExitIPCheckedAt),
+			ExpiresAt:       unixPtrToTime(item.ExpiresAt),
+			FallbackMode:    strings.TrimSpace(item.FallbackMode),
+			BackupProxyID:   backupProxyID,
+			ExpiryWarnDays:  importedExpiryWarnDays(item.ExpiryWarnDays),
 		})
 		if createErr != nil {
 			result.ProxyFailed++
@@ -338,9 +370,14 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 		result.ProxyCreated++
 
 		if normalizedStatus != "" && normalizedStatus != created.Status {
-			_, _ = h.adminService.UpdateProxy(ctx, created.ID, &service.UpdateProxyInput{
-				Status: normalizedStatus,
-			})
+			updateInput := buildImportedProxyUpdate(item, normalizedStatus)
+			updateInput.Name = created.Name
+			updateInput.Protocol = created.Protocol
+			updateInput.Host = created.Host
+			updateInput.Port = created.Port
+			updateInput.Username = created.Username
+			updateInput.Password = created.Password
+			_, _ = h.adminService.UpdateProxy(ctx, created.ID, updateInput)
 		}
 	}
 
@@ -687,7 +724,7 @@ func validateDataProxy(item DataProxy) error {
 	}
 	if item.Status != "" {
 		normalizedStatus := normalizeProxyStatus(item.Status)
-		if normalizedStatus != service.StatusActive && normalizedStatus != "inactive" {
+		if normalizedStatus != service.StatusActive && normalizedStatus != "inactive" && normalizedStatus != "expired" {
 			return fmt.Errorf("proxy status is invalid: %s", item.Status)
 		}
 	}
@@ -756,15 +793,18 @@ func defaultProxyName(name string) string {
 
 func buildImportedProxyUpdate(item DataProxy, normalizedStatus string) *service.UpdateProxyInput {
 	return &service.UpdateProxyInput{
-		Name:        defaultProxyName(item.Name),
-		Protocol:    item.Protocol,
-		Host:        item.Host,
-		Port:        item.Port,
-		Username:    item.Username,
-		Password:    item.Password,
-		Status:      normalizedStatus,
-		ExternalKey: nonEmptyStringPtr(item.ProxyExternalKey),
-		ExitIP:      nonEmptyStringPtr(item.ExitIP),
+		Name:           defaultProxyName(item.Name),
+		Protocol:       item.Protocol,
+		Host:           item.Host,
+		Port:           item.Port,
+		Username:       item.Username,
+		Password:       item.Password,
+		Status:         normalizedStatus,
+		ExternalKey:    nonEmptyStringPtr(item.ProxyExternalKey),
+		ExitIP:         nonEmptyStringPtr(item.ExitIP),
+		ExpiresAt:      unixPtrToTime(item.ExpiresAt),
+		FallbackMode:   strings.TrimSpace(item.FallbackMode),
+		ExpiryWarnDays: importedExpiryWarnDays(item.ExpiryWarnDays),
 	}
 }
 
@@ -780,6 +820,20 @@ func shouldUpdateImportedProxy(existing *service.Proxy, item DataProxy, normaliz
 		item.Password != existing.Password ||
 		(strings.TrimSpace(item.ProxyExternalKey) != existing.ExternalKey) ||
 		(strings.TrimSpace(item.ExitIP) != existing.ExitIP) {
+		return true
+	}
+	if item.ExpiresAt != nil {
+		if existing.ExpiresAt == nil || existing.ExpiresAt.Unix() != *item.ExpiresAt {
+			return true
+		}
+	}
+	if strings.TrimSpace(item.FallbackMode) != "" && strings.TrimSpace(item.FallbackMode) != existing.FallbackMode {
+		return true
+	}
+	if item.ExpiryWarnDays != 0 && item.ExpiryWarnDays != existing.ExpiryWarnDays {
+		return true
+	}
+	if strings.TrimSpace(item.BackupProxyName) != "" {
 		return true
 	}
 	return normalizedStatus != "" && normalizedStatus != existing.Status
@@ -945,4 +999,23 @@ func normalizeProxyStatus(status string) string {
 	default:
 		return normalized
 	}
+}
+
+func importedExpiryWarnDays(value int) int {
+	if value == 0 {
+		return 7
+	}
+	return value
+}
+
+func importedBackupProxyID(item DataProxy, proxyNameToIDs map[string][]int64) *int64 {
+	name := strings.TrimSpace(item.BackupProxyName)
+	if name == "" {
+		return nil
+	}
+	ids := proxyNameToIDs[name]
+	if len(ids) != 1 {
+		return nil
+	}
+	return int64Ptr(ids[0])
 }

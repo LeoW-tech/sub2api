@@ -147,27 +147,35 @@ func proxyNetworkMonitorSummaryFromService(summary *service.ProxyNetworkScanSumm
 
 // CreateProxyRequest represents create proxy request
 type CreateProxyRequest struct {
-	Name        string `json:"name" binding:"required"`
-	ExternalKey string `json:"external_key"`
-	Protocol    string `json:"protocol" binding:"required,oneof=http https socks5 socks5h"`
-	Host        string `json:"host" binding:"required"`
-	Port        int    `json:"port" binding:"required,min=1,max=65535"`
-	Username    string `json:"username"`
-	Password    string `json:"password"`
-	ExitIP      string `json:"exit_ip"`
+	Name           string `json:"name" binding:"required"`
+	ExternalKey    string `json:"external_key"`
+	Protocol       string `json:"protocol" binding:"required,oneof=http https socks5 socks5h"`
+	Host           string `json:"host" binding:"required"`
+	Port           int    `json:"port" binding:"required,min=1,max=65535"`
+	Username       string `json:"username"`
+	Password       string `json:"password"`
+	ExitIP         string `json:"exit_ip"`
+	ExpiresAt      *int64 `json:"expires_at"`
+	FallbackMode   string `json:"fallback_mode"`
+	BackupProxyID  *int64 `json:"backup_proxy_id"`
+	ExpiryWarnDays int    `json:"expiry_warn_days"`
 }
 
 // UpdateProxyRequest represents update proxy request
 type UpdateProxyRequest struct {
-	Name        string  `json:"name"`
-	ExternalKey *string `json:"external_key"`
-	Protocol    string  `json:"protocol" binding:"omitempty,oneof=http https socks5 socks5h"`
-	Host        string  `json:"host"`
-	Port        int     `json:"port" binding:"omitempty,min=1,max=65535"`
-	Username    string  `json:"username"`
-	Password    string  `json:"password"`
-	Status      string  `json:"status" binding:"omitempty,oneof=active inactive"`
-	ExitIP      *string `json:"exit_ip"`
+	Name           string  `json:"name"`
+	ExternalKey    *string `json:"external_key"`
+	Protocol       string  `json:"protocol" binding:"omitempty,oneof=http https socks5 socks5h"`
+	Host           string  `json:"host"`
+	Port           int     `json:"port" binding:"omitempty,min=1,max=65535"`
+	Username       string  `json:"username"`
+	Password       string  `json:"password"`
+	Status         string  `json:"status" binding:"omitempty,oneof=active inactive expired"`
+	ExitIP         *string `json:"exit_ip"`
+	ExpiresAt      *int64  `json:"expires_at"`
+	FallbackMode   string  `json:"fallback_mode"`
+	BackupProxyID  *int64  `json:"backup_proxy_id"`
+	ExpiryWarnDays int     `json:"expiry_warn_days"`
 }
 
 // List handles listing all proxies with pagination
@@ -279,15 +287,28 @@ func (h *ProxyHandler) Create(c *gin.Context) {
 	}
 
 	executeAdminIdempotentJSON(c, "admin.proxies.create", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		var expiresAt *time.Time
+		if req.ExpiresAt != nil && *req.ExpiresAt > 0 {
+			t := time.Unix(*req.ExpiresAt, 0).UTC()
+			expiresAt = &t
+		}
+		expiryWarnDays := req.ExpiryWarnDays
+		if expiryWarnDays == 0 {
+			expiryWarnDays = 7
+		}
 		proxy, err := h.adminService.CreateProxy(ctx, &service.CreateProxyInput{
-			Name:        strings.TrimSpace(req.Name),
-			ExternalKey: strings.TrimSpace(req.ExternalKey),
-			Protocol:    strings.TrimSpace(req.Protocol),
-			Host:        strings.TrimSpace(req.Host),
-			Port:        req.Port,
-			Username:    strings.TrimSpace(req.Username),
-			Password:    strings.TrimSpace(req.Password),
-			ExitIP:      strings.TrimSpace(req.ExitIP),
+			Name:           strings.TrimSpace(req.Name),
+			ExternalKey:    strings.TrimSpace(req.ExternalKey),
+			Protocol:       strings.TrimSpace(req.Protocol),
+			Host:           strings.TrimSpace(req.Host),
+			Port:           req.Port,
+			Username:       strings.TrimSpace(req.Username),
+			Password:       strings.TrimSpace(req.Password),
+			ExitIP:         strings.TrimSpace(req.ExitIP),
+			ExpiresAt:      expiresAt,
+			FallbackMode:   strings.TrimSpace(req.FallbackMode),
+			BackupProxyID:  req.BackupProxyID,
+			ExpiryWarnDays: expiryWarnDays,
 		})
 		if err != nil {
 			return nil, err
@@ -311,16 +332,40 @@ func (h *ProxyHandler) Update(c *gin.Context) {
 		return
 	}
 
+	var expiresAt *time.Time
+	if req.ExpiresAt != nil && *req.ExpiresAt > 0 {
+		t := time.Unix(*req.ExpiresAt, 0).UTC()
+		expiresAt = &t
+	}
+	fallbackMode := strings.TrimSpace(req.FallbackMode)
+	backupProxyID := req.BackupProxyID
+	expiryWarnDays := req.ExpiryWarnDays
+	fallbackFieldsProvided := req.ExpiresAt != nil || fallbackMode != "" || backupProxyID != nil || expiryWarnDays != 0
+	if !fallbackFieldsProvided {
+		existing, getErr := h.adminService.GetProxy(c.Request.Context(), proxyID)
+		if getErr != nil {
+			response.ErrorFrom(c, getErr)
+			return
+		}
+		expiresAt = existing.ExpiresAt
+		fallbackMode = existing.FallbackMode
+		backupProxyID = existing.BackupProxyID
+		expiryWarnDays = existing.ExpiryWarnDays
+	}
 	proxy, err := h.adminService.UpdateProxy(c.Request.Context(), proxyID, &service.UpdateProxyInput{
-		Name:        strings.TrimSpace(req.Name),
-		Protocol:    strings.TrimSpace(req.Protocol),
-		Host:        strings.TrimSpace(req.Host),
-		Port:        req.Port,
-		Username:    strings.TrimSpace(req.Username),
-		Password:    strings.TrimSpace(req.Password),
-		Status:      strings.TrimSpace(req.Status),
-		ExternalKey: trimStringPtr(req.ExternalKey),
-		ExitIP:      trimStringPtr(req.ExitIP),
+		Name:           strings.TrimSpace(req.Name),
+		Protocol:       strings.TrimSpace(req.Protocol),
+		Host:           strings.TrimSpace(req.Host),
+		Port:           req.Port,
+		Username:       strings.TrimSpace(req.Username),
+		Password:       strings.TrimSpace(req.Password),
+		Status:         strings.TrimSpace(req.Status),
+		ExternalKey:    trimStringPtr(req.ExternalKey),
+		ExitIP:         trimStringPtr(req.ExitIP),
+		ExpiresAt:      expiresAt,
+		FallbackMode:   fallbackMode,
+		BackupProxyID:  backupProxyID,
+		ExpiryWarnDays: expiryWarnDays,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)

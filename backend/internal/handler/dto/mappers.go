@@ -426,6 +426,10 @@ func ProxyFromService(p *service.Proxy) *Proxy {
 		NetworkErrorMessage: p.NetworkErrorMessage,
 		ExitIP:              p.ExitIP,
 		ExitIPCheckedAt:     p.ExitIPCheckedAt,
+		ExpiresAt:           p.ExpiresAt,
+		FallbackMode:        p.FallbackMode,
+		BackupProxyID:       p.BackupProxyID,
+		ExpiryWarnDays:      p.ExpiryWarnDays,
 		CreatedAt:           p.CreatedAt,
 		UpdatedAt:           p.UpdatedAt,
 	}

@@ -711,7 +711,7 @@ export interface Proxy {
   port: number
   username: string | null
   password?: string | null
-  status: 'active' | 'inactive'
+  status: 'active' | 'inactive' | 'expired'
   external_key?: string | null
   exit_ip?: string | null
   network_status?: 'online' | 'offline' | null
@@ -729,6 +729,10 @@ export interface Proxy {
   quality_grade?: string
   quality_summary?: string
   quality_checked?: number
+  expires_at: string | null
+  fallback_mode: 'none' | 'proxy' | 'direct'
+  backup_proxy_id?: number | null
+  expiry_warn_days: number
   created_at: string
   updated_at: string
 }
@@ -1125,6 +1129,10 @@ export interface CreateProxyRequest {
   password?: string | null
   external_key?: string | null
   exit_ip?: string | null
+  expires_at?: number | null
+  fallback_mode?: 'none' | 'proxy' | 'direct'
+  backup_proxy_id?: number | null
+  expiry_warn_days?: number
 }
 
 export interface UpdateProxyRequest {
@@ -1134,9 +1142,13 @@ export interface UpdateProxyRequest {
   port?: number
   username?: string | null
   password?: string | null
-  status?: 'active' | 'inactive'
+  status?: 'active' | 'inactive' | 'expired'
   external_key?: string | null
   exit_ip?: string | null
+  expires_at?: number | null
+  fallback_mode?: 'none' | 'proxy' | 'direct'
+  backup_proxy_id?: number | null
+  expiry_warn_days?: number
 }
 
 export interface AdminDataPayload {
@@ -1156,9 +1168,13 @@ export interface AdminDataProxy {
   port: number
   username?: string | null
   password?: string | null
-  status: 'active' | 'inactive'
+  status: 'active' | 'inactive' | 'expired'
   exit_ip?: string | null
   exit_ip_checked_at?: number | null
+  expires_at?: number | null
+  fallback_mode?: 'none' | 'proxy' | 'direct'
+  backup_proxy_name?: string | null
+  expiry_warn_days?: number
 }
 
 export interface AdminDataAccount {
