@@ -28,10 +28,10 @@
           v-if="user"
           to="/help"
           data-testid="header-help-link"
-          class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
+          class="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white lg:flex"
         >
           <Icon name="questionCircle" size="sm" />
-          <span class="hidden sm:inline">{{ t('nav.help') }}</span>
+          <span>{{ t('nav.help') }}</span>
         </router-link>
 
         <!-- Contact Support -->
@@ -152,6 +152,11 @@
               </div>
 
               <div class="py-1">
+                <router-link to="/help" @click="closeDropdown" class="dropdown-item">
+                  <Icon name="questionCircle" size="sm" />
+                  {{ t('nav.help') }}
+                </router-link>
+
                 <router-link to="/profile" @click="closeDropdown" class="dropdown-item">
                   <Icon name="user" size="sm" />
                   {{ t('nav.profile') }}

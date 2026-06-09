@@ -108,10 +108,22 @@ describe('AppHeader contact support placement', () => {
 
     expect(help.text()).toContain('使用帮助')
     expect(help.attributes('href')).toBe('/help')
+    expect(help.classes()).toContain('lg:flex')
+    expect(help.classes()).toContain('hidden')
     expect(
       help.element.compareDocumentPosition(contact.element)
         & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy()
+  })
+
+  it('renders help in the user dropdown for compact screens', async () => {
+    const wrapper = mountHeader()
+
+    await wrapper.get('button[aria-label="User Menu"]').trigger('click')
+
+    const helpLinks = wrapper.findAll('a').filter((link) => link.attributes('href') === '/help')
+    expect(helpLinks).toHaveLength(2)
+    expect(helpLinks[1].classes()).toContain('dropdown-item')
   })
 
   it('hides the help link when user is not logged in', () => {

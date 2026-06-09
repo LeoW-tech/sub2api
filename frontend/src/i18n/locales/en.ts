@@ -416,6 +416,7 @@ export default {
     },
     links: {
       purchase: 'Open Recharge / Subscription',
+      subscriptions: 'View my subscriptions',
       keys: 'Create API Key',
       affiliate: 'Open Affiliate Rebates'
     },
@@ -427,6 +428,7 @@ export default {
       },
       key: {
         title: 'Use key',
+        name: 'Codex Key',
         useKey: 'Use Key'
       },
       affiliate: {

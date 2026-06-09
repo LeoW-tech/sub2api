@@ -416,6 +416,7 @@ export default {
     },
     links: {
       purchase: '进入充值/订阅',
+      subscriptions: '查看我的订阅',
       keys: '创建 API 密钥',
       affiliate: '进入邀请返利'
     },
@@ -427,6 +428,7 @@ export default {
       },
       key: {
         title: '使用密钥',
+        name: 'Codex 密钥',
         useKey: '使用密钥'
       },
       affiliate: {

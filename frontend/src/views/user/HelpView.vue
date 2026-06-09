@@ -16,7 +16,7 @@
           </div>
           <div class="grid gap-3 sm:grid-cols-3 lg:w-[420px]">
             <div
-              v-for="item in summaryItems"
+              v-for="item in visibleSummaryItems"
               :key="item.labelKey"
               class="rounded-2xl border border-white/70 bg-white/70 p-4 text-center shadow-sm backdrop-blur dark:border-dark-700/70 dark:bg-dark-800/70"
             >
@@ -33,13 +33,13 @@
 
       <section class="space-y-5">
         <article
-          v-for="step in steps"
-          :key="step.number"
+          v-for="(step, index) in visibleSteps"
+          :key="step.titleKey"
           class="grid gap-5 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-800 md:grid-cols-[minmax(0,1fr)_360px] md:p-6"
         >
           <div class="flex gap-4">
             <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-300">
-              <span class="text-sm font-semibold">{{ step.number }}</span>
+              <span class="text-sm font-semibold">{{ String(index + 1).padStart(2, '0') }}</span>
             </div>
             <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-2">
@@ -59,25 +59,21 @@
               </p>
 
               <div class="mt-5 flex flex-wrap gap-3">
-                <a
-                  :href="step.primaryHref"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <router-link
+                  :to="step.primaryTo"
                   class="btn btn-primary"
                 >
                   <span>{{ t(step.primaryLabelKey) }}</span>
-                  <Icon name="externalLink" size="sm" />
-                </a>
-                <a
-                  v-if="step.secondaryHref && step.secondaryLabelKey"
-                  :href="step.secondaryHref"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  <Icon name="arrowRight" size="sm" />
+                </router-link>
+                <router-link
+                  v-if="step.secondaryTo && step.secondaryLabelKey"
+                  :to="step.secondaryTo"
                   class="btn btn-secondary"
                 >
                   <span>{{ t(step.secondaryLabelKey) }}</span>
-                  <Icon name="externalLink" size="sm" />
-                </a>
+                  <Icon name="arrowRight" size="sm" />
+                </router-link>
               </div>
             </div>
           </div>
@@ -116,7 +112,7 @@
               <div class="rounded-xl bg-white p-3 shadow-sm dark:bg-dark-800">
                 <div class="flex items-center justify-between gap-3">
                   <div>
-                    <p class="text-sm font-semibold text-gray-900 dark:text-white">Codex Key</p>
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('help.screenshots.key.name') }}</p>
                     <p class="text-xs text-gray-500 dark:text-dark-400">sk-••••••••••</p>
                   </div>
                   <span class="rounded-lg bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-dark-200">
@@ -157,9 +153,11 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 
 const { t } = useI18n()
 
@@ -169,61 +167,73 @@ type ScreenshotKind = 'affiliate' | 'key' | 'purchase'
 interface SummaryItem {
   icon: HelpIcon
   labelKey: string
+  feature?: 'affiliate' | 'payment'
 }
 
 interface HelpStep {
-  number: string
   icon: HelpIcon
   titleKey: string
   descriptionKey: string
   noteKey?: string
-  primaryHref: string
+  primaryTo: string
   primaryLabelKey: string
-  secondaryHref?: string
+  secondaryTo?: string
   secondaryLabelKey?: string
   screenshotTitleKey: string
   screenshot: ScreenshotKind
+  feature?: 'affiliate' | 'payment'
 }
 
 const summaryItems: SummaryItem[] = [
-  { icon: 'creditCard', labelKey: 'help.steps.purchase.title' },
+  { icon: 'creditCard', labelKey: 'help.steps.purchase.title', feature: 'payment' },
   { icon: 'key', labelKey: 'help.steps.key.title' },
-  { icon: 'gift', labelKey: 'help.steps.affiliate.title' },
+  { icon: 'gift', labelKey: 'help.steps.affiliate.title', feature: 'affiliate' },
 ] 
 
 const steps: HelpStep[] = [
   {
-    number: '01',
     icon: 'creditCard',
     titleKey: 'help.steps.purchase.title',
     descriptionKey: 'help.steps.purchase.description',
-    primaryHref: '/purchase',
+    primaryTo: '/purchase',
     primaryLabelKey: 'help.links.purchase',
-    secondaryHref: '/subscriptions',
-    secondaryLabelKey: 'help.steps.purchase.secondary',
+    secondaryTo: '/subscriptions',
+    secondaryLabelKey: 'help.links.subscriptions',
     screenshotTitleKey: 'help.screenshots.purchase.title',
     screenshot: 'purchase',
+    feature: 'payment',
   },
   {
-    number: '02',
     icon: 'key',
     titleKey: 'help.steps.key.title',
     descriptionKey: 'help.steps.key.description',
     noteKey: 'help.steps.key.note',
-    primaryHref: '/keys',
+    primaryTo: '/keys',
     primaryLabelKey: 'help.links.keys',
     screenshotTitleKey: 'help.screenshots.key.title',
     screenshot: 'key',
   },
   {
-    number: '03',
     icon: 'gift',
     titleKey: 'help.steps.affiliate.title',
     descriptionKey: 'help.steps.affiliate.description',
-    primaryHref: '/affiliate',
+    primaryTo: '/affiliate',
     primaryLabelKey: 'help.links.affiliate',
     screenshotTitleKey: 'help.screenshots.affiliate.title',
     screenshot: 'affiliate',
+    feature: 'affiliate',
   },
 ]
+
+function isHelpFeatureVisible(feature?: HelpStep['feature']): boolean {
+  if (!feature) return true
+  if (feature === 'payment') {
+    // Keep opt-out payment semantics aligned with the sidebar and route guard.
+    return isFeatureFlagEnabled(FeatureFlags.payment)
+  }
+  return isFeatureFlagEnabled(FeatureFlags.affiliate)
+}
+
+const visibleSteps = computed(() => steps.filter((step) => isHelpFeatureVisible(step.feature)))
+const visibleSummaryItems = computed(() => summaryItems.filter((item) => isHelpFeatureVisible(item.feature)))
 </script>
