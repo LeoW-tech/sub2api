@@ -53,6 +53,7 @@ vi.mock('vue-i18n', async (importOriginal) => {
       t: (key: string) => {
         if (key === 'common.contactSupport') return '联系客服'
         if (key === 'common.balance') return '余额'
+        if (key === 'nav.help') return '使用帮助'
         return key
       }
     })
@@ -90,7 +91,7 @@ describe('AppHeader contact support placement', () => {
           },
           RouterLink: {
             props: ['to'],
-            template: '<a><slot /></a>'
+            template: '<a :href="to"><slot /></a>'
           }
         },
         mocks: {
@@ -99,6 +100,27 @@ describe('AppHeader contact support placement', () => {
       }
     })
   }
+
+  it('renders help link before configured contact support', () => {
+    const wrapper = mountHeader()
+    const help = wrapper.get('[data-testid="header-help-link"]')
+    const contact = wrapper.get('[data-testid="header-contact-support"]')
+
+    expect(help.text()).toContain('使用帮助')
+    expect(help.attributes('href')).toBe('/help')
+    expect(
+      help.element.compareDocumentPosition(contact.element)
+        & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+  })
+
+  it('hides the help link when user is not logged in', () => {
+    storeState.auth.user = null as unknown as typeof storeState.auth.user
+
+    const wrapper = mountHeader()
+
+    expect(wrapper.find('[data-testid="header-help-link"]').exists()).toBe(false)
+  })
 
   it('renders configured contact support before the announcement bell', () => {
     const wrapper = mountHeader()

@@ -378,6 +378,7 @@ export default {
     mySubscriptions: 'My Subscriptions',
     buySubscription: 'Recharge / Subscription',
     docs: 'Docs',
+    help: 'Help',
     myOrders: 'My Orders',
     orderManagement: 'Orders',
     paymentDashboard: 'Payment Dashboard',
@@ -388,6 +389,54 @@ export default {
     channelMonitor: 'Channel Monitor',
     channelStatus: 'Channel Status',
     riskControl: 'Risk Control',
+  },
+
+  help: {
+    title: 'Help',
+    description: 'Start using the service in three steps: purchase service, configure an API key, and invite friends for rebates.',
+    intro: {
+      title: 'Start AI service in three steps',
+      description: 'After entering the system, confirm your balance or subscription first, then create an API key and configure it in Codex or other tools.'
+    },
+    steps: {
+      purchase: {
+        title: 'Purchase service',
+        description: 'First make sure the wallet in the top-right corner has a balance, or that you have an available subscription package. At least one is required for normal use. If needed, go to Recharge / Subscription to purchase.',
+        secondary: 'View my subscriptions'
+      },
+      key: {
+        title: 'Configure API key',
+        description: 'After downloading Codex or another AI tool, open the API Keys menu, create a key, and configure it in your tool. You only need to enter a name and select the service you purchased.',
+        note: 'After creation, click “Use Key” in the key row menu to view configuration methods. Follow the guide to finish setup, then start using AI models in your tool.'
+      },
+      affiliate: {
+        title: 'Invite for rebates',
+        description: 'If you like the service, open Affiliate Rebates and send your invite link to friends. You can receive invitation rewards when they use the service.'
+      }
+    },
+    links: {
+      purchase: 'Open Recharge / Subscription',
+      keys: 'Create API Key',
+      affiliate: 'Open Affiliate Rebates'
+    },
+    screenshots: {
+      purchase: {
+        title: 'Wallet and subscription',
+        wallet: 'Top-right wallet balance',
+        subscription: 'Or purchase an available subscription package'
+      },
+      key: {
+        title: 'Use key',
+        useKey: 'Use Key'
+      },
+      affiliate: {
+        title: 'Invite link',
+        linkLabel: 'Your invite link',
+        copy: 'Copy',
+        rebate: 'Rebate rate',
+        reward: 'Rewards'
+      }
+    }
   },
 
   // Auth

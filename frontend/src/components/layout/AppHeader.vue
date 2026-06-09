@@ -21,8 +21,19 @@
         </div>
       </div>
 
-      <!-- Right: Contact + Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
+      <!-- Right: Help + Contact + Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
       <div class="flex items-center gap-3">
+        <!-- Help Link -->
+        <router-link
+          v-if="user"
+          to="/help"
+          data-testid="header-help-link"
+          class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
+        >
+          <Icon name="questionCircle" size="sm" />
+          <span class="hidden sm:inline">{{ t('nav.help') }}</span>
+        </router-link>
+
         <!-- Contact Support -->
         <div
           v-if="user && contactInfo"
