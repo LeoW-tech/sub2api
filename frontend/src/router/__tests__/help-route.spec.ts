@@ -54,4 +54,12 @@ describe('router help route', () => {
     expect(route?.meta.titleKey).toBe('help.title')
     expect(route?.meta.descriptionKey).toBe('help.description')
   })
+
+  it('requires the affiliate feature flag for the affiliate route', async () => {
+    const { default: router } = await import('@/router')
+    const route = router.getRoutes().find((record) => record.name === 'Affiliate')
+
+    expect(route?.path).toBe('/affiliate')
+    expect(route?.meta.requiresAffiliate).toBe(true)
+  })
 })

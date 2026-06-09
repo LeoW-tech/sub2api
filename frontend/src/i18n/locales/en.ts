@@ -401,8 +401,7 @@ export default {
     steps: {
       purchase: {
         title: 'Purchase service',
-        description: 'First make sure the wallet in the top-right corner has a balance, or that you have an available subscription package. At least one is required for normal use. If needed, go to Recharge / Subscription to purchase.',
-        secondary: 'View my subscriptions'
+        description: 'First make sure the wallet in the top-right corner has a balance, or that you have an available subscription package. At least one is required for normal use. If needed, go to Recharge / Subscription to purchase.'
       },
       key: {
         title: 'Configure API key',

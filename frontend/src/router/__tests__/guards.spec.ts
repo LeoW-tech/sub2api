@@ -55,6 +55,8 @@ interface MockAuthState {
   backendModeEnabled: boolean
   hasPendingAuthSession: boolean
   setupNeedsSetup?: boolean
+  paymentEnabled?: boolean
+  affiliateEnabled?: boolean
 }
 
 /**
@@ -112,6 +114,15 @@ function simulateGuard(
   // 需要管理员但不是管理员
   if (requiresAdmin && !authState.isAdmin) {
     return '/dashboard'
+  }
+
+  // 功能开关限制：payment 为 opt-out，affiliate 为 opt-in
+  if (toMeta.requiresPayment && authState.paymentEnabled === false) {
+    return authState.isAdmin ? '/admin/dashboard' : '/dashboard'
+  }
+
+  if (toMeta.requiresAffiliate && authState.affiliateEnabled !== true) {
+    return authState.isAdmin ? '/admin/dashboard' : '/dashboard'
   }
 
   // 简易模式限制
@@ -226,6 +237,34 @@ describe('路由守卫逻辑', () => {
       const redirect = simulateGuard('/admin/users', { requiresAdmin: true }, authState)
       expect(redirect).toBe('/dashboard')
     })
+
+    it('payment 功能未返回配置时按 opt-out 默认允许访问购买页', () => {
+      const redirect = simulateGuard('/purchase', { requiresPayment: true }, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it('payment 功能明确关闭时阻止访问购买页', () => {
+      const redirect = simulateGuard(
+        '/purchase',
+        { requiresPayment: true },
+        { ...authState, paymentEnabled: false }
+      )
+      expect(redirect).toBe('/dashboard')
+    })
+
+    it('affiliate 功能未返回配置时按 opt-in 默认阻止直达邀请返利页', () => {
+      const redirect = simulateGuard('/affiliate', { requiresAffiliate: true }, authState)
+      expect(redirect).toBe('/dashboard')
+    })
+
+    it('affiliate 功能明确启用时允许访问邀请返利页', () => {
+      const redirect = simulateGuard(
+        '/affiliate',
+        { requiresAffiliate: true },
+        { ...authState, affiliateEnabled: true }
+      )
+      expect(redirect).toBeNull()
+    })
   })
 
   // --- 已认证管理员 ---
@@ -251,6 +290,24 @@ describe('路由守卫逻辑', () => {
 
     it('访问用户页面允许通过', () => {
       const redirect = simulateGuard('/dashboard', {}, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it('管理员直达 affiliate 管理页时，功能未启用则重定向到管理首页', () => {
+      const redirect = simulateGuard(
+        '/admin/affiliates/invites',
+        { requiresAdmin: true, requiresAffiliate: true },
+        authState
+      )
+      expect(redirect).toBe('/admin/dashboard')
+    })
+
+    it('管理员直达 affiliate 管理页时，功能启用则允许访问', () => {
+      const redirect = simulateGuard(
+        '/admin/affiliates/invites',
+        { requiresAdmin: true, requiresAffiliate: true },
+        { ...authState, affiliateEnabled: true }
+      )
       expect(redirect).toBeNull()
     })
   })
