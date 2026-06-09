@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import HelpView from '../HelpView.vue'
 
 const flagState = vi.hoisted(() => ({
-  payment: true,
-  affiliate: true,
+  payment: true as boolean | undefined,
+  affiliate: true as boolean | undefined,
 }))
 
 vi.mock('@/components/layout/AppLayout.vue', () => ({
@@ -18,8 +18,8 @@ vi.mock('@/utils/featureFlags', () => ({
     affiliate: { key: 'affiliate_enabled' },
   },
   isFeatureFlagEnabled: (flag: { key: string }) => {
-    if (flag.key === 'payment_enabled') return flagState.payment
-    if (flag.key === 'affiliate_enabled') return flagState.affiliate
+    if (flag.key === 'payment_enabled') return flagState.payment ?? true
+    if (flag.key === 'affiliate_enabled') return flagState.affiliate === true
     return true
   }
 }))
@@ -114,6 +114,18 @@ describe('HelpView', () => {
     expect(wrapper.text()).toContain('配置 API 密钥')
     expect(wrapper.text()).not.toContain('邀请返利')
     expect(wrapper.findAll('[data-testid="help-screenshot-card"]')).toHaveLength(1)
+  })
+
+  it('uses default feature flag semantics when settings are not loaded', () => {
+    flagState.payment = undefined
+    flagState.affiliate = undefined
+
+    const wrapper = mountView()
+
+    expect(wrapper.text()).toContain('购买服务')
+    expect(wrapper.text()).toContain('配置 API 密钥')
+    expect(wrapper.text()).not.toContain('邀请返利')
+    expect(wrapper.findAll('[data-testid="help-screenshot-card"]')).toHaveLength(2)
   })
 
   it('keeps lightweight screenshot cards for every visible step', () => {
