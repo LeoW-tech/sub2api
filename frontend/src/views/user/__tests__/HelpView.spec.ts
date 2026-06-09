@@ -6,6 +6,7 @@ import HelpView from '../HelpView.vue'
 const flagState = vi.hoisted(() => ({
   payment: true as boolean | undefined,
   affiliate: true as boolean | undefined,
+  isSimpleMode: false,
 }))
 
 vi.mock('@/components/layout/AppLayout.vue', () => ({
@@ -24,6 +25,14 @@ vi.mock('@/utils/featureFlags', () => ({
   }
 }))
 
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: () => ({
+    get isSimpleMode() {
+      return flagState.isSimpleMode
+    }
+  })
+}))
+
 vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-i18n')>()
   return {
@@ -32,8 +41,8 @@ vi.mock('vue-i18n', async (importOriginal) => {
       t: (key: string) => {
         const messages: Record<string, string> = {
           'help.title': '使用帮助',
-          'help.description': '完成购买服务、配置 API 密钥、邀请返利三步即可开始使用。',
-          'help.intro.title': '三步开始使用 AI 服务',
+          'help.description': '按页面提示完成可用步骤，即可开始使用 AI 服务。',
+          'help.intro.title': '快速开始使用 AI 服务',
           'help.intro.description': '进入系统后，先确认余额或订阅，再创建 API 密钥并配置到 Codex 等工具中。',
           'help.steps.purchase.title': '购买服务',
           'help.steps.purchase.description': '先确保界面右上角钱包有余额，或者有可用的订阅包。至少满足一个条件才能正常使用。',
@@ -68,6 +77,7 @@ describe('HelpView', () => {
   beforeEach(() => {
     flagState.payment = true
     flagState.affiliate = true
+    flagState.isSimpleMode = false
   })
 
   function mountView() {
@@ -126,6 +136,26 @@ describe('HelpView', () => {
     expect(wrapper.text()).toContain('配置 API 密钥')
     expect(wrapper.text()).not.toContain('邀请返利')
     expect(wrapper.findAll('[data-testid="help-screenshot-card"]')).toHaveLength(2)
+  })
+
+  it('does not claim a fixed three-step flow when optional feature steps are hidden', () => {
+    flagState.payment = undefined
+    flagState.affiliate = undefined
+
+    const wrapper = mountView()
+
+    expect(wrapper.text()).not.toContain('三步')
+    expect(wrapper.text()).toContain('快速开始使用 AI 服务')
+  })
+
+  it('hides the subscriptions shortcut in simple mode', () => {
+    flagState.isSimpleMode = true
+
+    const wrapper = mountView()
+    const hrefs = wrapper.findAll('[data-router-link="true"]').map((link) => link.attributes('href'))
+
+    expect(hrefs).toContain('/purchase')
+    expect(hrefs).not.toContain('/subscriptions')
   })
 
   it('keeps lightweight screenshot cards for every visible step', () => {

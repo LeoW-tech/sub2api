@@ -67,7 +67,7 @@
                   <Icon name="arrowRight" size="sm" />
                 </router-link>
                 <router-link
-                  v-if="step.secondaryTo && step.secondaryLabelKey"
+                  v-if="shouldShowSecondaryLink(step)"
                   :to="step.secondaryTo"
                   class="btn btn-secondary"
                 >
@@ -157,9 +157,11 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { useAuthStore } from '@/stores/auth'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 
 const { t } = useI18n()
+const authStore = useAuthStore()
 
 type HelpIcon = 'creditCard' | 'gift' | 'key'
 type ScreenshotKind = 'affiliate' | 'key' | 'purchase'
@@ -232,6 +234,11 @@ function isHelpFeatureVisible(feature?: HelpStep['feature']): boolean {
     return isFeatureFlagEnabled(FeatureFlags.payment)
   }
   return isFeatureFlagEnabled(FeatureFlags.affiliate)
+}
+
+function shouldShowSecondaryLink(step: HelpStep): step is HelpStep & { secondaryTo: string; secondaryLabelKey: string } {
+  if (!step.secondaryTo || !step.secondaryLabelKey) return false
+  return !(authStore.isSimpleMode && step.secondaryTo === '/subscriptions')
 }
 
 const visibleSteps = computed(() => steps.filter((step) => isHelpFeatureVisible(step.feature)))

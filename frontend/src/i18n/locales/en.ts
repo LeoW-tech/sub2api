@@ -393,9 +393,9 @@ export default {
 
   help: {
     title: 'Help',
-    description: 'Start using the service in three steps: purchase service, configure an API key, and invite friends for rebates.',
+    description: 'Follow the available steps on this page to start using the AI service.',
     intro: {
-      title: 'Start AI service in three steps',
+      title: 'Quickly start using AI service',
       description: 'After entering the system, confirm your balance or subscription first, then create an API key and configure it in Codex or other tools.'
     },
     steps: {

@@ -30,3 +30,11 @@ describe('AppSidebar header styles', () => {
     expect(sidebarBrandBlockMatch?.[0]).not.toContain('overflow: hidden;')
   })
 })
+
+describe('AppSidebar feature flags', () => {
+  it('uses the shared payment feature flag for admin and user payment menus', () => {
+    expect(componentSource).toContain("featureFlag: flagPayment")
+    expect(componentSource).not.toContain("const flagAdminPayment")
+    expect(componentSource).not.toContain("featureFlag: flagAdminPayment")
+  })
+})

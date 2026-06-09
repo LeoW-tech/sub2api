@@ -71,6 +71,15 @@ describe('router help route', () => {
     expect(router.getRoutes().find((record) => record.name === 'PaymentQRCode')?.meta.requiresPayment).toBe(true)
   })
 
+  it('requires the payment feature flag for admin payment routes', async () => {
+    const { default: router } = await import('@/router')
+    const routeNames = ['AdminPaymentDashboard', 'AdminOrders', 'AdminPaymentPlans']
+
+    for (const name of routeNames) {
+      expect(router.getRoutes().find((record) => record.name === name)?.meta.requiresPayment).toBe(true)
+    }
+  })
+
   it('requires the affiliate feature flag for admin affiliate routes', async () => {
     const { default: router } = await import('@/router')
     const routeNames = ['AdminAffiliateInvites', 'AdminAffiliateRebates', 'AdminAffiliateTransfers']

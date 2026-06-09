@@ -393,9 +393,9 @@ export default {
 
   help: {
     title: '使用帮助',
-    description: '完成购买服务、配置 API 密钥、邀请返利三步即可开始使用。',
+    description: '按页面提示完成可用步骤，即可开始使用 AI 服务。',
     intro: {
-      title: '三步开始使用 AI 服务',
+      title: '快速开始使用 AI 服务',
       description: '进入系统后，先确认余额或订阅，再创建 API 密钥并配置到 Codex 等工具中。'
     },
     steps: {
