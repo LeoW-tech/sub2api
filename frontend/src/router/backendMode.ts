@@ -2,6 +2,7 @@ export const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/p
 
 export const BACKEND_MODE_CALLBACK_PATHS = [
   '/auth/callback',
+  '/auth/oauth/callback',
   '/auth/linuxdo/callback',
   '/auth/dingtalk/callback',
   '/auth/dingtalk/email-completion',

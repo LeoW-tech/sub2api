@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { isBackendModePublicRouteAllowed } from '@/router/backendMode'
 
 const authStore = vi.hoisted(() => ({
   checkAuth: vi.fn(),
@@ -87,5 +88,14 @@ describe('router help route', () => {
     for (const name of routeNames) {
       expect(router.getRoutes().find((record) => record.name === name)?.meta.requiresAffiliate).toBe(true)
     }
+  })
+
+  it('allows the OAuth callback alias in backend mode', async () => {
+    const { default: router } = await import('@/router')
+    const resolved = router.resolve('/auth/oauth/callback')
+
+    expect(resolved.matched.some((record) => record.name === 'OAuthCallback')).toBe(true)
+    expect(resolved.meta.requiresAuth).toBe(false)
+    expect(isBackendModePublicRouteAllowed(resolved.path, false)).toBe(true)
   })
 })
