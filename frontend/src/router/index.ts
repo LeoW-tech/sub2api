@@ -10,6 +10,8 @@ import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { useNavigationLoadingState } from '@/composables/useNavigationLoading'
 import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
 import { getSetupStatus } from '@/api/setup'
+import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
+import { isBackendModePublicRouteAllowed } from './backendMode'
 import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveDocumentTitle } from './title'
 
@@ -193,6 +195,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/help',
+    name: 'UserHelp',
+    component: () => import('@/views/user/HelpView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Help',
+      titleKey: 'help.title',
+      descriptionKey: 'help.description'
+    }
+  },
+  {
     path: '/keys',
     name: 'Keys',
     component: () => import('@/views/user/KeysView.vue'),
@@ -237,7 +251,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Affiliate',
       titleKey: 'affiliate.title',
-      descriptionKey: 'affiliate.description'
+      descriptionKey: 'affiliate.description',
+      requiresAffiliate: true
     }
   },
   {
@@ -586,7 +601,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Affiliate Invite Records',
       titleKey: 'nav.affiliateInviteRecords',
-      descriptionKey: 'admin.affiliates.invitesDescription'
+      descriptionKey: 'admin.affiliates.invitesDescription',
+      requiresAffiliate: true
     }
   },
   {
@@ -598,7 +614,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Affiliate Rebate Records',
       titleKey: 'nav.affiliateRebateRecords',
-      descriptionKey: 'admin.affiliates.rebatesDescription'
+      descriptionKey: 'admin.affiliates.rebatesDescription',
+      requiresAffiliate: true
     }
   },
   {
@@ -610,7 +627,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Affiliate Transfer Records',
       titleKey: 'nav.affiliateTransferRecords',
-      descriptionKey: 'admin.affiliates.transfersDescription'
+      descriptionKey: 'admin.affiliates.transfersDescription',
+      requiresAffiliate: true
     }
   },
 
@@ -689,33 +707,6 @@ let authInitialized = false
 const navigationLoading = useNavigationLoadingState()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
-const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal']
-const BACKEND_MODE_CALLBACK_PATHS = [
-  '/auth/callback',
-  '/auth/linuxdo/callback',
-  '/auth/dingtalk/callback',
-  '/auth/dingtalk/email-completion',
-  '/auth/oidc/callback',
-  '/auth/wechat/callback',
-  '/auth/wechat/payment/callback',
-]
-const BACKEND_MODE_PENDING_AUTH_PATHS = ['/register', '/email-verify']
-
-function isBackendModePublicRouteAllowed(path: string, hasPendingAuthSession: boolean): boolean {
-  if (BACKEND_MODE_ALLOWED_PATHS.some((allowedPath) => path === allowedPath || path.startsWith(allowedPath))) {
-    return true
-  }
-
-  if (BACKEND_MODE_CALLBACK_PATHS.some((callbackPath) => path === callbackPath)) {
-    return true
-  }
-
-  if (hasPendingAuthSession && BACKEND_MODE_PENDING_AUTH_PATHS.some((allowedPath) => path === allowedPath)) {
-    return true
-  }
-
-  return false
-}
 
 router.beforeEach(async (to, _from, next) => {
   // 开始导航加载状态
@@ -809,12 +800,14 @@ router.beforeEach(async (to, _from, next) => {
 
 
   // Check payment requirement (internal payment system only)
-  if (to.meta.requiresPayment) {
-    const paymentEnabled = appStore.cachedPublicSettings?.payment_enabled
-    if (!paymentEnabled) {
-      next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
-      return
-    }
+  if (to.meta.requiresPayment && !isFeatureFlagEnabled(FeatureFlags.payment)) {
+    next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+    return
+  }
+
+  if (to.meta.requiresAffiliate && !isFeatureFlagEnabled(FeatureFlags.affiliate)) {
+    next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+    return
   }
 
   if (to.meta.requiresRiskControl) {

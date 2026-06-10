@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
+import { isBackendModePublicRouteAllowed } from '@/router/backendMode'
 import { resolveCompletedSetupRedirectPath } from '@/router/setupRedirect'
 
 // Mock 导航加载状态
@@ -55,6 +56,8 @@ interface MockAuthState {
   backendModeEnabled: boolean
   hasPendingAuthSession: boolean
   setupNeedsSetup?: boolean
+  paymentEnabled?: boolean
+  affiliateEnabled?: boolean
 }
 
 /**
@@ -84,19 +87,7 @@ function simulateGuard(
       return authState.isAdmin ? '/admin/dashboard' : '/dashboard'
     }
     if (authState.backendModeEnabled && !authState.isAuthenticated) {
-      const allowed = ['/login', '/key-usage', '/setup', '/payment/result']
-      const callbackPaths = [
-        '/auth/callback',
-        '/auth/linuxdo/callback',
-        '/auth/oidc/callback',
-        '/auth/wechat/callback',
-        '/auth/wechat/payment/callback',
-      ]
-      const pendingAuthPaths = ['/register', '/email-verify']
-      const isAllowed =
-        allowed.some((path) => toPath === path || toPath.startsWith(path)) ||
-        callbackPaths.includes(toPath) ||
-        (authState.hasPendingAuthSession && pendingAuthPaths.includes(toPath))
+      const isAllowed = isBackendModePublicRouteAllowed(toPath, authState.hasPendingAuthSession)
       if (!isAllowed) {
         return '/login'
       }
@@ -112,6 +103,15 @@ function simulateGuard(
   // 需要管理员但不是管理员
   if (requiresAdmin && !authState.isAdmin) {
     return '/dashboard'
+  }
+
+  // 功能开关限制：payment 为 opt-out，affiliate 为 opt-in
+  if (toMeta.requiresPayment && authState.paymentEnabled === false) {
+    return authState.isAdmin ? '/admin/dashboard' : '/dashboard'
+  }
+
+  if (toMeta.requiresAffiliate && authState.affiliateEnabled !== true) {
+    return authState.isAdmin ? '/admin/dashboard' : '/dashboard'
   }
 
   // 简易模式限制
@@ -133,19 +133,7 @@ function simulateGuard(
     if (authState.isAuthenticated && authState.isAdmin) {
       return null
     }
-    const allowed = ['/login', '/key-usage', '/setup', '/payment/result']
-    const callbackPaths = [
-      '/auth/callback',
-      '/auth/linuxdo/callback',
-      '/auth/oidc/callback',
-      '/auth/wechat/callback',
-      '/auth/wechat/payment/callback',
-    ]
-    const pendingAuthPaths = ['/register', '/email-verify']
-    const isAllowed =
-      allowed.some((path) => toPath === path || toPath.startsWith(path)) ||
-      callbackPaths.includes(toPath) ||
-      (authState.hasPendingAuthSession && pendingAuthPaths.includes(toPath))
+    const isAllowed = isBackendModePublicRouteAllowed(toPath, authState.hasPendingAuthSession)
     if (!isAllowed) {
       return '/login'
     }
@@ -226,6 +214,34 @@ describe('路由守卫逻辑', () => {
       const redirect = simulateGuard('/admin/users', { requiresAdmin: true }, authState)
       expect(redirect).toBe('/dashboard')
     })
+
+    it('payment 功能未返回配置时按 opt-out 默认允许访问购买页', () => {
+      const redirect = simulateGuard('/purchase', { requiresPayment: true }, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it('payment 功能明确关闭时阻止访问购买页', () => {
+      const redirect = simulateGuard(
+        '/purchase',
+        { requiresPayment: true },
+        { ...authState, paymentEnabled: false }
+      )
+      expect(redirect).toBe('/dashboard')
+    })
+
+    it('affiliate 功能未返回配置时按 opt-in 默认阻止直达邀请返利页', () => {
+      const redirect = simulateGuard('/affiliate', { requiresAffiliate: true }, authState)
+      expect(redirect).toBe('/dashboard')
+    })
+
+    it('affiliate 功能明确启用时允许访问邀请返利页', () => {
+      const redirect = simulateGuard(
+        '/affiliate',
+        { requiresAffiliate: true },
+        { ...authState, affiliateEnabled: true }
+      )
+      expect(redirect).toBeNull()
+    })
   })
 
   // --- 已认证管理员 ---
@@ -251,6 +267,24 @@ describe('路由守卫逻辑', () => {
 
     it('访问用户页面允许通过', () => {
       const redirect = simulateGuard('/dashboard', {}, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it('管理员直达 affiliate 管理页时，功能未启用则重定向到管理首页', () => {
+      const redirect = simulateGuard(
+        '/admin/affiliates/invites',
+        { requiresAdmin: true, requiresAffiliate: true },
+        authState
+      )
+      expect(redirect).toBe('/admin/dashboard')
+    })
+
+    it('管理员直达 affiliate 管理页时，功能启用则允许访问', () => {
+      const redirect = simulateGuard(
+        '/admin/affiliates/invites',
+        { requiresAdmin: true, requiresAffiliate: true },
+        { ...authState, affiliateEnabled: true }
+      )
       expect(redirect).toBeNull()
     })
   })
@@ -482,6 +516,18 @@ describe('路由守卫逻辑', () => {
       expect(redirect).toBeNull()
     })
 
+    it('unauthenticated: OAuth callback alias route is allowed', () => {
+      const authState: MockAuthState = {
+        isAuthenticated: false,
+        isAdmin: false,
+        isSimpleMode: false,
+        backendModeEnabled: true,
+        hasPendingAuthSession: false,
+      }
+      const redirect = simulateGuard('/auth/oauth/callback', { requiresAuth: false }, authState)
+      expect(redirect).toBeNull()
+    })
+
     it('unauthenticated: WeChat payment callback route is allowed', () => {
       const authState: MockAuthState = {
         isAuthenticated: false,
@@ -504,6 +550,42 @@ describe('路由守卫逻辑', () => {
       }
       const redirect = simulateGuard('/payment/result', { requiresAuth: false }, authState)
       expect(redirect).toBeNull()
+    })
+
+    it('unauthenticated: /payment/airwallex is allowed', () => {
+      const authState: MockAuthState = {
+        isAuthenticated: false,
+        isAdmin: false,
+        isSimpleMode: false,
+        backendModeEnabled: true,
+        hasPendingAuthSession: false,
+      }
+      const redirect = simulateGuard('/payment/airwallex', { requiresAuth: false }, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it('unauthenticated: /legal document pages are allowed', () => {
+      const authState: MockAuthState = {
+        isAuthenticated: false,
+        isAdmin: false,
+        isSimpleMode: false,
+        backendModeEnabled: true,
+        hasPendingAuthSession: false,
+      }
+      const redirect = simulateGuard('/legal/terms', { requiresAuth: false }, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it('unauthenticated: DingTalk callback routes are allowed', () => {
+      const authState: MockAuthState = {
+        isAuthenticated: false,
+        isAdmin: false,
+        isSimpleMode: false,
+        backendModeEnabled: true,
+        hasPendingAuthSession: false,
+      }
+      expect(simulateGuard('/auth/dingtalk/callback', { requiresAuth: false }, authState)).toBeNull()
+      expect(simulateGuard('/auth/dingtalk/email-completion', { requiresAuth: false }, authState)).toBeNull()
     })
 
     it('unauthenticated: /register is allowed when a pending auth session exists', () => {

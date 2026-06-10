@@ -378,6 +378,7 @@ export default {
     mySubscriptions: '我的订阅',
     buySubscription: '充值/订阅',
     docs: '文档',
+    help: '使用帮助',
     myOrders: '我的订单',
     orderManagement: '订单管理',
     paymentDashboard: '支付概览',
@@ -388,6 +389,55 @@ export default {
     channelMonitor: '渠道监控',
     channelStatus: '渠道状态',
     riskControl: '风控中心',
+  },
+
+  help: {
+    title: '使用帮助',
+    description: '按页面提示完成可用步骤，即可开始使用 AI 服务。',
+    intro: {
+      title: '快速开始使用 AI 服务',
+      description: '进入系统后，先确认余额或订阅，再创建 API 密钥并配置到 Codex 等工具中。'
+    },
+    steps: {
+      purchase: {
+        title: '购买服务',
+        description: '先确保界面右上角钱包有余额，或者有可用的订阅包。至少满足一个条件才能正常使用。如果需要充值或购买订阅，请进入充值/订阅模块购买。'
+      },
+      key: {
+        title: '配置 API 密钥',
+        description: '下载 Codex 等 App 或其他大模型工具后，打开 API 密钥菜单，创建密钥并配置到工具里面。密钥只用填写名称和选择你购买的服务。',
+        note: '创建后，点击密钥右侧菜单栏“使用密钥”，里面有配置方法。参考方法完成配置后，就可以在你的大模型工具中开始使用 AI 模型。'
+      },
+      affiliate: {
+        title: '邀请返利',
+        description: '如果你觉得好用，可以进入邀请返利，发送你的邀请链接邀请好友使用服务，你可以获得邀请奖励。'
+      }
+    },
+    links: {
+      purchase: '进入充值/订阅',
+      subscriptions: '查看我的订阅',
+      keys: '创建 API 密钥',
+      affiliate: '进入邀请返利'
+    },
+    screenshots: {
+      purchase: {
+        title: '钱包与订阅',
+        wallet: '右上角钱包余额',
+        subscription: '也可以购买可用订阅包'
+      },
+      key: {
+        title: '使用密钥',
+        name: 'Codex 密钥',
+        useKey: '使用密钥'
+      },
+      affiliate: {
+        title: '邀请链接',
+        linkLabel: '你的邀请链接',
+        copy: '复制',
+        rebate: '返利比例',
+        reward: '可提奖励'
+      }
+    }
   },
 
   // Auth
