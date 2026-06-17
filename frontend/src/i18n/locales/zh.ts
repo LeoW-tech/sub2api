@@ -3445,12 +3445,18 @@ export default {
         paused: '暂停',
         limited: '限流',
         rateLimited: '限流中',
+        quotaLimited: '限额中',
+        quotaLimitedShort: '限额',
         overloaded: '过载中',
         tempUnschedulable: '临时不可调度',
         quotaExceeded: '配额超限',
         unschedulable: '不可调度',
         rateLimitedUntil: '限流中，当前不参与调度，预计 {time} 自动恢复',
         rateLimitedAutoResume: '{time} 自动恢复',
+        quotaLimitedUntil: '限额至 {time}',
+        quotaLimitedAutoResume: '{time} 自动恢复',
+        quota5h: '5h 限额',
+        quota7d: '7d 限额',
         modelRateLimitedUntil: '{model} 限流至 {time}',
         modelCreditOveragesUntil: '{model} 正在使用 AI Credits，至 {time}',
         creditsExhausted: '积分已用尽',
@@ -5654,6 +5660,7 @@ export default {
         empty: '暂无数据',
         queued: '队列 {count}',
         rateLimited: '限流 {count}',
+        quotaLimited: '限额 {count}',
         errorAccounts: '异常 {count}',
         loadFailed: '加载并发数据失败'
       },
@@ -5674,6 +5681,7 @@ export default {
       accountAvailability: {
         available: '可用',
         unavailable: '不可用',
+        quotaLimited: '限额中',
         accountError: '异常'
       },
       tooltips: {

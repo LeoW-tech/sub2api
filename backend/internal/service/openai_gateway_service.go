@@ -1368,9 +1368,35 @@ type openAIQuotaAutoPauseDecision struct {
 	utilization float64
 }
 
+type OpenAIQuotaLimitWindow struct {
+	Window       string
+	Threshold    float64
+	Utilization  float64
+	ResetAt      *time.Time
+	RemainingSec *int64
+}
+
+type OpenAIQuotaLimitStatus struct {
+	Limited      bool
+	Windows      []string
+	ResetAt      *time.Time
+	RemainingSec *int64
+	Details      []OpenAIQuotaLimitWindow
+}
+
 func shouldAutoPauseOpenAIAccountByQuota(ctx context.Context, account *Account) (bool, openAIQuotaAutoPauseDecision) {
-	if account == nil || !account.IsOpenAI() {
+	status := EvaluateOpenAIQuotaLimitStatus(ctx, account, time.Now())
+	if !status.Limited || len(status.Details) == 0 {
 		return false, openAIQuotaAutoPauseDecision{}
+	}
+	detail := status.Details[0]
+	return true, openAIQuotaAutoPauseDecision{window: detail.Window, threshold: detail.Threshold, utilization: detail.Utilization}
+}
+
+func EvaluateOpenAIQuotaLimitStatus(ctx context.Context, account *Account, now time.Time) OpenAIQuotaLimitStatus {
+	status := OpenAIQuotaLimitStatus{}
+	if account == nil || !account.IsOpenAI() {
+		return status
 	}
 	// Per-account explicit-disable flags must take precedence over the global default.
 	// Without these, leaving the account threshold blank means "use global default",
@@ -1380,18 +1406,61 @@ func shouldAutoPauseOpenAIAccountByQuota(ctx context.Context, account *Account) 
 	disabled5h := resolveAccountExtraBool(account.Extra, "auto_pause_5h_disabled")
 	disabled7d := resolveAccountExtraBool(account.Extra, "auto_pause_7d_disabled")
 	threshold5h, threshold7d := resolveOpenAIQuotaAutoPauseThresholds(ctx, account)
-	now := time.Now()
 	if !disabled5h && threshold5h > 0 {
 		if utilization, ok := resolveOpenAIQuotaUtilization(account.Extra, "5h", now); ok && utilization >= threshold5h {
-			return true, openAIQuotaAutoPauseDecision{window: "5h", threshold: threshold5h, utilization: utilization}
+			status.addOpenAIQuotaLimitWindow("5h", threshold5h, utilization, openAIQuotaWindowResetAt(account.Extra, "5h", now), now)
 		}
 	}
 	if !disabled7d && threshold7d > 0 {
 		if utilization, ok := resolveOpenAIQuotaUtilization(account.Extra, "7d", now); ok && utilization >= threshold7d {
-			return true, openAIQuotaAutoPauseDecision{window: "7d", threshold: threshold7d, utilization: utilization}
+			status.addOpenAIQuotaLimitWindow("7d", threshold7d, utilization, openAIQuotaWindowResetAt(account.Extra, "7d", now), now)
 		}
 	}
-	return false, openAIQuotaAutoPauseDecision{}
+	if len(status.Details) == 0 {
+		return status
+	}
+	// 展示层要求 7d 在前，便于把更长恢复窗口优先提示给管理员；
+	// shouldAutoPauseOpenAIAccountByQuota 只关心是否暂停，不依赖该顺序。
+	sort.SliceStable(status.Details, func(i, j int) bool {
+		return quotaWindowDisplayRank(status.Details[i].Window) < quotaWindowDisplayRank(status.Details[j].Window)
+	})
+	status.Limited = true
+	status.Windows = make([]string, 0, len(status.Details))
+	for i := range status.Details {
+		detail := &status.Details[i]
+		status.Windows = append(status.Windows, detail.Window)
+		if detail.ResetAt != nil && (status.ResetAt == nil || detail.ResetAt.After(*status.ResetAt)) {
+			resetAt := *detail.ResetAt
+			status.ResetAt = &resetAt
+			status.RemainingSec = detail.RemainingSec
+		}
+	}
+	return status
+}
+
+func (s *OpenAIQuotaLimitStatus) addOpenAIQuotaLimitWindow(window string, threshold, utilization float64, resetAt *time.Time, now time.Time) {
+	if s == nil {
+		return
+	}
+	detail := OpenAIQuotaLimitWindow{Window: window, Threshold: threshold, Utilization: utilization, ResetAt: resetAt}
+	if resetAt != nil {
+		remainingSec := int64(resetAt.Sub(now).Seconds())
+		if remainingSec > 0 {
+			detail.RemainingSec = &remainingSec
+		}
+	}
+	s.Details = append(s.Details, detail)
+}
+
+func quotaWindowDisplayRank(window string) int {
+	switch window {
+	case "7d":
+		return 0
+	case "5h":
+		return 1
+	default:
+		return 9
+	}
 }
 
 // resolveAccountExtraBool reads a bool-like value from account extra, tolerating
@@ -1528,17 +1597,25 @@ func openAICodexSnapshotStaleForPause(extra map[string]any, now time.Time) bool 
 // timestamp and falls back to codex_<window>_reset_after_seconds anchored at
 // codex_usage_updated_at, mirroring AccountUsageService's window-progress logic.
 func openAIQuotaWindowReset(extra map[string]any, window string, now time.Time) bool {
-	if len(extra) == 0 {
+	resetAt := openAIQuotaWindowResetAt(extra, window, now)
+	if resetAt == nil {
 		return false
+	}
+	return !now.Before(*resetAt)
+}
+
+func openAIQuotaWindowResetAt(extra map[string]any, window string, now time.Time) *time.Time {
+	if len(extra) == 0 {
+		return nil
 	}
 	if resetAtRaw, ok := extra["codex_"+window+"_reset_at"]; ok {
 		if resetAt, err := parseTime(fmt.Sprint(resetAtRaw)); err == nil {
-			return !now.Before(resetAt)
+			return &resetAt
 		}
 	}
 	resetAfter := parseExtraInt(extra["codex_"+window+"_reset_after_seconds"])
 	if resetAfter <= 0 {
-		return false
+		return nil
 	}
 	base := now
 	if updatedRaw, ok := extra["codex_usage_updated_at"]; ok {
@@ -1547,7 +1624,7 @@ func openAIQuotaWindowReset(extra map[string]any, window string, now time.Time) 
 		}
 	}
 	resetAt := base.Add(time.Duration(resetAfter) * time.Second)
-	return !now.Before(resetAt)
+	return &resetAt
 }
 
 func readOpenAIQuotaUsedPercent(extra map[string]any, window string) float64 {

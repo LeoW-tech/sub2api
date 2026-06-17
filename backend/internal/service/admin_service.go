@@ -2606,11 +2606,17 @@ func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int,
 	if err != nil {
 		return nil, 0, err
 	}
+	s.enrichAccountsQuotaLimitStatus(ctx, accounts)
 	return accounts, result.Total, nil
 }
 
 func (s *adminServiceImpl) GetAccount(ctx context.Context, id int64) (*Account, error) {
-	return s.accountRepo.GetByID(ctx, id)
+	account, err := s.accountRepo.GetByID(ctx, id)
+	if err != nil || account == nil {
+		return account, err
+	}
+	s.enrichAccountQuotaLimitStatus(ctx, account)
+	return account, nil
 }
 
 func (s *adminServiceImpl) GetAccountsByIDs(ctx context.Context, ids []int64) ([]*Account, error) {
@@ -2622,8 +2628,46 @@ func (s *adminServiceImpl) GetAccountsByIDs(ctx context.Context, ids []int64) ([
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accounts by IDs: %w", err)
 	}
+	quotaCtx := s.quotaAutoPauseContext(ctx)
+	now := time.Now()
+	for _, account := range accounts {
+		s.applyQuotaLimitStatus(quotaCtx, account, now)
+	}
 
 	return accounts, nil
+}
+
+func (s *adminServiceImpl) quotaAutoPauseContext(ctx context.Context) context.Context {
+	if s == nil || s.settingService == nil {
+		return ctx
+	}
+	return withOpenAIQuotaAutoPauseSettings(ctx, s.settingService.GetOpenAIQuotaAutoPauseSettings(ctx))
+}
+
+func (s *adminServiceImpl) enrichAccountsQuotaLimitStatus(ctx context.Context, accounts []Account) {
+	if len(accounts) == 0 {
+		return
+	}
+	quotaCtx := s.quotaAutoPauseContext(ctx)
+	now := time.Now()
+	for i := range accounts {
+		s.applyQuotaLimitStatus(quotaCtx, &accounts[i], now)
+	}
+}
+
+func (s *adminServiceImpl) enrichAccountQuotaLimitStatus(ctx context.Context, account *Account) {
+	if account == nil {
+		return
+	}
+	s.applyQuotaLimitStatus(s.quotaAutoPauseContext(ctx), account, time.Now())
+}
+
+func (s *adminServiceImpl) applyQuotaLimitStatus(ctx context.Context, account *Account, now time.Time) {
+	status := EvaluateOpenAIQuotaLimitStatus(ctx, account, now)
+	account.IsQuotaLimited = status.Limited
+	account.QuotaLimitWindows = append(account.QuotaLimitWindows[:0], status.Windows...)
+	account.QuotaLimitResetAt = status.ResetAt
+	account.QuotaLimitRemainingSec = status.RemainingSec
 }
 
 func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error) {

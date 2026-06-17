@@ -3250,12 +3250,18 @@ export default {
         paused: 'Paused',
         limited: 'Limited',
         rateLimited: 'Rate Limited',
+        quotaLimited: 'Quota limited',
+        quotaLimitedShort: 'Quota',
         overloaded: 'Overloaded',
         tempUnschedulable: 'Temp Unschedulable',
         quotaExceeded: 'Quota Exceeded',
         unschedulable: 'Unschedulable',
         rateLimitedUntil: 'Rate limited and removed from scheduling. Auto resumes at {time}',
         rateLimitedAutoResume: 'Auto resumes in {time}',
+        quotaLimitedUntil: 'Quota limited until {time}',
+        quotaLimitedAutoResume: 'Auto resumes in {time}',
+        quota5h: '5h quota',
+        quota7d: '7d quota',
         modelRateLimitedUntil: '{model} rate limited until {time}',
         modelCreditOveragesUntil: '{model} using AI Credits until {time}',
         creditsExhausted: 'Credits Exhausted',
@@ -5492,6 +5498,7 @@ export default {
         empty: 'No data',
         queued: 'Queue {count}',
         rateLimited: 'Rate-limited {count}',
+        quotaLimited: 'Quota {count}',
         errorAccounts: 'Errors {count}',
         loadFailed: 'Failed to load concurrency data'
       },
@@ -5512,6 +5519,7 @@ export default {
       accountAvailability: {
         available: 'Available',
         unavailable: 'Unavailable',
+        quotaLimited: 'Quota limited',
         accountError: 'Error'
       },
       tooltips: {

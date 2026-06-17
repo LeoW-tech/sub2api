@@ -6,12 +6,23 @@ import type { Account } from '@/types'
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
   const messages: Record<string, string> = {
-    'admin.accounts.status.disabled': '已禁用'
+    'admin.accounts.status.disabled': '已禁用',
+    'admin.accounts.status.rateLimited': '限流中',
+    'admin.accounts.status.quotaLimited': '限额中',
+    'admin.accounts.status.quotaLimitedAutoResume': '{time} 自动恢复'
   }
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => messages[key] ?? key
+      t: (key: string, params?: Record<string, string>) => {
+        let text = messages[key] ?? key
+        if (params) {
+          for (const [name, value] of Object.entries(params)) {
+            text = text.replace(`{${name}}`, value)
+          }
+        }
+        return text
+      }
     })
   }
 })
@@ -183,4 +194,65 @@ describe('AccountStatusIndicator', () => {
     expect(badge.classes()).toContain('badge-gray')
     expect(wrapper.text()).not.toContain('admin.accounts.status.disabled')
   })
+
+  it('限额账号显示限额中、恢复倒计时和 5h 标签', () => {
+    const resetAt = new Date(Date.now() + 90 * 60 * 1000).toISOString()
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          platform: 'openai',
+          is_quota_limited: true,
+          quota_limit_windows: ['5h'],
+          quota_limit_reset_at: resetAt
+        })
+      },
+      global: { stubs: { Icon: true } }
+    })
+
+    expect(wrapper.text()).toContain('限额中')
+    expect(wrapper.text()).toContain('5h')
+    expect(wrapper.text()).toContain('自动恢复')
+    expect(wrapper.find('.text-teal-700').exists()).toBe(true)
+  })
+
+  it('7d 限额标签使用琥珀色并排在 5h 前面', () => {
+    const resetAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          platform: 'openai',
+          is_quota_limited: true,
+          quota_limit_windows: ['5h', '7d'],
+          quota_limit_reset_at: resetAt
+        })
+      },
+      global: { stubs: { Icon: true } }
+    })
+
+    const text = wrapper.text()
+    expect(text).toContain('7d')
+    expect(text).toContain('5h')
+    expect(text.indexOf('7d')).toBeLessThan(text.indexOf('5h'))
+    expect(wrapper.find('.text-amber-700').exists()).toBe(true)
+  })
+
+  it('限流且限额时主状态仍为限流中并显示窗口标签', () => {
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          platform: 'openai',
+          rate_limit_reset_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+          is_quota_limited: true,
+          quota_limit_windows: ['7d'],
+          quota_limit_reset_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+        })
+      },
+      global: { stubs: { Icon: true } }
+    })
+
+    expect(wrapper.text()).toContain('限流中')
+    expect(wrapper.text()).not.toContain('限额中')
+    expect(wrapper.text()).toContain('7d')
+  })
+
 })

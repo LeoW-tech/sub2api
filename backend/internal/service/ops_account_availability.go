@@ -40,6 +40,11 @@ func (s *OpsService) GetAccountAvailabilityStats(ctx context.Context, platformFi
 
 	now := time.Now()
 	collectedAt := now
+	quotaSettings := OpsOpenAIAccountQuotaAutoPauseSettings{}
+	if cfg, cfgErr := s.GetOpsAdvancedSettings(ctx); cfgErr == nil && cfg != nil {
+		quotaSettings = cfg.OpenAIAccountQuotaAutoPause
+	}
+	quotaCtx := withOpenAIQuotaAutoPauseSettings(ctx, quotaSettings)
 
 	platform := make(map[string]*PlatformAvailability)
 	group := make(map[int64]*GroupAvailability)
@@ -58,14 +63,18 @@ func (s *OpsService) GetAccountAvailabilityStats(ctx context.Context, platformFi
 		isRateLimited := acc.RateLimitResetAt != nil && now.Before(*acc.RateLimitResetAt)
 		isOverloaded := acc.OverloadUntil != nil && now.Before(*acc.OverloadUntil)
 		hasError := acc.Status == StatusError
+		isExpired := acc.AutoPauseOnExpired && acc.ExpiresAt != nil && !now.Before(*acc.ExpiresAt)
+		quotaStatus := EvaluateOpenAIQuotaLimitStatus(quotaCtx, &acc, now)
+		isQuotaLimited := quotaStatus.Limited
 
 		// Normalize exclusive status flags so the UI doesn't show conflicting badges.
 		if hasError {
 			isRateLimited = false
 			isOverloaded = false
 		}
+		quotaCounted := isQuotaLimited && !hasError && !isRateLimited
 
-		isAvailable := acc.Status == StatusActive && acc.Schedulable && !isRateLimited && !isOverloaded && !isTempUnsched
+		isAvailable := acc.Status == StatusActive && acc.Schedulable && !isExpired && !isRateLimited && !isQuotaLimited && !isOverloaded && !isTempUnsched
 
 		if acc.Platform != "" {
 			if _, ok := platform[acc.Platform]; !ok {
@@ -80,6 +89,9 @@ func (s *OpsService) GetAccountAvailabilityStats(ctx context.Context, platformFi
 			}
 			if isRateLimited {
 				p.RateLimitCount++
+			}
+			if quotaCounted {
+				p.QuotaLimitedCount++
 			}
 			if hasError {
 				p.ErrorCount++
@@ -105,6 +117,9 @@ func (s *OpsService) GetAccountAvailabilityStats(ctx context.Context, platformFi
 			if isRateLimited {
 				g.RateLimitCount++
 			}
+			if quotaCounted {
+				g.QuotaLimitedCount++
+			}
 			if hasError {
 				g.ErrorCount++
 			}
@@ -125,10 +140,15 @@ func (s *OpsService) GetAccountAvailabilityStats(ctx context.Context, platformFi
 			GroupName:   displayGroupName,
 			Status:      acc.Status,
 
-			IsAvailable:   isAvailable,
-			IsRateLimited: isRateLimited,
-			IsOverloaded:  isOverloaded,
-			HasError:      hasError,
+			IsAvailable:    isAvailable,
+			IsRateLimited:  isRateLimited,
+			IsQuotaLimited: isQuotaLimited,
+			IsOverloaded:   isOverloaded,
+			HasError:       hasError,
+
+			QuotaLimitWindows:      append([]string(nil), quotaStatus.Windows...),
+			QuotaLimitResetAt:      quotaStatus.ResetAt,
+			QuotaLimitRemainingSec: quotaStatus.RemainingSec,
 
 			ErrorMessage: acc.ErrorMessage,
 		}

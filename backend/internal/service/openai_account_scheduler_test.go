@@ -2371,3 +2371,60 @@ func TestDefaultOpenAIAccountScheduler_IsAccountTransportCompatible_Branches(t *
 func int64PtrForTest(v int64) *int64 {
 	return &v
 }
+
+func TestEvaluateOpenAIQuotaLimitStatus_WindowsAndReset(t *testing.T) {
+	now := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
+	account := &Account{
+		ID:          36001,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Status:      StatusActive,
+		Schedulable: true,
+		Extra: map[string]any{
+			"codex_5h_used_percent":   99.0,
+			"codex_7d_used_percent":   96.0,
+			"auto_pause_5h_threshold": 0.95,
+			"auto_pause_7d_threshold": 0.95,
+			"codex_5h_reset_at":       now.Add(2 * time.Hour).Format(time.RFC3339),
+			"codex_7d_reset_at":       now.Add(48 * time.Hour).Format(time.RFC3339),
+			"codex_usage_updated_at":  now.Add(-time.Minute).Format(time.RFC3339),
+		},
+	}
+
+	status := EvaluateOpenAIQuotaLimitStatus(context.Background(), account, now)
+	require.True(t, status.Limited)
+	require.Equal(t, []string{"7d", "5h"}, status.Windows)
+	require.NotNil(t, status.ResetAt)
+	require.Equal(t, now.Add(48*time.Hour), *status.ResetAt)
+	require.NotNil(t, status.RemainingSec)
+	require.Equal(t, int64(48*60*60), *status.RemainingSec)
+}
+
+func TestEvaluateOpenAIQuotaLimitStatus_DisableAndStale(t *testing.T) {
+	now := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
+	ctx := withOpenAIQuotaAutoPauseSettings(context.Background(), OpsOpenAIAccountQuotaAutoPauseSettings{DefaultThreshold5h: 0.95})
+	account := &Account{
+		ID:          36002,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Status:      StatusActive,
+		Schedulable: true,
+		Extra: map[string]any{
+			"codex_5h_used_percent":  99.0,
+			"auto_pause_5h_disabled": true,
+			"codex_5h_reset_at":      now.Add(time.Hour).Format(time.RFC3339),
+		},
+	}
+
+	status := EvaluateOpenAIQuotaLimitStatus(ctx, account, now)
+	require.False(t, status.Limited)
+
+	account.Extra = map[string]any{
+		"codex_5h_used_percent":   99.0,
+		"auto_pause_5h_threshold": 0.95,
+		"codex_5h_reset_at":       now.Add(time.Hour).Format(time.RFC3339),
+		"codex_usage_updated_at":  now.Add(-3 * time.Hour).Format(time.RFC3339),
+	}
+	status = EvaluateOpenAIQuotaLimitStatus(context.Background(), account, now)
+	require.False(t, status.Limited)
+}

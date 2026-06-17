@@ -62,6 +62,7 @@ const createDashboardStats = (): DashboardStats => ({
   normal_accounts: 0,
   error_accounts: 0,
   ratelimit_accounts: 0,
+  quota_limited_accounts: 0,
   overload_accounts: 0,
   total_requests: 0,
   total_input_tokens: 0,

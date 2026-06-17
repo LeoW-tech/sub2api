@@ -886,6 +886,12 @@ export interface Account {
   rate_limited_at: string | null
   rate_limit_reset_at: string | null
   overload_until: string | null
+
+  is_quota_limited?: boolean
+  quota_limit_windows?: Array<'5h' | '7d'>
+  quota_limit_reset_at?: string | null
+  quota_limit_remaining_sec?: number | null
+
   temp_unschedulable_until: string | null
   temp_unschedulable_reason: string | null
 
@@ -1446,6 +1452,7 @@ export interface DashboardStats {
   normal_accounts: number // 正常账户数
   error_accounts: number // 异常账户数
   ratelimit_accounts: number // 限流账户数
+  quota_limited_accounts: number // OpenAI/Codex 5h/7d 限额账户数
   overload_accounts: number // 过载账户数
 
   // 累计 Token 使用统计

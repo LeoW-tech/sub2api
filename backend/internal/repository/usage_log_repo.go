@@ -1572,24 +1572,77 @@ func (r *usageLogRepository) fillDashboardEntityStats(ctx context.Context, stats
 	}
 
 	accountStatsQuery := `
+		WITH quota_settings AS (
+			SELECT
+				COALESCE(NULLIF(value::jsonb #>> '{openai_account_quota_auto_pause,default_threshold_5h}', '')::numeric, 0) AS default_5h,
+				COALESCE(NULLIF(value::jsonb #>> '{openai_account_quota_auto_pause,default_threshold_7d}', '')::numeric, 0) AS default_7d
+			FROM settings
+			WHERE key = $1
+		), account_flags AS (
+			SELECT
+				a.*,
+				(a.rate_limit_reset_at IS NOT NULL AND a.rate_limit_reset_at > $4) AS is_rate_limited,
+				(a.overload_until IS NOT NULL AND a.overload_until > $4) AS is_overloaded,
+				(a.temp_unschedulable_until IS NOT NULL AND a.temp_unschedulable_until > $4) AS is_temp_unschedulable,
+				(a.auto_pause_on_expired = true AND a.expires_at IS NOT NULL AND a.expires_at <= $4) AS is_expired,
+				(
+					a.platform = $5
+					AND a.status = $2
+					AND a.schedulable = true
+					AND COALESCE(NULLIF(a.extra->>'auto_pause_5h_disabled', '')::boolean, false) = false
+					AND COALESCE(NULLIF(a.extra->>'codex_5h_used_percent', '')::numeric, 0) / 100 >= COALESCE(NULLIF(a.extra->>'auto_pause_5h_threshold', '')::numeric, (SELECT default_5h FROM quota_settings), 0)
+					AND COALESCE(NULLIF(a.extra->>'auto_pause_5h_threshold', '')::numeric, (SELECT default_5h FROM quota_settings), 0) > 0
+					AND (a.extra->>'codex_usage_updated_at' IS NULL OR NULLIF(a.extra->>'codex_usage_updated_at', '')::timestamptz > $4 - INTERVAL '2 hours')
+					AND (
+						(a.extra->>'codex_5h_reset_at' IS NOT NULL AND NULLIF(a.extra->>'codex_5h_reset_at', '')::timestamptz > $4)
+						OR (
+							a.extra->>'codex_5h_reset_at' IS NULL
+							AND COALESCE(NULLIF(a.extra->>'codex_5h_reset_after_seconds', '')::integer, 0) > 0
+							AND (COALESCE(NULLIF(a.extra->>'codex_usage_updated_at', '')::timestamptz, $4) + (COALESCE(NULLIF(a.extra->>'codex_5h_reset_after_seconds', '')::integer, 0) * INTERVAL '1 second')) > $4
+						)
+						OR (a.extra->>'codex_5h_reset_at' IS NULL AND a.extra->>'codex_5h_reset_after_seconds' IS NULL)
+					)
+				) AS is_quota_5h,
+				(
+					a.platform = $5
+					AND a.status = $2
+					AND a.schedulable = true
+					AND COALESCE(NULLIF(a.extra->>'auto_pause_7d_disabled', '')::boolean, false) = false
+					AND COALESCE(NULLIF(a.extra->>'codex_7d_used_percent', '')::numeric, 0) / 100 >= COALESCE(NULLIF(a.extra->>'auto_pause_7d_threshold', '')::numeric, (SELECT default_7d FROM quota_settings), 0)
+					AND COALESCE(NULLIF(a.extra->>'auto_pause_7d_threshold', '')::numeric, (SELECT default_7d FROM quota_settings), 0) > 0
+					AND (a.extra->>'codex_usage_updated_at' IS NULL OR NULLIF(a.extra->>'codex_usage_updated_at', '')::timestamptz > $4 - INTERVAL '2 hours')
+					AND (
+						(a.extra->>'codex_7d_reset_at' IS NOT NULL AND NULLIF(a.extra->>'codex_7d_reset_at', '')::timestamptz > $4)
+						OR (
+							a.extra->>'codex_7d_reset_at' IS NULL
+							AND COALESCE(NULLIF(a.extra->>'codex_7d_reset_after_seconds', '')::integer, 0) > 0
+							AND (COALESCE(NULLIF(a.extra->>'codex_usage_updated_at', '')::timestamptz, $4) + (COALESCE(NULLIF(a.extra->>'codex_7d_reset_after_seconds', '')::integer, 0) * INTERVAL '1 second')) > $4
+						)
+						OR (a.extra->>'codex_7d_reset_at' IS NULL AND a.extra->>'codex_7d_reset_after_seconds' IS NULL)
+					)
+				) AS is_quota_7d
+			FROM accounts a
+			WHERE a.deleted_at IS NULL
+		)
 		SELECT
 			COUNT(*) as total_accounts,
-			COUNT(CASE WHEN status = $1 AND schedulable = true THEN 1 END) as normal_accounts,
-			COUNT(CASE WHEN status = $2 THEN 1 END) as error_accounts,
-			COUNT(CASE WHEN rate_limited_at IS NOT NULL AND rate_limit_reset_at > $3 THEN 1 END) as ratelimit_accounts,
-			COUNT(CASE WHEN overload_until IS NOT NULL AND overload_until > $4 THEN 1 END) as overload_accounts
-		FROM accounts
-		WHERE deleted_at IS NULL
+			COUNT(CASE WHEN status = $2 AND schedulable = true AND NOT is_rate_limited AND NOT is_overloaded AND NOT is_temp_unschedulable AND NOT is_expired AND NOT (is_quota_5h OR is_quota_7d) THEN 1 END) as normal_accounts,
+			COUNT(CASE WHEN status = $3 THEN 1 END) as error_accounts,
+			COUNT(CASE WHEN status <> $3 AND is_rate_limited THEN 1 END) as ratelimit_accounts,
+			COUNT(CASE WHEN (is_quota_5h OR is_quota_7d) AND status <> $3 AND NOT is_rate_limited THEN 1 END) as quota_limited_accounts,
+			COUNT(CASE WHEN status <> $3 AND NOT is_rate_limited AND NOT (is_quota_5h OR is_quota_7d) AND is_overloaded THEN 1 END) as overload_accounts
+		FROM account_flags
 	`
 	if err := scanSingleRow(
 		ctx,
 		r.sql,
 		accountStatsQuery,
-		[]any{service.StatusActive, service.StatusError, now, now},
+		[]any{service.SettingKeyOpsAdvancedSettings, service.StatusActive, service.StatusError, now, service.PlatformOpenAI},
 		&stats.TotalAccounts,
 		&stats.NormalAccounts,
 		&stats.ErrorAccounts,
 		&stats.RateLimitAccounts,
+		&stats.QuotaLimitedAccounts,
 		&stats.OverloadAccounts,
 	); err != nil {
 		return err

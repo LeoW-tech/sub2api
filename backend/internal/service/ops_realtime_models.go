@@ -50,22 +50,24 @@ type UserConcurrencyInfo struct {
 
 // PlatformAvailability aggregates account availability by platform.
 type PlatformAvailability struct {
-	Platform       string `json:"platform"`
-	TotalAccounts  int64  `json:"total_accounts"`
-	AvailableCount int64  `json:"available_count"`
-	RateLimitCount int64  `json:"rate_limit_count"`
-	ErrorCount     int64  `json:"error_count"`
+	Platform          string `json:"platform"`
+	TotalAccounts     int64  `json:"total_accounts"`
+	AvailableCount    int64  `json:"available_count"`
+	RateLimitCount    int64  `json:"rate_limit_count"`
+	QuotaLimitedCount int64  `json:"quota_limited_count"`
+	ErrorCount        int64  `json:"error_count"`
 }
 
 // GroupAvailability aggregates account availability by group.
 type GroupAvailability struct {
-	GroupID        int64  `json:"group_id"`
-	GroupName      string `json:"group_name"`
-	Platform       string `json:"platform"`
-	TotalAccounts  int64  `json:"total_accounts"`
-	AvailableCount int64  `json:"available_count"`
-	RateLimitCount int64  `json:"rate_limit_count"`
-	ErrorCount     int64  `json:"error_count"`
+	GroupID           int64  `json:"group_id"`
+	GroupName         string `json:"group_name"`
+	Platform          string `json:"platform"`
+	TotalAccounts     int64  `json:"total_accounts"`
+	AvailableCount    int64  `json:"available_count"`
+	RateLimitCount    int64  `json:"rate_limit_count"`
+	QuotaLimitedCount int64  `json:"quota_limited_count"`
+	ErrorCount        int64  `json:"error_count"`
 }
 
 // AccountAvailability represents current availability for a single account.
@@ -78,13 +80,17 @@ type AccountAvailability struct {
 
 	Status string `json:"status"`
 
-	IsAvailable   bool `json:"is_available"`
-	IsRateLimited bool `json:"is_rate_limited"`
-	IsOverloaded  bool `json:"is_overloaded"`
-	HasError      bool `json:"has_error"`
+	IsAvailable    bool `json:"is_available"`
+	IsRateLimited  bool `json:"is_rate_limited"`
+	IsQuotaLimited bool `json:"is_quota_limited"`
+	IsOverloaded   bool `json:"is_overloaded"`
+	HasError       bool `json:"has_error"`
 
 	RateLimitResetAt       *time.Time `json:"rate_limit_reset_at"`
 	RateLimitRemainingSec  *int64     `json:"rate_limit_remaining_sec"`
+	QuotaLimitWindows      []string   `json:"quota_limit_windows,omitempty"`
+	QuotaLimitResetAt      *time.Time `json:"quota_limit_reset_at,omitempty"`
+	QuotaLimitRemainingSec *int64     `json:"quota_limit_remaining_sec,omitempty"`
 	OverloadUntil          *time.Time `json:"overload_until"`
 	OverloadRemainingSec   *int64     `json:"overload_remaining_sec"`
 	ErrorMessage           string     `json:"error_message"`

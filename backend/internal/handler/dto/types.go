@@ -183,6 +183,11 @@ type Account struct {
 	RateLimitResetAt *time.Time `json:"rate_limit_reset_at"`
 	OverloadUntil    *time.Time `json:"overload_until"`
 
+	IsQuotaLimited         bool       `json:"is_quota_limited"`
+	QuotaLimitWindows      []string   `json:"quota_limit_windows,omitempty"`
+	QuotaLimitResetAt      *time.Time `json:"quota_limit_reset_at,omitempty"`
+	QuotaLimitRemainingSec *int64     `json:"quota_limit_remaining_sec,omitempty"`
+
 	TempUnschedulableUntil  *time.Time `json:"temp_unschedulable_until"`
 	TempUnschedulableReason string     `json:"temp_unschedulable_reason"`
 

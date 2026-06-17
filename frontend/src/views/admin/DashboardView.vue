@@ -46,6 +46,9 @@
                   <span class="text-green-600 dark:text-green-400"
                     >{{ stats.normal_accounts }} {{ t('common.active') }}</span
                   >
+                  <span v-if="stats.quota_limited_accounts > 0" class="ml-1 text-teal-500"
+                    >{{ stats.quota_limited_accounts }} {{ t('admin.accounts.status.quotaLimitedShort') }}</span
+                  >
                   <span v-if="stats.error_accounts > 0" class="ml-1 text-red-500"
                     >{{ stats.error_accounts }} {{ t('common.error') }}</span
                   >

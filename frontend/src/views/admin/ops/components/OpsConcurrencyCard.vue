@@ -56,6 +56,7 @@ interface SummaryRow {
   total_accounts: number
   available_accounts: number
   rate_limited_accounts: number
+  quota_limited_accounts: number
   error_accounts: number
   // 并发统计
   total_concurrency: number
@@ -81,6 +82,9 @@ interface AccountRow {
   is_available: boolean
   is_rate_limited: boolean
   rate_limit_remaining_sec?: number
+  is_quota_limited: boolean
+  quota_limit_windows: Array<'5h' | '7d'>
+  quota_limit_remaining_sec?: number
   is_overloaded: boolean
   overload_remaining_sec?: number
   has_error: boolean
@@ -121,7 +125,7 @@ const platformRows = computed((): SummaryRow[] => {
       total_accounts: totalAccounts,
       available_accounts: availableAccounts,
       rate_limited_accounts: safeNumber(avail.rate_limit_count),
-
+      quota_limited_accounts: safeNumber(avail.quota_limited_count),
       error_accounts: safeNumber(avail.error_count),
       total_concurrency: totalConcurrency,
       used_concurrency: usedConcurrency,
@@ -161,7 +165,7 @@ const groupRows = computed((): SummaryRow[] => {
         total_accounts: totalAccounts,
         available_accounts: availableAccounts,
         rate_limited_accounts: safeNumber(avail.rate_limit_count),
-  
+        quota_limited_accounts: safeNumber(avail.quota_limited_count),
         error_accounts: safeNumber(avail.error_count),
         total_concurrency: totalConcurrency,
         used_concurrency: usedConcurrency,
@@ -206,6 +210,9 @@ const accountRows = computed((): AccountRow[] => {
         is_available: avail.is_available || false,
         is_rate_limited: avail.is_rate_limited || false,
         rate_limit_remaining_sec: avail.rate_limit_remaining_sec,
+        is_quota_limited: avail.is_quota_limited || false,
+        quota_limit_windows: normalizeQuotaWindows(avail.quota_limit_windows),
+        quota_limit_remaining_sec: avail.quota_limit_remaining_sec,
         is_overloaded: avail.is_overloaded || false,
         overload_remaining_sec: avail.overload_remaining_sec,
         has_error: avail.has_error || false,
@@ -218,6 +225,9 @@ const accountRows = computed((): AccountRow[] => {
     // 优先显示异常账号
     if (a.has_error !== b.has_error) return a.has_error ? -1 : 1
     if (a.is_rate_limited !== b.is_rate_limited) return a.is_rate_limited ? -1 : 1
+    if (a.is_quota_limited !== b.is_quota_limited) return a.is_quota_limited ? -1 : 1
+    if (a.is_overloaded !== b.is_overloaded) return a.is_overloaded ? -1 : 1
+    if (a.is_available !== b.is_available) return a.is_available ? 1 : -1
     // 然后按负载排序
     return b.load_percentage - a.load_percentage
   })
@@ -317,6 +327,19 @@ function getLoadTextClass(loadPct: number): string {
   if (loadPct >= 70) return 'text-orange-600 dark:text-orange-400'
   if (loadPct >= 50) return 'text-yellow-600 dark:text-yellow-400'
   return 'text-green-600 dark:text-green-400'
+}
+
+function normalizeQuotaWindows(windows?: Array<'5h' | '7d'>): Array<'5h' | '7d'> {
+  if (!Array.isArray(windows)) return []
+  const unique = new Set(windows.filter((window): window is '5h' | '7d' => window === '5h' || window === '7d'))
+  return Array.from(unique).sort((a, b) => (a === '7d' ? -1 : 1) - (b === '7d' ? -1 : 1))
+}
+
+function quotaWindowTagClass(window: '5h' | '7d'): string {
+  if (window === '7d') {
+    return 'rounded bg-amber-200/70 px-1 py-0.5 text-[9px] font-bold text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
+  }
+  return 'rounded bg-teal-200/70 px-1 py-0.5 text-[9px] font-bold text-teal-800 dark:bg-teal-900/50 dark:text-teal-200'
 }
 
 function formatDuration(seconds: number): string {
@@ -496,6 +519,14 @@ watch(
               {{ t('admin.ops.concurrency.rateLimited', { count: row.rate_limited_accounts }) }}
             </span>
 
+            <!-- 限额账号 -->
+            <span
+              v-if="row.quota_limited_accounts > 0"
+              class="rounded-full bg-teal-100 px-1.5 py-0.5 font-semibold text-teal-700 dark:bg-teal-900/30 dark:text-teal-300"
+            >
+              {{ t('admin.ops.concurrency.quotaLimited', { count: row.quota_limited_accounts }) }}
+            </span>
+
             <!-- 异常账号 -->
             <span
               v-if="row.error_accounts > 0"
@@ -533,7 +564,16 @@ watch(
               <span class="font-mono text-[11px] font-bold text-gray-900 dark:text-white"> {{ row.current_in_use }}/{{ row.max_capacity }} </span>
               <!-- 状态徽章 -->
               <span
-                v-if="row.is_available"
+                v-if="row.has_error"
+                class="inline-flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400"
+              >
+                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                {{ t('admin.ops.accountAvailability.accountError') }}
+              </span>
+              <span
+                v-else-if="row.is_available"
                 class="inline-flex items-center gap-1 rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400"
               >
                 <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -549,6 +589,22 @@ watch(
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 {{ formatDuration(row.rate_limit_remaining_sec || 0) }}
+                <span v-for="window in row.quota_limit_windows" :key="`${row.key}-rate-${window}`" :class="quotaWindowTagClass(window)">
+                  {{ window }}
+                </span>
+              </span>
+              <span
+                v-else-if="row.is_quota_limited"
+                class="inline-flex items-center gap-1 rounded bg-teal-100 px-1.5 py-0.5 text-[10px] font-medium text-teal-700 dark:bg-teal-900/30 dark:text-teal-300"
+              >
+                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.023 9.348h4.992M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+                </svg>
+                {{ t('admin.ops.accountAvailability.quotaLimited') }}
+                <span v-for="window in row.quota_limit_windows" :key="`${row.key}-${window}`" :class="quotaWindowTagClass(window)">
+                  {{ window }}
+                </span>
+                <span v-if="row.quota_limit_remaining_sec">{{ formatDuration(row.quota_limit_remaining_sec) }}</span>
               </span>
               <span
                 v-else-if="row.is_overloaded"
@@ -563,15 +619,6 @@ watch(
                   />
                 </svg>
                 {{ formatDuration(row.overload_remaining_sec || 0) }}
-              </span>
-              <span
-                v-else-if="row.has_error"
-                class="inline-flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400"
-              >
-                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                {{ t('admin.ops.accountAvailability.accountError') }}
               </span>
               <span
                 v-else

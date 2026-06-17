@@ -361,6 +361,7 @@ export interface PlatformAvailability {
   total_accounts: number
   available_count: number
   rate_limit_count: number
+  quota_limited_count: number
   error_count: number
 }
 
@@ -371,6 +372,7 @@ export interface GroupAvailability {
   total_accounts: number
   available_count: number
   rate_limit_count: number
+  quota_limited_count: number
   error_count: number
 }
 
@@ -383,8 +385,12 @@ export interface AccountAvailability {
   status: string
   is_available: boolean
   is_rate_limited: boolean
+  is_quota_limited: boolean
   rate_limit_reset_at?: string
   rate_limit_remaining_sec?: number
+  quota_limit_windows?: Array<'5h' | '7d'>
+  quota_limit_reset_at?: string
+  quota_limit_remaining_sec?: number
   is_overloaded: boolean
   overload_until?: string
   overload_remaining_sec?: number

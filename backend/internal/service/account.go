@@ -49,6 +49,11 @@ type Account struct {
 	RateLimitResetAt *time.Time
 	OverloadUntil    *time.Time
 
+	IsQuotaLimited         bool
+	QuotaLimitWindows      []string
+	QuotaLimitResetAt      *time.Time
+	QuotaLimitRemainingSec *int64
+
 	TempUnschedulableUntil  *time.Time
 	TempUnschedulableReason string
 

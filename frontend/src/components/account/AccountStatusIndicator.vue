@@ -7,10 +7,35 @@
       {{ networkStatusText }}
     </span>
 
+    <!-- Error Display -->
+    <template v-if="hasError">
+      <span :class="['badge text-xs', statusClass]">
+        {{ statusText }}
+      </span>
+    </template>
+
     <!-- Rate Limit Display (429) - Two-line layout -->
-    <div v-if="isRateLimited" class="flex flex-col items-center gap-1">
-      <span class="badge text-xs badge-warning">{{ t('admin.accounts.status.rateLimited') }}</span>
+    <div v-else-if="isRateLimited" class="flex flex-col items-center gap-1">
+      <div class="flex items-center gap-1">
+        <span class="badge text-xs badge-warning">{{ t('admin.accounts.status.rateLimited') }}</span>
+        <span v-for="window in quotaLimitWindows" :key="`rate-${window}`" :class="quotaWindowTagClass(window)">
+          <Icon :name="quotaWindowIcon(window)" size="xs" :stroke-width="2" />
+          {{ window }}
+        </span>
+      </div>
       <span class="text-[11px] text-gray-400 dark:text-gray-500">{{ rateLimitResumeText }}</span>
+    </div>
+
+    <!-- OpenAI/Codex quota limit display -->
+    <div v-else-if="isOpenAIQuotaLimited" class="flex flex-col items-center gap-1">
+      <div class="flex items-center gap-1">
+        <span class="badge text-xs badge-warning">{{ t('admin.accounts.status.quotaLimited') }}</span>
+        <span v-for="window in quotaLimitWindows" :key="`quota-${window}`" :class="quotaWindowTagClass(window)">
+          <Icon :name="quotaWindowIcon(window)" size="xs" :stroke-width="2" />
+          {{ window }}
+        </span>
+      </div>
+      <span class="text-[11px] text-gray-400 dark:text-gray-500">{{ quotaLimitResumeText }}</span>
     </div>
 
     <!-- Overload Display (529) - Two-line layout -->
@@ -19,7 +44,7 @@
       <span class="text-[11px] text-gray-400 dark:text-gray-500">{{ overloadCountdown }}</span>
     </div>
 
-    <!-- Main Status Badge (shown when not rate limited/overloaded) -->
+    <!-- Main Status Badge (shown when not rate limited/quota limited/overloaded) -->
     <template v-else>
       <button
         v-if="isTempUnschedulable"
@@ -178,9 +203,14 @@ const emit = defineEmits<{
   (e: 'show-temp-unsched', account: Account): void
 }>()
 
+// Computed: has error status
+const hasError = computed(() => {
+  return props.account.status === 'error'
+})
+
 // Computed: is rate limited (429)
 const isRateLimited = computed(() => {
-  if (!props.account.rate_limit_reset_at) return false
+  if (hasError.value || !props.account.rate_limit_reset_at) return false
   return new Date(props.account.rate_limit_reset_at) > new Date()
 })
 
@@ -279,9 +309,19 @@ const formatModelResetTime = (resetAt: string): string => {
   return `${s}s`
 }
 
+const quotaLimitWindows = computed<Array<'7d' | '5h'>>(() => {
+  const windows = props.account.quota_limit_windows || []
+  const unique = new Set(windows.filter((window): window is '7d' | '5h' => window === '7d' || window === '5h'))
+  return Array.from(unique).sort((a, b) => (a === '7d' ? -1 : 1) - (b === '7d' ? -1 : 1))
+})
+
+const isOpenAIQuotaLimited = computed(() => {
+  return !hasError.value && !isRateLimited.value && props.account.is_quota_limited === true && quotaLimitWindows.value.length > 0
+})
+
 // Computed: is overloaded (529)
 const isOverloaded = computed(() => {
-  if (!props.account.overload_until) return false
+  if (hasError.value || isRateLimited.value || isOpenAIQuotaLimited.value || !props.account.overload_until) return false
   return new Date(props.account.overload_until) > new Date()
 })
 
@@ -289,11 +329,6 @@ const isOverloaded = computed(() => {
 const isTempUnschedulable = computed(() => {
   if (!props.account.temp_unschedulable_until) return false
   return new Date(props.account.temp_unschedulable_until) > new Date()
-})
-
-// Computed: has error status
-const hasError = computed(() => {
-  return props.account.status === 'error'
 })
 
 const isQuotaExceeded = computed(() => {
@@ -317,6 +352,15 @@ const rateLimitResumeText = computed(() => {
   return t('admin.accounts.status.rateLimitedAutoResume', { time: rateLimitCountdown.value })
 })
 
+const quotaLimitCountdown = computed(() => {
+  return formatCountdown(props.account.quota_limit_reset_at || null)
+})
+
+const quotaLimitResumeText = computed(() => {
+  if (!quotaLimitCountdown.value) return ''
+  return t('admin.accounts.status.quotaLimitedAutoResume', { time: quotaLimitCountdown.value })
+})
+
 // Computed: countdown text for overload (529)
 const overloadCountdown = computed(() => {
   return formatCountdownWithSuffix(props.account.overload_until)
@@ -336,6 +380,9 @@ const networkStatusText = computed(() => {
 const statusClass = computed(() => {
   if (hasError.value) {
     return 'badge-danger'
+  }
+  if (isOpenAIQuotaLimited.value) {
+    return 'badge-warning'
   }
   if (isTempUnschedulable.value) {
     return 'badge-warning'
@@ -357,6 +404,9 @@ const statusText = computed(() => {
   if (hasError.value) {
     return t('admin.accounts.status.error')
   }
+  if (isOpenAIQuotaLimited.value) {
+    return t('admin.accounts.status.quotaLimited')
+  }
   if (isTempUnschedulable.value) {
     return t('admin.accounts.status.tempUnschedulable')
   }
@@ -371,6 +421,15 @@ const statusText = computed(() => {
   }
   return t(`admin.accounts.status.${props.account.status}`)
 })
+
+const quotaWindowTagClass = (window: '5h' | '7d') => {
+  if (window === '7d') {
+    return 'inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+  }
+  return 'inline-flex items-center gap-0.5 rounded bg-teal-100 px-1.5 py-0.5 text-[10px] font-semibold text-teal-700 dark:bg-teal-900/30 dark:text-teal-300'
+}
+
+const quotaWindowIcon = (window: '5h' | '7d') => (window === '7d' ? 'exclamationTriangle' : 'refresh')
 
 const handleTempUnschedClick = () => {
   if (!isTempUnschedulable.value) return
