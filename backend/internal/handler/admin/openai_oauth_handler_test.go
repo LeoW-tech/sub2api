@@ -69,7 +69,7 @@ func TestOpenAIOAuthHandler_CompletePendingCreateCreatesAccount(t *testing.T) {
 	require.NotEmpty(t, state)
 
 	router := gin.New()
-	handler := NewOpenAIOAuthHandler(oauthSvc, adminSvc)
+	handler := NewOpenAIOAuthHandler(oauthSvc, adminSvc, nil)
 	router.POST("/openai/complete-pending-create", handler.CompletePendingCreate)
 
 	body, err := json.Marshal(map[string]string{
@@ -125,7 +125,7 @@ func TestOpenAIOAuthHandler_CompletePendingCreateSkipsDefaultGroupWhenNoGroupSel
 	require.NotEmpty(t, state)
 
 	router := gin.New()
-	handler := NewOpenAIOAuthHandler(oauthSvc, adminSvc)
+	handler := NewOpenAIOAuthHandler(oauthSvc, adminSvc, nil)
 	router.POST("/openai/complete-pending-create", handler.CompletePendingCreate)
 
 	body, err := json.Marshal(map[string]string{

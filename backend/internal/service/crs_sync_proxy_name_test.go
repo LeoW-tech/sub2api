@@ -79,6 +79,9 @@ func (r *crsSyncTestAccountRepo) ListByGroup(context.Context, int64) ([]Account,
 func (r *crsSyncTestAccountRepo) ListActive(context.Context) ([]Account, error) {
 	panic("unexpected")
 }
+func (r *crsSyncTestAccountRepo) ListOAuthRefreshCandidates(context.Context) ([]Account, error) {
+	panic("unexpected")
+}
 func (r *crsSyncTestAccountRepo) ListByPlatform(context.Context, string) ([]Account, error) {
 	panic("unexpected")
 }

@@ -13,6 +13,7 @@ vi.mock('vue-i18n', () => ({
         'admin.accounts.bulkActions.delete': '批量删除',
         'admin.accounts.bulkActions.resetStatus': '批量重置状态',
         'admin.accounts.bulkActions.refreshToken': '批量刷新令牌',
+        'admin.accounts.bulkActions.trueRefreshToken': '批量真正刷新令牌',
         'admin.accounts.bulkActions.testActivate': '批量测试激活',
         'admin.accounts.bulkActions.testActivating': '批量测试激活中...',
         'admin.accounts.bulkActions.enableScheduling': '批量启用调度',
@@ -34,7 +35,7 @@ describe('AccountBulkActionsBar', () => {
     })
 
     const labels = wrapper.findAll('button').map((button) => button.text())
-    const refreshIndex = labels.indexOf('批量刷新令牌')
+    const refreshIndex = labels.indexOf('批量真正刷新令牌')
     const bulkTestIndex = labels.indexOf('批量测试激活')
     const enableSchedulingIndex = labels.indexOf('批量启用调度')
 

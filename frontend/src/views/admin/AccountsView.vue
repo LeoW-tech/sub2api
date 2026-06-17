@@ -138,20 +138,6 @@
                   class="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] origin-top-right overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
                 >
                   <div class="max-h-80 overflow-y-auto p-2">
-                    <button
-                      v-for="col in toggleableColumns"
-                      :key="col.key"
-                      @click="toggleColumn(col.key)"
-                      class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                      <span>{{ col.label }}</span>
-                      <Icon
-                        v-if="isColumnVisible(col.key)"
-                        name="check"
-                        size="sm"
-                        class="text-primary-500"
-                      />
-                    </button>
                     <button class="account-tools-menu-item" @click="openSyncFromCrs">
                       <span class="account-tools-menu-icon bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
                         <Icon name="sync" size="sm" />
@@ -299,17 +285,18 @@
                 class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
               />
             </template>
+            <template #cell-id="{ value }">
+              <span class="font-mono text-xs text-gray-500 dark:text-gray-400">#{{ value }}</span>
+            </template>
             <template #cell-name="{ row, value }">
               <div class="flex flex-col">
-                <span class="font-medium text-gray-900 dark:text-white">{{
-                  value
-                }}</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
                 <span
-                  v-if="row.extra?.email_address"
+                  v-if="row.extra?.email_address || row.extra?.email || row.credentials?.email"
                   class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px]"
-                  :title="row.extra.email_address"
+                  :title="String(row.extra?.email_address || row.extra?.email || row.credentials?.email)"
                 >
-                  {{ row.extra.email_address }}
+                  {{ row.extra?.email_address || row.extra?.email || row.credentials?.email }}
                 </span>
               </div>
             </template>
@@ -859,6 +846,7 @@ type AccountSortState = {
   sort_order: AccountSortOrder;
 };
 const ACCOUNT_SORTABLE_KEYS = new Set([
+  "id",
   "name",
   "status",
   "schedulable",
@@ -1511,6 +1499,7 @@ const allColumns = computed(() => {
   const c = [
     { key: "select", label: "", sortable: false },
     { key: "name", label: t("admin.accounts.columns.name"), sortable: true },
+    { key: "id", label: t("admin.accounts.columns.id"), sortable: true },
     {
       key: "platform_type",
       label: t("admin.accounts.columns.platformType"),
