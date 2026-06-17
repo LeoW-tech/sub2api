@@ -141,4 +141,41 @@ describe('admin DashboardView', () => {
       granularity: 'hour'
     }))
   })
+
+  it('renders rate-limited and quota-limited account counts on account card', async () => {
+    getSnapshotV2.mockResolvedValueOnce({
+      stats: {
+        ...createDashboardStats(),
+        total_accounts: 23,
+        normal_accounts: 6,
+        ratelimit_accounts: 2,
+        quota_limited_accounts: 12,
+        error_accounts: 1
+      },
+      trend: [],
+      models: []
+    })
+
+    const wrapper = mount(DashboardView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          LoadingSpinner: true,
+          Icon: true,
+          DateRangePicker: true,
+          Select: true,
+          ModelDistributionChart: true,
+          TokenUsageTrend: true,
+          Line: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('6 common.active')
+    expect(wrapper.text()).toContain('2 admin.accounts.status.limited')
+    expect(wrapper.text()).toContain('12 admin.accounts.status.quotaLimitedShort')
+    expect(wrapper.text()).toContain('1 common.error')
+  })
 })
