@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@airwallex/components-sdk": "^1.30.2",
+    "@lobehub/icons": "^4.0.2",
     "@stripe/stripe-js": "^9.0.1",
     "@tanstack/vue-virtual": "^3.13.23",
     "@vueuse/core": "^10.7.0",
@@ -36,6 +37,7 @@
     "write-excel-file": "4.0.2"
   },
   "devDependencies": {
+    "@types/dompurify": "^3.0.5",
     "@types/file-saver": "^2.0.7",
     "@types/mdx": "^2.0.13",
     "@types/node": "^20.10.5",
@@ -64,6 +66,7 @@
       "cosmiconfig>yaml": "1.10.3",
       "dompurify": "3.4.0",
       "follow-redirects": "1.16.0",
+      "form-data@<4.0.6": ">=4.0.6",
       "glob@7.2.3>minimatch": "3.1.4",
       "minimatch@3.1.2": "3.1.4",
       "minimatch@3.1.4>brace-expansion": "1.1.13",
