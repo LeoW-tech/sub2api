@@ -973,6 +973,32 @@ export interface OpenAIQuotaResetResult {
 /**
  * Query OpenAI/Codex rate-limit usage for an OAuth account.
  */
+
+export interface OpenAIRefreshSubscriptionBatchResult {
+  limit: number
+  dry_run: boolean
+  results: Array<{
+    account_id: number
+    name: string
+    status: 'updated' | 'skipped' | 'failed'
+    reason?: string
+  }>
+}
+
+export async function refreshOpenAISubscription(id: number): Promise<Account> {
+  const { data } = await apiClient.post<Account>(`/admin/openai/accounts/${id}/refresh-subscription`)
+  return data
+}
+
+export async function refreshOpenAISubscriptions(payload: { limit?: number; dry_run?: boolean } = {}): Promise<OpenAIRefreshSubscriptionBatchResult> {
+  const { data } = await apiClient.post<OpenAIRefreshSubscriptionBatchResult>(
+    '/admin/openai/accounts/refresh-subscriptions',
+    payload,
+    { timeout: 120000 }
+  )
+  return data
+}
+
 export async function queryOpenAIQuota(id: number): Promise<OpenAIQuotaUsage> {
   const { data } = await apiClient.get<OpenAIQuotaUsage>(`/admin/openai/accounts/${id}/quota`)
   return data
@@ -1031,6 +1057,8 @@ export const accountsAPI = {
   trueRefreshToken,
   setPrivacy,
   revertProxyFallback,
+  refreshOpenAISubscription,
+  refreshOpenAISubscriptions,
   queryOpenAIQuota,
   resetOpenAIQuota,
 };

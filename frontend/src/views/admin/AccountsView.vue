@@ -243,6 +243,7 @@
           @reset-status="handleBulkResetStatus"
           @refresh-token="handleBulkRefreshToken"
           @true-refresh-token="handleBulkTrueRefreshToken"
+          @refresh-subscriptions="handleBulkRefreshSubscriptions"
           @edit-selected="openBulkEditSelected"
           @edit-filtered="openBulkEditFiltered"
           @test-activate="handleBulkTestActivate"
@@ -604,6 +605,7 @@
       @schedule="handleSchedule"
       @reauth="handleReAuth"
       @refresh-token="handleRefresh"
+      @refresh-subscription="handleRefreshSubscription"
       @recover-state="handleRecoverState"
       @reset-quota="handleResetQuota"
       @set-privacy="handleSetPrivacy"
@@ -1721,6 +1723,34 @@ const handleBulkRefreshToken = async () => {
     appStore.showError(String(error));
   }
 };
+
+const handleBulkRefreshSubscriptions = async () => {
+  if (!confirm(t("common.confirm"))) return;
+  try {
+    const result = await adminAPI.accounts.refreshOpenAISubscriptions({ limit: 20 });
+    const updated = result.results.filter((item) => item.status === "updated").length;
+    const failed = result.results.filter((item) => item.status === "failed").length;
+    if (failed > 0) {
+      appStore.showError(
+        t("admin.accounts.bulkActions.refreshSubscriptionsPartial", {
+          updated,
+          failed,
+        }),
+      );
+    } else {
+      appStore.showSuccess(
+        t("admin.accounts.bulkActions.refreshSubscriptionsSuccess", {
+          count: updated,
+        }),
+      );
+    }
+    reload();
+  } catch (error: any) {
+    console.error("Failed to refresh OpenAI subscription metadata:", error);
+    appStore.showError(error?.message || t("admin.accounts.refreshSubscriptionFailed"));
+  }
+};
+
 const handleBulkTrueRefreshToken = async () => {
   if (!confirm(t("common.confirm"))) return;
   try {
@@ -2258,6 +2288,19 @@ const handleRefresh = async (a: Account) => {
     console.error("Failed to refresh credentials:", error);
   }
 };
+
+const handleRefreshSubscription = async (a: Account) => {
+  try {
+    const updated = await adminAPI.accounts.refreshOpenAISubscription(a.id);
+    patchAccountInList(updated);
+    enterAutoRefreshSilentWindow();
+    appStore.showSuccess(t("admin.accounts.refreshSubscriptionSuccess"));
+  } catch (error: any) {
+    console.error("Failed to refresh OpenAI subscription metadata:", error);
+    appStore.showError(error?.message || t("admin.accounts.refreshSubscriptionFailed"));
+  }
+};
+
 const handleRecoverState = async (a: Account) => {
   try {
     const updated = await adminAPI.accounts.recoverState(a.id);

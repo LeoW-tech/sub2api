@@ -144,3 +144,78 @@ func TestOpenAIOAuthHandler_CompletePendingCreateSkipsDefaultGroupWhenNoGroupSel
 	require.Empty(t, adminSvc.createdAccounts[0].GroupIDs)
 	require.True(t, adminSvc.createdAccounts[0].SkipDefaultGroupBind)
 }
+
+func TestOpenAIOAuthHandler_RefreshAccountSubscriptionsDryRunFiltersAndLimits(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adminSvc := newStubAdminService()
+	adminSvc.accounts = []service.Account{
+		{
+			ID:       1,
+			Name:     "plus-missing",
+			Platform: service.PlatformOpenAI,
+			Type:     service.AccountTypeOAuth,
+			Credentials: map[string]any{
+				"access_token": "access-token",
+				"plan_type":    "plus",
+			},
+		},
+		{
+			ID:       2,
+			Name:     "free-missing",
+			Platform: service.PlatformOpenAI,
+			Type:     service.AccountTypeOAuth,
+			Credentials: map[string]any{
+				"access_token": "access-token",
+				"plan_type":    "free",
+			},
+		},
+		{
+			ID:       3,
+			Name:     "plus-complete",
+			Platform: service.PlatformOpenAI,
+			Type:     service.AccountTypeOAuth,
+			Credentials: map[string]any{
+				"access_token":            "access-token",
+				"plan_type":               "plus",
+				"subscription_expires_at": "2026-07-23T16:23:04Z",
+			},
+		},
+		{
+			ID:       4,
+			Name:     "unknown-missing",
+			Platform: service.PlatformOpenAI,
+			Type:     service.AccountTypeOAuth,
+			Credentials: map[string]any{
+				"refresh_token": "refresh-token",
+			},
+		},
+	}
+
+	router := gin.New()
+	handler := NewOpenAIOAuthHandler(nil, adminSvc, nil)
+	router.POST("/openai/accounts/refresh-subscriptions", handler.RefreshAccountSubscriptions)
+
+	body, err := json.Marshal(map[string]any{"dry_run": true, "limit": 1})
+	require.NoError(t, err)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/openai/accounts/refresh-subscriptions", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, 1, adminSvc.lastListAccounts.calls)
+	require.Equal(t, service.PlatformOpenAI, adminSvc.lastListAccounts.platform)
+	require.Equal(t, service.AccountTypeOAuth, adminSvc.lastListAccounts.accountType)
+
+	var payload struct {
+		Data struct {
+			Results []OpenAIRefreshSubscriptionResult `json:"results"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	require.Len(t, payload.Data.Results, 1)
+	require.Equal(t, int64(1), payload.Data.Results[0].AccountID)
+	require.Equal(t, "skipped", payload.Data.Results[0].Status)
+	require.Equal(t, "dry_run", payload.Data.Results[0].Reason)
+}

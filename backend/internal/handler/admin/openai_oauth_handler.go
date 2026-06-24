@@ -1,10 +1,13 @@
 package admin
 
 import (
+	"context"
+	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -189,51 +192,144 @@ func (h *OpenAIOAuthHandler) RefreshAccountToken(c *gin.Context) {
 		return
 	}
 
-	// Get account
-	account, err := h.adminService.GetAccount(c.Request.Context(), accountID)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-
-	platform := oauthPlatformFromPath(c)
-	if account.Platform != platform {
-		response.BadRequest(c, "Account platform does not match OAuth endpoint")
-		return
-	}
-
-	// Only refresh OAuth-based accounts
-	if !account.IsOAuth() {
-		response.BadRequest(c, "Cannot refresh non-OAuth account credentials")
-		return
-	}
-
-	// Use OpenAI OAuth service to refresh token
-	tokenInfo, err := h.openaiOAuthService.RefreshAccountToken(c.Request.Context(), account)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-
-	// Build new credentials from token info
-	newCredentials := h.openaiOAuthService.BuildAccountCredentials(tokenInfo)
-
-	// Preserve non-token settings from existing credentials
-	for k, v := range account.Credentials {
-		if _, exists := newCredentials[k]; !exists {
-			newCredentials[k] = v
-		}
-	}
-
-	updatedAccount, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{
-		Credentials: newCredentials,
-	})
+	updatedAccount, err := h.refreshOpenAIAccountSubscriptionMetadata(c.Request.Context(), accountID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
 	response.Success(c, dto.AccountFromService(updatedAccount))
+}
+
+// RefreshAccountSubscription refreshes OpenAI OAuth subscription metadata for one account.
+// POST /api/v1/admin/openai/accounts/:id/refresh-subscription
+func (h *OpenAIOAuthHandler) RefreshAccountSubscription(c *gin.Context) {
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+
+	updatedAccount, err := h.refreshOpenAIAccountSubscriptionMetadata(c.Request.Context(), accountID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, dto.AccountFromService(updatedAccount))
+}
+
+type OpenAIRefreshSubscriptionsRequest struct {
+	Limit  int  `json:"limit"`
+	DryRun bool `json:"dry_run"`
+}
+
+type OpenAIRefreshSubscriptionResult struct {
+	AccountID int64  `json:"account_id"`
+	Name      string `json:"name"`
+	Status    string `json:"status"`
+	Reason    string `json:"reason,omitempty"`
+}
+
+// RefreshAccountSubscriptions backfills subscription metadata for existing OpenAI OAuth accounts.
+// POST /api/v1/admin/openai/accounts/refresh-subscriptions
+func (h *OpenAIOAuthHandler) RefreshAccountSubscriptions(c *gin.Context) {
+	var req OpenAIRefreshSubscriptionsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		req = OpenAIRefreshSubscriptionsRequest{}
+	}
+	limit := req.Limit
+	if limit <= 0 || limit > 20 {
+		limit = 20
+	}
+
+	results := make([]OpenAIRefreshSubscriptionResult, 0, limit)
+	const pageSize = 100
+	for page := 1; len(results) < limit; page++ {
+		accounts, _, err := h.adminService.ListAccounts(c.Request.Context(), page, pageSize, service.PlatformOpenAI, service.AccountTypeOAuth, "", "", 0, "", "", "", "", "", "id", "ASC")
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		if len(accounts) == 0 {
+			break
+		}
+		for i := range accounts {
+			account := accounts[i]
+			if !openAIAccountNeedsSubscriptionBackfill(&account) {
+				continue
+			}
+			if len(results) >= limit {
+				break
+			}
+			result := OpenAIRefreshSubscriptionResult{AccountID: account.ID, Name: account.Name}
+			if req.DryRun {
+				result.Status = "skipped"
+				result.Reason = "dry_run"
+				results = append(results, result)
+				continue
+			}
+			if _, err := h.refreshOpenAIAccountSubscriptionMetadata(c.Request.Context(), account.ID); err != nil {
+				result.Status = "failed"
+				result.Reason = "refresh_failed"
+			} else {
+				result.Status = "updated"
+			}
+			results = append(results, result)
+		}
+		if len(accounts) < pageSize {
+			break
+		}
+	}
+
+	response.Success(c, gin.H{
+		"limit":   limit,
+		"dry_run": req.DryRun,
+		"results": results,
+	})
+}
+
+func (h *OpenAIOAuthHandler) refreshOpenAIAccountSubscriptionMetadata(ctx context.Context, accountID int64) (*service.Account, error) {
+	account, err := h.adminService.GetAccount(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	if account.Platform != service.PlatformOpenAI {
+		return nil, serviceErrorBadRequest("OPENAI_OAUTH_INVALID_ACCOUNT", "Account platform does not match OAuth endpoint")
+	}
+	if account.Type != service.AccountTypeOAuth {
+		return nil, serviceErrorBadRequest("OPENAI_OAUTH_INVALID_ACCOUNT_TYPE", "Cannot refresh non-OAuth account credentials")
+	}
+
+	tokenInfo, err := h.openaiOAuthService.RefreshAccountToken(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	newCredentials := h.openaiOAuthService.BuildAccountCredentials(tokenInfo)
+	for k, v := range account.Credentials {
+		if _, exists := newCredentials[k]; !exists {
+			newCredentials[k] = v
+		}
+	}
+	return h.adminService.UpdateAccount(ctx, accountID, &service.UpdateAccountInput{Credentials: newCredentials})
+}
+
+func openAIAccountNeedsSubscriptionBackfill(account *service.Account) bool {
+	if account == nil || account.Platform != service.PlatformOpenAI || account.Type != service.AccountTypeOAuth {
+		return false
+	}
+	if strings.TrimSpace(account.GetCredential("subscription_expires_at")) != "" {
+		return false
+	}
+	if strings.TrimSpace(account.GetCredential("access_token")) == "" && strings.TrimSpace(account.GetCredential("refresh_token")) == "" {
+		return false
+	}
+	planType := strings.ToLower(strings.TrimSpace(account.GetCredential("plan_type")))
+	return planType == "" || planType != "free"
+}
+
+func serviceErrorBadRequest(code, message string) error {
+	return infraerrors.New(http.StatusBadRequest, code, message)
 }
 
 // CreateAccountFromOAuth creates a new OpenAI OAuth account from token info

@@ -3419,9 +3419,12 @@ export default {
       testConnection: 'Test Connection',
       reAuthorize: 'Re-Authorize',
       refreshToken: 'Refresh Token',
+      refreshSubscription: 'Refresh Subscription Info',
       noAccountsYet: 'No accounts yet',
       createFirstAccount: 'Create your first account to start using AI services.',
       tokenRefreshed: 'Token refreshed successfully',
+      refreshSubscriptionSuccess: 'Subscription info refreshed successfully',
+      refreshSubscriptionFailed: 'Failed to refresh subscription info',
       accountDeleted: 'Account deleted successfully',
       rateLimitCleared: 'Rate limit cleared successfully',
       bulkSchedulableEnabled: 'Successfully enabled scheduling for {count} account(s)',
@@ -3440,6 +3443,9 @@ export default {
         refreshToken: 'Refresh Token',
         resetStatusSuccess: 'Successfully reset {count} account(s) status',
         refreshTokenSuccess: 'Successfully refreshed {count} account(s) token',
+        refreshSubscriptions: 'Backfill OpenAI Subscription Expiry',
+        refreshSubscriptionsSuccess: 'Backfilled subscription info for {count} OpenAI account(s)',
+        refreshSubscriptionsPartial: 'Subscription backfill partially completed: {updated} succeeded, {failed} failed',
         partialSuccess: 'Partially completed: {success} succeeded, {failed} failed'
       },
       bulkEdit: {

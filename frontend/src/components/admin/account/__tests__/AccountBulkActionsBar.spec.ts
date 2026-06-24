@@ -14,6 +14,7 @@ vi.mock('vue-i18n', () => ({
         'admin.accounts.bulkActions.resetStatus': '批量重置状态',
         'admin.accounts.bulkActions.refreshToken': '批量刷新令牌',
         'admin.accounts.bulkActions.trueRefreshToken': '批量真正刷新令牌',
+        'admin.accounts.bulkActions.refreshSubscriptions': '补抓 OpenAI 订阅到期',
         'admin.accounts.bulkActions.testActivate': '批量测试激活',
         'admin.accounts.bulkActions.testActivating': '批量测试激活中...',
         'admin.accounts.bulkActions.enableScheduling': '批量启用调度',
@@ -36,12 +37,14 @@ describe('AccountBulkActionsBar', () => {
 
     const labels = wrapper.findAll('button').map((button) => button.text())
     const refreshIndex = labels.indexOf('批量真正刷新令牌')
+    const refreshSubscriptionsIndex = labels.indexOf('补抓 OpenAI 订阅到期')
     const bulkTestIndex = labels.indexOf('批量测试激活')
     const enableSchedulingIndex = labels.indexOf('批量启用调度')
 
     expect(refreshIndex).toBeGreaterThanOrEqual(0)
     expect(bulkTestIndex).toBe(refreshIndex + 1)
     expect(enableSchedulingIndex).toBe(bulkTestIndex + 1)
+    expect(refreshSubscriptionsIndex).toBeGreaterThan(enableSchedulingIndex)
   })
 
   it('点击批量测试激活会派发事件，执行中按钮禁用', async () => {

@@ -46,6 +46,7 @@
         <button @click="$emit('toggle-schedulable', false)" class="btn btn-warning btn-sm">{{ t('admin.accounts.bulkActions.disableScheduling') }}</button>
         <button @click="$emit('edit-selected')" class="btn btn-primary btn-sm">{{ t('admin.accounts.bulkActions.edit') }}</button>
       </template>
+      <button @click="$emit('refresh-subscriptions')" class="btn btn-secondary btn-sm">{{ t('admin.accounts.bulkActions.refreshSubscriptions') }}</button>
       <button @click="$emit('edit-filtered')" class="btn btn-primary btn-sm">
         {{ t('admin.accounts.bulkEdit.submit') }}
       </button>
@@ -71,6 +72,7 @@ defineEmits<{
   (e: 'reset-status'): void
   (e: 'refresh-token'): void
   (e: 'true-refresh-token'): void
+  (e: 'refresh-subscriptions'): void
   (e: 'test-activate'): void
 }>()
 
