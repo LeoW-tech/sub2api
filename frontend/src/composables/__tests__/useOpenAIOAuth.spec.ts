@@ -59,6 +59,21 @@ describe('useOpenAIOAuth.buildCredentials', () => {
     expect(creds.access_token).toBe('at')
     expect(creds.refresh_token).toBe('rt')
   })
+
+  it('should preserve OpenAI subscription metadata', () => {
+    const oauth = useOpenAIOAuth()
+    const creds = oauth.buildCredentials({
+      access_token: 'at',
+      refresh_token: 'rt',
+      expires_at: 1700000000,
+      plan_type: 'plus',
+      subscription_expires_at: '2026-07-23T16:23:04+00:00'
+    })
+
+    expect(creds.plan_type).toBe('plus')
+    expect(creds.subscription_expires_at).toBe('2026-07-23T16:23:04+00:00')
+    expect(creds.expires_at).toBe(1700000000)
+  })
 })
 
 describe('useOpenAIOAuth.exchangeAuthCode', () => {
