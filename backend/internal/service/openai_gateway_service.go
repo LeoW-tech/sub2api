@@ -2732,6 +2732,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	isCompactRequest := isOpenAIResponsesCompactPath(c)
 	compactMapped := false
 	if isCompactRequest {
+		codexImageGenerationBridgeEnabled = false
 		compactMappedModel := resolveOpenAICompactForwardModel(account, billingModel)
 		if compactMappedModel != "" && compactMappedModel != billingModel {
 			compactMapped = true
@@ -2830,6 +2831,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		if stripCodexSparkImageGenerationTools(decoded) {
 			markDecodedModified()
 		}
+	}
+
+	if isCompactRequest && gjson.GetBytes(body, "tool_choice").Exists() {
+		markPatchDelete("tool_choice")
 	}
 
 	if account.Type == AccountTypeOAuth {
@@ -7023,6 +7028,14 @@ func normalizeOpenAIPassthroughOAuthBody(body []byte, compact bool) ([]byte, boo
 	}
 
 	if compact {
+		if toolChoice := gjson.GetBytes(normalized, "tool_choice"); toolChoice.Exists() {
+			next, err := sjson.DeleteBytes(normalized, "tool_choice")
+			if err != nil {
+				return body, false, fmt.Errorf("normalize passthrough body delete tool_choice: %w", err)
+			}
+			normalized = next
+			changed = true
+		}
 		if store := gjson.GetBytes(normalized, "store"); store.Exists() {
 			next, err := sjson.DeleteBytes(normalized, "store")
 			if err != nil {
