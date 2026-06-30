@@ -1015,6 +1015,70 @@ describe("admin SettingsView payment visible method controls", () => {
       "推荐上传宽 896px 左右的横向图片，宽度会自适应页面，高度按比例展示，文件需小于 300KB",
     );
   });
+
+  it("normalizes null supported_types from API so provider card stays visible", async () => {
+    // Backend returns null for supported_types when the list is empty
+    // (Go nil slice → JSON null). Without normalization, ProviderCard's
+    // isSelected() throws TypeError on null.includes(), causing the card
+    // to vanish from the list.
+    const providerWithNullTypes = {
+      id: 42,
+      provider_key: "easypay",
+      name: "EasyPay",
+      config: {},
+      supported_types: null as unknown as string[],
+      enabled: true,
+      payment_mode: "",
+      refund_enabled: false,
+      allow_user_refund: false,
+      limits: "",
+      sort_order: 0,
+    };
+    getProviders.mockReset();
+    getProviders.mockResolvedValue({ data: [providerWithNullTypes] });
+
+    let receivedProviders: Array<Record<string, unknown>> = [];
+    const PaymentProviderListCapture = defineComponent({
+      props: {
+        providers: {
+          type: Array,
+          default: () => [],
+        },
+      },
+      setup(props) {
+        receivedProviders = props.providers as Array<Record<string, unknown>>;
+        return () => h("div", { class: "provider-list-capture" });
+      },
+    });
+
+    const wrapper = mount(SettingsView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          Select: SelectStub,
+          Toggle: ToggleStub,
+          Icon: true,
+          ConfirmDialog: true,
+          PaymentProviderList: PaymentProviderListCapture,
+          PaymentProviderDialog: true,
+          GroupBadge: true,
+          GroupOptionItem: true,
+          ProxySelector: true,
+          ImageUpload: ImageUploadStub,
+          BackupSettings: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await openPaymentTab(wrapper);
+
+    // The provider should still be in the list
+    expect(receivedProviders.length).toBe(1);
+    // supported_types should be normalized to an empty array, not null
+    expect(Array.isArray(receivedProviders[0].supported_types)).toBe(true);
+    expect(receivedProviders[0].supported_types).toEqual([]);
+  });
 });
 
 describe("admin SettingsView wechat connect controls", () => {
@@ -1307,7 +1371,7 @@ describe("admin SettingsView platform quota matrix", () => {
     getProviders.mockResolvedValue({ data: [] });
   });
 
-  it("从 baseSettings 加载默认平台配额数据并在 Users tab 渲染 4 平台行", async () => {
+  it("从 baseSettings 加载默认平台配额数据并在 Users tab 渲染 5 平台行", async () => {
     const wrapper = mountView();
     await flushPromises();
     await openUsersTab(wrapper);
@@ -1321,7 +1385,7 @@ describe("admin SettingsView platform quota matrix", () => {
     expect(html).toContain("antigravity");
   });
 
-  it("保存时 updateSettings payload 应包含嵌套 default_platform_quotas 对象（含全 4 平台）", async () => {
+  it("保存时 updateSettings payload 应包含嵌套 default_platform_quotas 对象（含全 5 平台）", async () => {
     const wrapper = mountView();
     await flushPromises();
     await openUsersTab(wrapper);
@@ -1336,7 +1400,7 @@ describe("admin SettingsView platform quota matrix", () => {
 
     expect(payload).toHaveProperty("default_platform_quotas");
     const quotas = payload["default_platform_quotas"] as Record<string, unknown>;
-    const platforms = ["anthropic", "openai", "gemini", "antigravity"];
+    const platforms = ["anthropic", "openai", "gemini", "antigravity", "grok"];
     for (const p of platforms) {
       expect(quotas).toHaveProperty(p);
       const pq = quotas[p] as Record<string, unknown>;
@@ -1349,7 +1413,7 @@ describe("admin SettingsView platform quota matrix", () => {
     expect(payload).not.toHaveProperty("default_platform_quota_openai_weekly");
   });
 
-  it("加载后 form.default_platform_quotas 含全 4 平台，从嵌套 JSON 正确读取数值", async () => {
+  it("加载后 form.default_platform_quotas 含全 5 平台，从嵌套 JSON 正确读取数值", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,
       default_platform_quotas: {

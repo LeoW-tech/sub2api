@@ -169,7 +169,7 @@ func (s *ProxyProbeServiceSuite) TestProbeProxy_ChatGPTCodexConnectionErrorsAreC
 			)
 
 			require.Error(s.T(), err)
-			require.ErrorContains(s.T(), err, "Codex probe target unreachable via proxy")
+			require.ErrorContains(s.T(), err, "codex probe target unreachable via proxy")
 			require.ErrorContains(s.T(), err, "method=HEAD")
 			require.ErrorContains(s.T(), err, "target=chatgpt.com")
 			require.ErrorContains(s.T(), err, "error_type="+tc.errorType)

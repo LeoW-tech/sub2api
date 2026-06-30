@@ -147,7 +147,7 @@ func (s *proxyProbeService) probeWithURL(ctx context.Context, client *http.Clien
 
 func formatCodexProbeError(method string, rawURL string, err error) error {
 	return fmt.Errorf(
-		"Codex probe target unreachable via proxy: method=%s target=%s error_type=%s detail=%v: %w",
+		"codex probe target unreachable via proxy: method=%s target=%s error_type=%s detail=%v: %w",
 		method,
 		probeTargetHost(rawURL),
 		classifyProxyProbeError(err),
@@ -158,7 +158,7 @@ func formatCodexProbeError(method string, rawURL string, err error) error {
 
 func formatCodexProbeHTTPStatusError(method string, rawURL string, statusCode int) error {
 	return fmt.Errorf(
-		"Codex probe target unreachable via proxy: method=%s target=%s error_type=http_status failed with status: %d",
+		"codex probe target unreachable via proxy: method=%s target=%s error_type=http_status failed with status: %d",
 		method,
 		probeTargetHost(rawURL),
 		statusCode,

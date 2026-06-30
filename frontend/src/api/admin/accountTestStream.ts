@@ -1,3 +1,5 @@
+import { buildApiUrl } from '@/api/client'
+
 export interface AccountTestStreamRequest {
   modelId: string
   prompt?: string
@@ -39,7 +41,7 @@ export async function runAccountTestStream(
   const fetchImpl = options.fetchImpl ?? fetch
   const authToken = buildAuthToken(options.authToken)
 
-  const response = await fetchImpl(`/api/v1/admin/accounts/${accountId}/test`, {
+  const response = await fetchImpl(buildApiUrl(`/admin/accounts/${accountId}/test`), {
     method: 'POST',
     headers: {
       ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),

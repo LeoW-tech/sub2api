@@ -127,6 +127,7 @@ const platformOptions = computed<SelectOption[]>(() => [
   { value: "openai", label: "OpenAI" },
   { value: "gemini", label: "Gemini" },
   { value: "antigravity", label: "Antigravity" },
+  { value: "grok", label: "Grok" },
 ]);
 
 const typeOptions = computed<SelectOption[]>(() => [
@@ -196,4 +197,5 @@ const groupOptions = computed<SelectOption[]>(() => [
     label: group.name,
   })),
 ]);
+
 </script>
