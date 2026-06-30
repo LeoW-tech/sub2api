@@ -28,7 +28,7 @@
           v-if="user"
           to="/help"
           data-testid="header-help-link"
-          class="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white lg:flex"
+          class="hidden items-center gap-1.5 rounded-full border border-primary-200 bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-700 shadow-sm shadow-primary-500/10 transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:bg-primary-100 hover:text-primary-800 hover:shadow-md dark:border-primary-800/70 dark:bg-primary-900/30 dark:text-primary-200 dark:hover:border-primary-700 dark:hover:bg-primary-900/50 dark:hover:text-white lg:flex"
         >
           <Icon name="questionCircle" size="sm" />
           <span>{{ t('nav.help') }}</span>

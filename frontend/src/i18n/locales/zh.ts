@@ -423,10 +423,15 @@ export default {
     title: '使用帮助',
     description: '按页面提示完成可用步骤，即可开始使用 AI 服务。',
     intro: {
-      title: '快速开始使用 AI 服务',
-      description: '进入系统后，先确认余额或订阅，再创建 API 密钥并配置到 Codex 等工具中。'
+      title: '快速开始使用 Codex',
+      description: '按照下面 5 个步骤完成安装、购买、密钥配置和基础学习，即可开始使用 Codex。'
     },
     steps: {
+      install: {
+        title: '下载安装 Codex',
+        description: '请先安装 Codex App。优先打开 Codex 官方下载页面，进入页面后复制适合你设备的下载链接并下载安装。如果官方下载页面无法打开，可以使用备用网盘下载。',
+        note: '安装完成后，请打开一次 Codex，确保应用完成初始化，再继续后面的 API 密钥配置。'
+      },
       purchase: {
         title: '购买服务',
         description: '先确保界面右上角钱包有余额，或者有可用的订阅包。至少满足一个条件才能正常使用。如果需要充值或购买订阅，请进入充值/订阅模块购买。'
@@ -439,15 +444,30 @@ export default {
       affiliate: {
         title: '邀请返利',
         description: '如果你觉得好用，可以进入邀请返利，发送你的邀请链接邀请好友使用服务，你可以获得邀请奖励。'
+      },
+      learn: {
+        title: '学习使用',
+        description: '配置完成后，直接在 Codex 对话框中描述你希望它完成的事情，或者说明你想要的结果，Codex 就可以帮你执行。',
+        note: '如果你想系统学习 Codex 的使用技巧，可以参考下面任意一个视频。三个视频都是完整的 Codex 实战教程，选择一个看完即可。'
       }
     },
     links: {
+      officialDownload: '打开官方下载页',
+      quarkDownload: '备用网盘下载',
       purchase: '进入充值/订阅',
       subscriptions: '查看我的订阅',
       keys: '创建 API 密钥',
-      affiliate: '进入邀请返利'
+      affiliate: '进入邀请返利',
+      videoFullGuide: '40 分钟全面掌握 Codex',
+      videoAppGuide: 'Codex App 保姆级全攻略',
+      videoCompleteGuide: '2026 Codex 完整教程'
     },
     screenshots: {
+      install: {
+        title: '下载入口',
+        official: '优先使用官方下载',
+        backup: '打不开时使用备用网盘'
+      },
       purchase: {
         title: '钱包与订阅',
         wallet: '右上角钱包余额',
@@ -464,6 +484,11 @@ export default {
         copy: '复制',
         rebate: '返利比例',
         reward: '可提奖励'
+      },
+      learn: {
+        title: '学习资源',
+        prompt: '直接描述你的目标',
+        video: '选择一个教程看完即可'
       }
     }
   },

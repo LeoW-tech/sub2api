@@ -423,10 +423,15 @@ export default {
     title: 'Help',
     description: 'Follow the available steps on this page to start using the AI service.',
     intro: {
-      title: 'Quickly start using AI service',
-      description: 'After entering the system, confirm your balance or subscription first, then create an API key and configure it in Codex or other tools.'
+      title: 'Quickly start using Codex',
+      description: 'Follow the 5 steps below to install Codex, purchase service, configure your API key, and learn the basics.'
     },
     steps: {
+      install: {
+        title: 'Download and install Codex',
+        description: 'Install the Codex App first. Open the official Codex download page, copy the download link for your device, and install it. If the official page cannot be opened, use the backup cloud drive download.',
+        note: 'After installation, open Codex once so the app can finish initialization, then continue with API key configuration.'
+      },
       purchase: {
         title: 'Purchase service',
         description: 'First make sure the wallet in the top-right corner has a balance, or that you have an available subscription package. At least one is required for normal use. If needed, go to Recharge / Subscription to purchase.'
@@ -439,15 +444,30 @@ export default {
       affiliate: {
         title: 'Invite for rebates',
         description: 'If you like the service, open Affiliate Rebates and send your invite link to friends. You can receive invitation rewards when they use the service.'
+      },
+      learn: {
+        title: 'Learn to use Codex',
+        description: 'After setup, type what you want Codex to do or the result you want directly in the Codex chat box, and Codex will help you complete it.',
+        note: 'To learn Codex usage tips systematically, choose any one of the videos below. Each is a complete hands-on Codex tutorial.'
       }
     },
     links: {
+      officialDownload: 'Open official download',
+      quarkDownload: 'Backup cloud download',
       purchase: 'Open Recharge / Subscription',
       subscriptions: 'View my subscriptions',
       keys: 'Create API Key',
-      affiliate: 'Open Affiliate Rebates'
+      affiliate: 'Open Affiliate Rebates',
+      videoFullGuide: '40-minute Codex complete guide',
+      videoAppGuide: 'Codex App beginner guide',
+      videoCompleteGuide: '2026 Codex complete tutorial'
     },
     screenshots: {
+      install: {
+        title: 'Download options',
+        official: 'Use the official download first',
+        backup: 'Use backup cloud drive if it cannot open'
+      },
       purchase: {
         title: 'Wallet and subscription',
         wallet: 'Top-right wallet balance',
@@ -464,6 +484,11 @@ export default {
         copy: 'Copy',
         rebate: 'Rebate rate',
         reward: 'Rewards'
+      },
+      learn: {
+        title: 'Learning resources',
+        prompt: 'Describe your goal directly',
+        video: 'Choose one tutorial and finish it'
       }
     }
   },

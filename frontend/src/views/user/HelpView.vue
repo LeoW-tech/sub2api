@@ -14,14 +14,14 @@
               {{ t('help.intro.description') }}
             </p>
           </div>
-          <div class="grid gap-3 sm:grid-cols-3 lg:w-[420px]">
+          <div class="grid gap-3 sm:grid-cols-2 lg:w-[520px] lg:grid-cols-5">
             <div
               v-for="item in visibleSummaryItems"
               :key="item.labelKey"
-              class="rounded-2xl border border-white/70 bg-white/70 p-4 text-center shadow-sm backdrop-blur dark:border-dark-700/70 dark:bg-dark-800/70"
+              class="rounded-2xl border border-white/70 bg-white/70 p-3 text-center shadow-sm backdrop-blur dark:border-dark-700/70 dark:bg-dark-800/70"
             >
-              <div class="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300">
-                <Icon :name="item.icon" size="md" />
+              <div class="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300">
+                <Icon :name="item.icon" size="sm" />
               </div>
               <p class="mt-2 text-sm font-medium text-gray-900 dark:text-white">
                 {{ t(item.labelKey) }}
@@ -31,14 +31,14 @@
         </div>
       </section>
 
-      <section class="space-y-5">
+      <section class="relative space-y-5 before:absolute before:bottom-6 before:left-6 before:top-6 before:hidden before:w-px before:bg-gradient-to-b before:from-primary-200 before:via-primary-100 before:to-transparent dark:before:from-primary-800/70 dark:before:via-primary-900/60 md:before:block">
         <article
           v-for="(step, index) in visibleSteps"
           :key="step.titleKey"
-          class="grid gap-5 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-800 md:grid-cols-[minmax(0,1fr)_360px] md:p-6"
+          class="relative grid gap-5 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-800 md:grid-cols-[minmax(0,1fr)_360px] md:p-6"
         >
           <div class="flex gap-4">
-            <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-300">
+            <div class="z-10 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-primary-600 text-white shadow-lg shadow-primary-500/20 dark:bg-primary-500">
               <span class="text-sm font-semibold">{{ String(index + 1).padStart(2, '0') }}</span>
             </div>
             <div class="min-w-0">
@@ -60,20 +60,27 @@
 
               <div class="mt-5 flex flex-wrap gap-3">
                 <router-link
-                  :to="step.primaryTo"
-                  class="btn btn-primary"
+                  v-for="action in visibleInternalActions(step)"
+                  :key="action.labelKey"
+                  :to="action.to"
+                  class="btn"
+                  :class="action.variant === 'secondary' ? 'btn-secondary' : 'btn-primary'"
                 >
-                  <span>{{ t(step.primaryLabelKey) }}</span>
+                  <span>{{ t(action.labelKey) }}</span>
                   <Icon name="arrowRight" size="sm" />
                 </router-link>
-                <router-link
-                  v-if="shouldShowSecondaryLink(step)"
-                  :to="step.secondaryTo"
-                  class="btn btn-secondary"
+                <a
+                  v-for="action in externalActions(step)"
+                  :key="action.labelKey"
+                  :href="action.href"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="btn"
+                  :class="action.variant === 'secondary' ? 'btn-secondary' : 'btn-primary'"
                 >
-                  <span>{{ t(step.secondaryLabelKey) }}</span>
-                  <Icon name="arrowRight" size="sm" />
-                </router-link>
+                  <span>{{ t(action.labelKey) }}</span>
+                  <Icon name="externalLink" size="sm" />
+                </a>
               </div>
             </div>
           </div>
@@ -84,7 +91,7 @@
           >
             <div class="mb-3 flex items-center justify-between">
               <p class="text-sm font-medium text-gray-900 dark:text-white">
-                {{ t(step.screenshotTitleKey) }}
+                {{ t(step.cardTitleKey) }}
               </p>
               <div class="flex gap-1">
                 <span class="h-2.5 w-2.5 rounded-full bg-red-300"></span>
@@ -93,7 +100,24 @@
               </div>
             </div>
 
-            <div v-if="step.screenshot === 'purchase'" class="space-y-3">
+            <div v-if="step.card === 'install'" class="space-y-3">
+              <div class="rounded-xl bg-white p-4 shadow-sm dark:bg-dark-800">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-300">
+                    <Icon name="download" size="md" />
+                  </div>
+                  <div>
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('help.screenshots.install.official') }}</p>
+                    <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('help.screenshots.install.backup') }}</p>
+                  </div>
+                </div>
+              </div>
+              <div class="rounded-xl border border-dashed border-primary-200 bg-primary-50/70 p-3 text-sm text-primary-700 dark:border-primary-900/50 dark:bg-primary-900/20 dark:text-primary-300">
+                {{ t('help.steps.install.note') }}
+              </div>
+            </div>
+
+            <div v-else-if="step.card === 'purchase'" class="space-y-3">
               <div class="rounded-xl bg-white p-4 shadow-sm dark:bg-dark-800">
                 <div class="flex items-center justify-between">
                   <span class="text-xs text-gray-500 dark:text-dark-400">{{ t('help.screenshots.purchase.wallet') }}</span>
@@ -108,7 +132,7 @@
               </div>
             </div>
 
-            <div v-else-if="step.screenshot === 'key'" class="space-y-3">
+            <div v-else-if="step.card === 'key'" class="space-y-3">
               <div class="rounded-xl bg-white p-3 shadow-sm dark:bg-dark-800">
                 <div class="flex items-center justify-between gap-3">
                   <div>
@@ -123,6 +147,30 @@
               <div class="rounded-xl bg-dark-950 p-3 font-mono text-xs leading-5 text-emerald-300">
                 <p>OPENAI_API_KEY=sk-••••••</p>
                 <p>OPENAI_BASE_URL=https://...</p>
+              </div>
+            </div>
+
+            <div v-else-if="step.card === 'learn'" class="space-y-3">
+              <div class="rounded-xl bg-white p-4 shadow-sm dark:bg-dark-800">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-300">
+                    <Icon name="chatBubble" size="md" />
+                  </div>
+                  <div>
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('help.screenshots.learn.prompt') }}</p>
+                    <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('help.screenshots.learn.video') }}</p>
+                  </div>
+                </div>
+              </div>
+              <div class="grid gap-2">
+                <div
+                  v-for="action in externalActions(step)"
+                  :key="action.labelKey"
+                  class="flex items-center gap-2 rounded-xl bg-primary-50/70 p-3 text-sm font-medium text-primary-700 dark:bg-primary-900/20 dark:text-primary-300"
+                >
+                  <Icon name="play" size="sm" />
+                  <span>{{ t(action.labelKey) }}</span>
+                </div>
               </div>
             </div>
 
@@ -163,13 +211,28 @@ import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 const { t } = useI18n()
 const authStore = useAuthStore()
 
-type HelpIcon = 'creditCard' | 'gift' | 'key'
-type ScreenshotKind = 'affiliate' | 'key' | 'purchase'
+type HelpIcon = 'chatBubble' | 'creditCard' | 'download' | 'gift' | 'key'
+type HelpCardKind = 'affiliate' | 'install' | 'key' | 'learn' | 'purchase'
+type HelpFeature = 'affiliate' | 'payment'
+
+type HelpAction =
+  | {
+      type: 'internal'
+      to: string
+      labelKey: string
+      variant?: 'primary' | 'secondary'
+    }
+  | {
+      type: 'external'
+      href: string
+      labelKey: string
+      variant?: 'primary' | 'secondary'
+    }
 
 interface SummaryItem {
   icon: HelpIcon
   labelKey: string
-  feature?: 'affiliate' | 'payment'
+  feature?: HelpFeature
 }
 
 interface HelpStep {
@@ -177,32 +240,51 @@ interface HelpStep {
   titleKey: string
   descriptionKey: string
   noteKey?: string
-  primaryTo: string
-  primaryLabelKey: string
-  secondaryTo?: string
-  secondaryLabelKey?: string
-  screenshotTitleKey: string
-  screenshot: ScreenshotKind
-  feature?: 'affiliate' | 'payment'
+  actions: HelpAction[]
+  cardTitleKey: string
+  card: HelpCardKind
+  feature?: HelpFeature
 }
 
+const codexOfficialDownloadUrl = 'https://chatgpt.com/codex/for-work/'
+const quarkDownloadUrl = 'https://pan.quark.cn/s/4a0a101a1eba'
+const tutorialVideoUrls = [
+  'https://www.bilibili.com/video/BV1Nd596vEyU/?share_source=copy_web&vd_source=8c193272be30b72d84fe725197bcdf59',
+  'https://www.bilibili.com/video/BV1Kk9kBAEJv/?share_source=copy_web&vd_source=8c193272be30b72d84fe725197bcdf59',
+  'https://www.bilibili.com/video/BV1w45v6kEDL/?share_source=copy_web&vd_source=8c193272be30b72d84fe725197bcdf59',
+]
+
 const summaryItems: SummaryItem[] = [
+  { icon: 'download', labelKey: 'help.steps.install.title' },
   { icon: 'creditCard', labelKey: 'help.steps.purchase.title', feature: 'payment' },
   { icon: 'key', labelKey: 'help.steps.key.title' },
+  { icon: 'chatBubble', labelKey: 'help.steps.learn.title' },
   { icon: 'gift', labelKey: 'help.steps.affiliate.title', feature: 'affiliate' },
 ] 
 
 const steps: HelpStep[] = [
   {
+    icon: 'download',
+    titleKey: 'help.steps.install.title',
+    descriptionKey: 'help.steps.install.description',
+    noteKey: 'help.steps.install.note',
+    actions: [
+      { type: 'external', href: codexOfficialDownloadUrl, labelKey: 'help.links.officialDownload' },
+      { type: 'external', href: quarkDownloadUrl, labelKey: 'help.links.quarkDownload', variant: 'secondary' },
+    ],
+    cardTitleKey: 'help.screenshots.install.title',
+    card: 'install',
+  },
+  {
     icon: 'creditCard',
     titleKey: 'help.steps.purchase.title',
     descriptionKey: 'help.steps.purchase.description',
-    primaryTo: '/purchase',
-    primaryLabelKey: 'help.links.purchase',
-    secondaryTo: '/subscriptions',
-    secondaryLabelKey: 'help.links.subscriptions',
-    screenshotTitleKey: 'help.screenshots.purchase.title',
-    screenshot: 'purchase',
+    actions: [
+      { type: 'internal', to: '/purchase', labelKey: 'help.links.purchase' },
+      { type: 'internal', to: '/subscriptions', labelKey: 'help.links.subscriptions', variant: 'secondary' },
+    ],
+    cardTitleKey: 'help.screenshots.purchase.title',
+    card: 'purchase',
     feature: 'payment',
   },
   {
@@ -210,19 +292,34 @@ const steps: HelpStep[] = [
     titleKey: 'help.steps.key.title',
     descriptionKey: 'help.steps.key.description',
     noteKey: 'help.steps.key.note',
-    primaryTo: '/keys',
-    primaryLabelKey: 'help.links.keys',
-    screenshotTitleKey: 'help.screenshots.key.title',
-    screenshot: 'key',
+    actions: [
+      { type: 'internal', to: '/keys', labelKey: 'help.links.keys' },
+    ],
+    cardTitleKey: 'help.screenshots.key.title',
+    card: 'key',
+  },
+  {
+    icon: 'chatBubble',
+    titleKey: 'help.steps.learn.title',
+    descriptionKey: 'help.steps.learn.description',
+    noteKey: 'help.steps.learn.note',
+    actions: [
+      { type: 'external', href: tutorialVideoUrls[0], labelKey: 'help.links.videoFullGuide' },
+      { type: 'external', href: tutorialVideoUrls[1], labelKey: 'help.links.videoAppGuide', variant: 'secondary' },
+      { type: 'external', href: tutorialVideoUrls[2], labelKey: 'help.links.videoCompleteGuide', variant: 'secondary' },
+    ],
+    cardTitleKey: 'help.screenshots.learn.title',
+    card: 'learn',
   },
   {
     icon: 'gift',
     titleKey: 'help.steps.affiliate.title',
     descriptionKey: 'help.steps.affiliate.description',
-    primaryTo: '/affiliate',
-    primaryLabelKey: 'help.links.affiliate',
-    screenshotTitleKey: 'help.screenshots.affiliate.title',
-    screenshot: 'affiliate',
+    actions: [
+      { type: 'internal', to: '/affiliate', labelKey: 'help.links.affiliate' },
+    ],
+    cardTitleKey: 'help.screenshots.affiliate.title',
+    card: 'affiliate',
     feature: 'affiliate',
   },
 ]
@@ -236,9 +333,18 @@ function isHelpFeatureVisible(feature?: HelpStep['feature']): boolean {
   return isFeatureFlagEnabled(FeatureFlags.affiliate)
 }
 
-function shouldShowSecondaryLink(step: HelpStep): step is HelpStep & { secondaryTo: string; secondaryLabelKey: string } {
-  if (!step.secondaryTo || !step.secondaryLabelKey) return false
-  return !(authStore.isSimpleMode && step.secondaryTo === '/subscriptions')
+function shouldShowAction(action: HelpAction): boolean {
+  return !(action.type === 'internal' && authStore.isSimpleMode && action.to === '/subscriptions')
+}
+
+function visibleInternalActions(step: HelpStep): Array<Extract<HelpAction, { type: 'internal' }>> {
+  return step.actions.filter((action): action is Extract<HelpAction, { type: 'internal' }> => (
+    action.type === 'internal' && shouldShowAction(action)
+  ))
+}
+
+function externalActions(step: HelpStep): Array<Extract<HelpAction, { type: 'external' }>> {
+  return step.actions.filter((action): action is Extract<HelpAction, { type: 'external' }> => action.type === 'external')
 }
 
 const visibleSteps = computed(() => steps.filter((step) => isHelpFeatureVisible(step.feature)))

@@ -110,6 +110,10 @@ describe('AppHeader contact support placement', () => {
     expect(help.attributes('href')).toBe('/help')
     expect(help.classes()).toContain('lg:flex')
     expect(help.classes()).toContain('hidden')
+    expect(help.classes()).toContain('border')
+    expect(help.classes()).toContain('border-primary-200')
+    expect(help.classes()).toContain('bg-primary-50')
+    expect(help.classes()).toContain('font-semibold')
     expect(
       help.element.compareDocumentPosition(contact.element)
         & Node.DOCUMENT_POSITION_FOLLOWING
