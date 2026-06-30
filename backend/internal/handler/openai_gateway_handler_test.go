@@ -94,6 +94,37 @@ func TestOpenAIHandleStreamingAwareError_JSONEscaping(t *testing.T) {
 	}
 }
 
+func TestBuildRequestBodyReadDiagnosticCapturesSafeMetadata(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	req := httptest.NewRequest(http.MethodPost, "/responses", strings.NewReader(""))
+	req.Proto = "HTTP/2.0"
+	req.ProtoMajor = 2
+	req.ProtoMinor = 0
+	req.Header.Set("Authorization", "Bearer secret-token")
+	req.Header.Set("Cookie", "session=secret")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
+	req.Header.Set("CF-Ray", "abc123-SJC")
+	req.Header.Set("CF-Connecting-IP", "203.0.113.1")
+	req.Header.Set("User-Agent", "Codex Desktop/0.142.4")
+	c.Request = req
+
+	diag := buildRequestBodyReadDiagnostic(c, errors.New("unexpected EOF"))
+
+	require.Equal(t, "unexpected EOF", diag["read_error"])
+	require.Equal(t, "*errors.errorString", diag["read_error_type"])
+	require.Equal(t, "HTTP/2.0", diag["protocol"])
+	require.Equal(t, "application/json", diag["content_type"])
+	require.Equal(t, "gzip", diag["content_encoding"])
+	require.Equal(t, "abc123-SJC", diag["cf_ray"])
+	require.Equal(t, true, diag["cf_connecting_ip_present"])
+	require.Equal(t, "Codex Desktop/0.142.4", diag["user_agent"])
+	require.NotContains(t, diag, "authorization")
+	require.NotContains(t, diag, "cookie")
+}
+
 func TestResolveOpenAIMessagesMetadataSession_DoesNotDerivePromptCacheKey(t *testing.T) {
 	body := []byte(`{"model":"claude-sonnet-4-5","metadata":{"user_id":"claude-code-session"},"messages":[{"role":"user","content":"hello"}]}`)
 

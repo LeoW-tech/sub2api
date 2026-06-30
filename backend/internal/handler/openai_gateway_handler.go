@@ -205,7 +205,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			h.errorResponse(c, http.StatusRequestEntityTooLarge, "invalid_request_error", buildBodyTooLargeMessage(maxErr.Limit))
 			return
 		}
-		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to read request body")
+		h.errorResponseWithDiagnostic(c, http.StatusBadRequest, "invalid_request_error", "Failed to read request body", buildRequestBodyReadDiagnostic(c, err))
 		return
 	}
 
@@ -2010,6 +2010,61 @@ func (h *OpenAIGatewayHandler) errorResponse(c *gin.Context, status int, errType
 			"message": message,
 		},
 	})
+}
+
+func (h *OpenAIGatewayHandler) errorResponseWithDiagnostic(c *gin.Context, status int, errType, message string, diagnostic gin.H) {
+	errorBody := gin.H{
+		"type":    errType,
+		"message": message,
+	}
+	if len(diagnostic) > 0 {
+		errorBody["diagnostic"] = diagnostic
+	}
+	c.JSON(status, gin.H{"error": errorBody})
+}
+
+func buildRequestBodyReadDiagnostic(c *gin.Context, readErr error) gin.H {
+	diag := gin.H{}
+	if readErr != nil {
+		diag["read_error"] = readErr.Error()
+		diag["read_error_type"] = fmt.Sprintf("%T", readErr)
+	}
+	if c == nil || c.Request == nil {
+		return diag
+	}
+
+	req := c.Request
+	diag["method"] = req.Method
+	diag["protocol"] = req.Proto
+	diag["content_length"] = req.ContentLength
+	if len(req.TransferEncoding) > 0 {
+		diag["transfer_encoding"] = strings.Join(req.TransferEncoding, ",")
+	}
+	if v := strings.TrimSpace(req.Header.Get("Content-Encoding")); v != "" {
+		diag["content_encoding"] = v
+	}
+	if v := strings.TrimSpace(req.Header.Get("Content-Type")); v != "" {
+		diag["content_type"] = v
+	}
+	if v := strings.TrimSpace(req.Header.Get("Expect")); v != "" {
+		diag["expect"] = v
+	}
+	if v := strings.TrimSpace(req.Header.Get("Content-Length")); v != "" {
+		diag["content_length_header"] = v
+	}
+	if v := strings.TrimSpace(req.Header.Get("CF-Ray")); v != "" {
+		diag["cf_ray"] = v
+	}
+	if strings.TrimSpace(req.Header.Get("CF-Connecting-IP")) != "" {
+		diag["cf_connecting_ip_present"] = true
+	}
+	if strings.TrimSpace(req.Header.Get("CF-Visitor")) != "" {
+		diag["cf_visitor_present"] = true
+	}
+	if v := strings.TrimSpace(req.Header.Get("User-Agent")); v != "" {
+		diag["user_agent"] = truncateString(v, 256)
+	}
+	return diag
 }
 
 func setOpenAIClientTransportHTTP(c *gin.Context) {
