@@ -13,6 +13,28 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
+// BodyReadError records how many wire bytes were consumed before request body
+// reading failed. The caller can use it for diagnostics without logging the
+// request payload itself.
+type BodyReadError struct {
+	Err       error
+	BytesRead int64
+}
+
+func (e *BodyReadError) Error() string {
+	if e == nil || e.Err == nil {
+		return ""
+	}
+	return e.Err.Error()
+}
+
+func (e *BodyReadError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
 const (
 	requestBodyReadInitCap    = 512
 	requestBodyReadMaxInitCap = 1 << 20
@@ -42,8 +64,9 @@ func ReadRequestBodyWithPrealloc(req *http.Request) ([]byte, error) {
 	}
 
 	buf := bytes.NewBuffer(make([]byte, 0, capHint))
-	if _, err := io.Copy(buf, req.Body); err != nil {
-		return nil, err
+	bytesRead, err := io.Copy(buf, req.Body)
+	if err != nil {
+		return nil, &BodyReadError{Err: err, BytesRead: bytesRead}
 	}
 	raw := buf.Bytes()
 

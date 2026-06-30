@@ -2028,6 +2028,13 @@ func buildRequestBodyReadDiagnostic(c *gin.Context, readErr error) gin.H {
 	if readErr != nil {
 		diag["read_error"] = readErr.Error()
 		diag["read_error_type"] = fmt.Sprintf("%T", readErr)
+		var bodyReadErr *pkghttputil.BodyReadError
+		if errors.As(readErr, &bodyReadErr) {
+			diag["bytes_read_before_error"] = bodyReadErr.BytesRead
+			if bodyReadErr.Err != nil {
+				diag["read_error_cause_type"] = fmt.Sprintf("%T", bodyReadErr.Err)
+			}
+		}
 	}
 	if c == nil || c.Request == nil {
 		return diag

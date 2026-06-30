@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
+	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -114,6 +116,43 @@ func TestReadRequestBodyWithPrealloc_RejectsCorruptZstd(t *testing.T) {
 	_, err := ReadRequestBodyWithPrealloc(req)
 	if err == nil {
 		t.Fatal("expected error for corrupt zstd body, got nil")
+	}
+}
+
+type failAfterReader struct {
+	data []byte
+	pos  int
+}
+
+func (r *failAfterReader) Read(p []byte) (int, error) {
+	if r.pos >= len(r.data) {
+		return 0, io.ErrUnexpectedEOF
+	}
+	n := copy(p, r.data[r.pos:])
+	r.pos += n
+	return n, nil
+}
+
+func TestReadRequestBodyWithPrealloc_ReportsBytesReadOnReadError(t *testing.T) {
+	req, err := http.NewRequest(http.MethodPost, "/v1/responses", io.NopCloser(&failAfterReader{data: []byte("partial-body")}))
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.ContentLength = 100
+
+	_, err = ReadRequestBodyWithPrealloc(req)
+	if err == nil {
+		t.Fatal("expected read error, got nil")
+	}
+	var bodyReadErr *BodyReadError
+	if !errors.As(err, &bodyReadErr) {
+		t.Fatalf("expected BodyReadError, got %T: %v", err, err)
+	}
+	if bodyReadErr.BytesRead != int64(len("partial-body")) {
+		t.Fatalf("BytesRead=%d, want %d", bodyReadErr.BytesRead, len("partial-body"))
+	}
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("wrapped error should be unexpected EOF, got %v", err)
 	}
 }
 

@@ -111,10 +111,12 @@ func TestBuildRequestBodyReadDiagnosticCapturesSafeMetadata(t *testing.T) {
 	req.Header.Set("User-Agent", "Codex Desktop/0.142.4")
 	c.Request = req
 
-	diag := buildRequestBodyReadDiagnostic(c, errors.New("unexpected EOF"))
+	diag := buildRequestBodyReadDiagnostic(c, &pkghttputil.BodyReadError{Err: errors.New("unexpected EOF"), BytesRead: 1234})
 
 	require.Equal(t, "unexpected EOF", diag["read_error"])
-	require.Equal(t, "*errors.errorString", diag["read_error_type"])
+	require.Equal(t, "*httputil.BodyReadError", diag["read_error_type"])
+	require.Equal(t, int64(1234), diag["bytes_read_before_error"])
+	require.Equal(t, "*errors.errorString", diag["read_error_cause_type"])
 	require.Equal(t, "HTTP/2.0", diag["protocol"])
 	require.Equal(t, "application/json", diag["content_type"])
 	require.Equal(t, "gzip", diag["content_encoding"])
