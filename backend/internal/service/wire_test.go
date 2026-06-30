@@ -63,12 +63,19 @@ func (s *wireSettingRepoStub) Get(context.Context, string) (*Setting, error) {
 	panic("unexpected Get call")
 }
 
-func (s *wireSettingRepoStub) GetValue(context.Context, string) (string, error) {
+func (s *wireSettingRepoStub) GetValue(_ context.Context, key string) (string, error) {
+	if value, ok := s.values[key]; ok {
+		return value, nil
+	}
 	return "", ErrSettingNotFound
 }
 
-func (s *wireSettingRepoStub) Set(context.Context, string, string) error {
-	panic("unexpected Set call")
+func (s *wireSettingRepoStub) Set(_ context.Context, key string, value string) error {
+	if s.values == nil {
+		s.values = map[string]string{}
+	}
+	s.values[key] = value
+	return nil
 }
 
 func (s *wireSettingRepoStub) GetMultiple(_ context.Context, keys []string) (map[string]string, error) {
