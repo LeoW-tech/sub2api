@@ -227,7 +227,7 @@ var providerOpenAIResponsesAdapter = providerAdapter{
 		return json.Marshal(map[string]any{
 			"model":             model,
 			"instructions":      "You are a channel health-check endpoint. Answer the arithmetic challenge exactly and briefly.",
-			"input":             prompt,
+			"input":             []map[string]string{{"type": "text", "text": prompt}},
 			"max_output_tokens": monitorChallengeMaxTokens,
 			"stream":            false,
 		})

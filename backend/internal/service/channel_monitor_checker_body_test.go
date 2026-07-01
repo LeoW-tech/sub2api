@@ -211,9 +211,13 @@ func TestRunCheckForModel_OpenAIResponses_DefaultRequest(t *testing.T) {
 	if strings.TrimSpace(instructions) == "" {
 		t.Error("responses body should contain non-empty instructions")
 	}
-	input, _ := h.lastBody["input"].(string)
-	if strings.TrimSpace(input) == "" {
-		t.Error("responses body should contain non-empty input")
+	input, _ := h.lastBody["input"].([]any)
+	if len(input) != 1 {
+		t.Fatalf("responses body should contain one input item, got %#v", h.lastBody["input"])
+	}
+	first, _ := input[0].(map[string]any)
+	if strings.TrimSpace(first["text"].(string)) == "" {
+		t.Error("responses body should contain non-empty input text")
 	}
 	if _, ok := h.lastBody["messages"]; ok {
 		t.Error("responses body must not contain chat messages")
