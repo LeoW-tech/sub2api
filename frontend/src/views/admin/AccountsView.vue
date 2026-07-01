@@ -293,11 +293,11 @@
               <div class="flex flex-col">
                 <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
                 <span
-                  v-if="row.extra?.email_address || row.extra?.email || row.credentials?.email"
+                  v-if="accountDisplayEmail(row)"
                   class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px]"
-                  :title="String(row.extra?.email_address || row.extra?.email || row.credentials?.email)"
+                  :title="accountDisplayEmail(row) + (row.parent_chatgpt_account_id ? ' · ' + row.parent_chatgpt_account_id : '')"
                 >
-                  {{ row.extra?.email_address || row.extra?.email || row.credentials?.email }}
+                  {{ accountDisplayEmail(row) }}
                 </span>
               </div>
             </template>
@@ -609,6 +609,7 @@
       @recover-state="handleRecoverState"
       @reset-quota="handleResetQuota"
       @set-privacy="handleSetPrivacy"
+      @create-spark-shadow="handleCreateSparkShadow"
     />
     <SyncFromCrsModal
       :show="showSync"
@@ -646,6 +647,13 @@
       :danger="true"
       @confirm="confirmDelete"
       @cancel="showDeleteDialog = false"
+    />
+    <ConfirmDialog
+      :show="showCreateShadowDialog"
+      :title="t('admin.accounts.createSparkShadow')"
+      :message="t('admin.accounts.createSparkShadowConfirm', { name: creatingShadowAcc?.name })"
+      @confirm="confirmCreateSparkShadow"
+      @cancel="showCreateShadowDialog = false"
     />
     <ConfirmDialog
       :show="showExportDataDialog"
@@ -803,6 +811,7 @@ const showBulkEdit = ref(false);
 const bulkEditTarget = ref<AccountBulkEditTarget | null>(null);
 const showTempUnsched = ref(false);
 const showDeleteDialog = ref(false);
+const showCreateShadowDialog = ref(false);
 const showReAuth = ref(false);
 const showTest = ref(false);
 const showStats = ref(false);
@@ -811,6 +820,7 @@ const showTLSFingerprintProfiles = ref(false);
 const edAcc = ref<Account | null>(null);
 const tempUnschedAcc = ref<Account | null>(null);
 const deletingAcc = ref<Account | null>(null);
+const creatingShadowAcc = ref<Account | null>(null);
 const reAuthAcc = ref<Account | null>(null);
 const testingAcc = ref<Account | null>(null);
 const statsAcc = ref<Account | null>(null);
@@ -1427,6 +1437,11 @@ function getAntigravityTierLabel(row: any): string | null {
 
 function normalizeOpenAICompactMode(value: unknown): string {
   return typeof value === "string" ? value.trim().toLowerCase() : "auto";
+}
+
+// 账号显示邮箱:优先账号自身(extra/credentials),影子账号回退母账号 parent_email。
+function accountDisplayEmail(row: any): string {
+  return row.extra?.email_address || row.extra?.email || row.credentials?.email || row.parent_email || '';
 }
 
 function getOpenAICompactState(row: any): 'active' | 'blocked' | 'auto' | null {
@@ -2228,7 +2243,12 @@ const handleExportData = async () => {
     link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
-    appStore.showSuccess(t("admin.accounts.dataExported"));
+    // spark 影子账号被后端排除出备份；跳过非零时明确提示用户，避免静默丢失。
+    if (dataPayload.skipped_shadows && dataPayload.skipped_shadows > 0) {
+      appStore.showWarning(t("admin.accounts.dataExportedSkippedShadows", { count: dataPayload.skipped_shadows }));
+    } else {
+      appStore.showSuccess(t("admin.accounts.dataExported"));
+    }
   } catch (error: any) {
     appStore.showError(error?.message || t("admin.accounts.dataExportFailed"));
   } finally {
@@ -2324,12 +2344,38 @@ const handleResetQuota = async (a: Account) => {
     console.error("Failed to reset quota:", error);
   }
 };
+const privacyResultMessageKey = (account: Account): { type: 'success' | 'error'; key: string } => {
+  const mode = typeof account.extra?.privacy_mode === 'string' ? account.extra.privacy_mode : '';
+  if (account.platform === 'openai') {
+    switch (mode) {
+      case 'training_off':
+        return { type: 'success', key: 'admin.accounts.privacyTrainingOff' };
+      case 'training_set_cf_blocked':
+        return { type: 'error', key: 'admin.accounts.privacyCfBlocked' };
+      default:
+        return { type: 'error', key: 'admin.accounts.privacyFailed' };
+    }
+  }
+  if (account.platform === 'antigravity') {
+    if (mode === 'privacy_set') {
+      return { type: 'success', key: 'admin.accounts.privacyAntigravitySet' };
+    }
+    return { type: 'error', key: 'admin.accounts.privacyAntigravityFailed' };
+  }
+  return { type: 'error', key: 'admin.accounts.privacyFailed' };
+};
+
 const handleSetPrivacy = async (a: Account) => {
   try {
     const updated = await adminAPI.accounts.setPrivacy(a.id);
     patchAccountInList(updated);
     enterAutoRefreshSilentWindow();
-    appStore.showSuccess(t("common.success"));
+    const result = privacyResultMessageKey(updated);
+    if (result.type === 'success') {
+      appStore.showSuccess(t(result.key));
+    } else {
+      appStore.showError(t(result.key));
+    }
   } catch (error: any) {
     console.error("Failed to set privacy:", error);
     appStore.showError(
@@ -2337,6 +2383,26 @@ const handleSetPrivacy = async (a: Account) => {
     );
   }
 };
+const handleCreateSparkShadow = (a: Account) => {
+  creatingShadowAcc.value = a;
+  showCreateShadowDialog.value = true;
+};
+
+const confirmCreateSparkShadow = async () => {
+  const a = creatingShadowAcc.value;
+  if (!a) return;
+  try {
+    await adminAPI.accounts.createSparkShadow(a.id, { name: `${a.name} (Spark)` });
+    showCreateShadowDialog.value = false;
+    creatingShadowAcc.value = null;
+    appStore.showSuccess(t('admin.accounts.createSparkShadowSuccess'));
+    reload();
+  } catch (error: any) {
+    console.error('Failed to create spark shadow:', error);
+    appStore.showError(error?.response?.data?.message || t('admin.accounts.createSparkShadowFailed'));
+  }
+};
+
 const handleDelete = (a: Account) => {
   deletingAcc.value = a;
   showDeleteDialog.value = true;

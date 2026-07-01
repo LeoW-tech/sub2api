@@ -319,6 +319,9 @@ func (h *OpenAIOAuthHandler) refreshOpenAIAccountSubscriptionMetadata(ctx contex
 	if account.Type != service.AccountTypeOAuth {
 		return nil, serviceErrorBadRequest("OPENAI_OAUTH_INVALID_ACCOUNT_TYPE", "Cannot refresh non-OAuth account credentials")
 	}
+	if account.IsCredentialShadow() {
+		return nil, serviceErrorBadRequest("OPENAI_OAUTH_SHADOW_ACCOUNT", "Cannot refresh spark shadow account; its credentials are managed by the parent account")
+	}
 
 	tokenInfo, err := h.openaiOAuthService.RefreshAccountToken(ctx, account)
 	if err != nil {
@@ -599,6 +602,43 @@ func (h *OpenAIOAuthHandler) QueryQuota(c *gin.Context) {
 		return
 	}
 	response.Success(c, usage)
+}
+
+// CreateShadowRequest is the request body for CreateShadow.
+type CreateShadowRequest struct {
+	Name        string  `json:"name"`
+	Priority    int     `json:"priority"`
+	Concurrency int     `json:"concurrency"`
+	GroupIDs    []int64 `json:"group_ids"`
+}
+
+// CreateShadow creates a spark-dimension shadow account for a parent OpenAI OAuth account.
+// POST /api/v1/admin/accounts/:id/shadow
+func (h *OpenAIOAuthHandler) CreateShadow(c *gin.Context) {
+	parentID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+
+	var req CreateShadowRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	shadow, err := h.adminService.CreateShadow(c.Request.Context(), parentID, service.ShadowOptions{
+		Name:        req.Name,
+		Priority:    req.Priority,
+		Concurrency: req.Concurrency,
+		GroupIDs:    req.GroupIDs,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, dto.AccountFromServiceShallow(shadow))
 }
 
 // ResetQuota consumes one rate-limit reset credit for an OpenAI account.

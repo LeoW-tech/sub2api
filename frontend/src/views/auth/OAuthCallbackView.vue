@@ -160,6 +160,7 @@ import { useClipboard } from '@/composables/useClipboard'
 import { useAppStore, useAuthStore } from '@/stores'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { apiClient } from '@/api/client'
+import { buildApiUrl } from '@/api/url'
 import {
   exchangePendingOAuthCompletion,
   persistOAuthTokenContext,
@@ -266,8 +267,6 @@ function readPendingEmailOAuthProvider(): 'github' | 'google' | null {
 
 function redirectProviderCallbackToBackend(provider: 'github' | 'google'): void {
   if (typeof window === 'undefined') return
-  const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api/v1'
-  const normalized = apiBase.replace(/\/$/, '')
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(route.query)) {
     if (Array.isArray(value)) {
@@ -279,7 +278,7 @@ function redirectProviderCallbackToBackend(provider: 'github' | 'google'): void 
     }
   }
   const suffix = params.toString() ? `?${params.toString()}` : ''
-  window.location.href = `${normalized}/auth/oauth/${provider}/callback${suffix}`
+  window.location.href = buildApiUrl(`/auth/oauth/${provider}/callback${suffix}`)
 }
 
 async function finalizeTokenResponse(tokenResponse: OAuthTokenResponse, redirect: string) {

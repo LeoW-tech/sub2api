@@ -85,6 +85,9 @@ func (r *crsSyncTestAccountRepo) ListOAuthRefreshCandidates(context.Context) ([]
 func (r *crsSyncTestAccountRepo) ListByPlatform(context.Context, string) ([]Account, error) {
 	panic("unexpected")
 }
+func (r *crsSyncTestAccountRepo) ListShadowsByParent(context.Context, int64) ([]*Account, error) {
+	return nil, nil
+}
 func (r *crsSyncTestAccountRepo) UpdateLastUsed(context.Context, int64) error { panic("unexpected") }
 func (r *crsSyncTestAccountRepo) BatchUpdateLastUsed(context.Context, map[int64]time.Time) error {
 	panic("unexpected")
