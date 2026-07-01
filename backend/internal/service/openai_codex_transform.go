@@ -87,13 +87,13 @@ const (
 var openAIChatGPTInternalUnsupportedFields = []string{
 	"user",
 	"metadata",
+	"max_output_tokens",
 	"prompt_cache_retention",
 	"safety_identifier",
 	"stream_options",
 }
 
 var openAICodexOAuthUnsupportedFields = append([]string{
-	"max_output_tokens",
 	"max_completion_tokens",
 	"temperature",
 	"top_p",

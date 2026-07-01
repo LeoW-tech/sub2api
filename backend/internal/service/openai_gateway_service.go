@@ -7168,6 +7168,13 @@ func normalizeOpenAIPassthroughOAuthBody(body []byte, compact bool) ([]byte, boo
 		changed = true
 	}
 
+	if next, inputChanged, err := normalizeOpenAIPassthroughInputForChatGPTInternal(normalized); err != nil {
+		return body, false, err
+	} else if inputChanged {
+		normalized = next
+		changed = true
+	}
+
 	if compact {
 		if toolChoice := gjson.GetBytes(normalized, "tool_choice"); toolChoice.Exists() {
 			next, err := sjson.DeleteBytes(normalized, "tool_choice")
@@ -7213,6 +7220,82 @@ func normalizeOpenAIPassthroughOAuthBody(body []byte, compact bool) ([]byte, boo
 	}
 
 	return normalized, changed, nil
+}
+
+func normalizeOpenAIPassthroughInputForChatGPTInternal(body []byte) ([]byte, bool, error) {
+	input := gjson.GetBytes(body, "input")
+	if !input.Exists() {
+		return body, false, nil
+	}
+	if input.Type == gjson.String {
+		text := strings.TrimSpace(input.String())
+		if text == "" {
+			return body, false, nil
+		}
+		return setOpenAIPassthroughInput(body, []any{openAIChatGPTInternalTextMessage(input.String())})
+	}
+	if !input.IsArray() {
+		return body, false, nil
+	}
+
+	var items []any
+	if err := json.Unmarshal([]byte(input.Raw), &items); err != nil {
+		return body, false, fmt.Errorf("normalize passthrough body input parse: %w", err)
+	}
+	changed := false
+	for i, item := range items {
+		replacement, ok := normalizeOpenAIPassthroughInputItem(item)
+		if !ok {
+			continue
+		}
+		items[i] = replacement
+		changed = true
+	}
+	if !changed {
+		return body, false, nil
+	}
+	return setOpenAIPassthroughInput(body, items)
+}
+
+func normalizeOpenAIPassthroughInputItem(item any) (any, bool) {
+	switch v := item.(type) {
+	case string:
+		if strings.TrimSpace(v) == "" {
+			return nil, false
+		}
+		return openAIChatGPTInternalTextMessage(v), true
+	case map[string]any:
+		typ, _ := v["type"].(string)
+		if typ != "text" && typ != "input_text" {
+			return nil, false
+		}
+		text, _ := v["text"].(string)
+		if strings.TrimSpace(text) == "" {
+			return nil, false
+		}
+		return openAIChatGPTInternalTextMessage(text), true
+	default:
+		return nil, false
+	}
+}
+
+func openAIChatGPTInternalTextMessage(text string) map[string]any {
+	return map[string]any{
+		"type": "message",
+		"role": "user",
+		"content": []map[string]string{{
+			"type": "input_text",
+			"text": text,
+		}},
+	}
+}
+
+func setOpenAIPassthroughInput(body []byte, input []any) ([]byte, bool, error) {
+	next, err := sjson.SetBytes(body, "input", input)
+	if err != nil {
+		return body, false, fmt.Errorf("normalize passthrough body input list: %w", err)
+	}
+	return next, true, nil
 }
 
 func detectOpenAIPassthroughInstructionsRejectReason(reqModel string, body []byte) string {

@@ -8,7 +8,7 @@ import (
 )
 
 func TestNormalizeOpenAIPassthroughOAuthBody_RemovesUnsupportedUser(t *testing.T) {
-	body := []byte(`{"model":"gpt-5.4","input":"hello","user":"user_123","metadata":{"user_id":"user_123"},"prompt_cache_retention":"24h","safety_identifier":"sid","stream_options":{"include_usage":true}}`)
+	body := []byte(`{"model":"gpt-5.4","input":"hello","max_output_tokens":50,"user":"user_123","metadata":{"user_id":"user_123"},"prompt_cache_retention":"24h","safety_identifier":"sid","stream_options":{"include_usage":true}}`)
 
 	normalized, changed, err := normalizeOpenAIPassthroughOAuthBody(body, false)
 	require.NoError(t, err)
@@ -31,4 +31,32 @@ func TestNormalizeOpenAIPassthroughOAuthBody_CompactRemovesUnsupportedUser(t *te
 	require.False(t, gjson.GetBytes(normalized, "stream").Exists())
 	require.False(t, gjson.GetBytes(normalized, "store").Exists())
 	require.False(t, gjson.GetBytes(normalized, "tool_choice").Exists())
+}
+
+func TestNormalizeOpenAIPassthroughOAuthBody_ConvertsStringInputToList(t *testing.T) {
+	body := []byte(`{"model":"gpt-5.4","input":"hello","instructions":"reply briefly","max_output_tokens":50,"stream":false}`)
+
+	normalized, changed, err := normalizeOpenAIPassthroughOAuthBody(body, false)
+	require.NoError(t, err)
+	require.True(t, changed)
+	input := gjson.GetBytes(normalized, "input")
+	require.True(t, input.IsArray())
+	require.Equal(t, "message", input.Get("0.type").String())
+	require.Equal(t, "user", input.Get("0.role").String())
+	require.Equal(t, "input_text", input.Get("0.content.0.type").String())
+	require.Equal(t, "hello", input.Get("0.content.0.text").String())
+	require.False(t, gjson.GetBytes(normalized, "max_output_tokens").Exists())
+}
+
+func TestNormalizeOpenAIPassthroughOAuthBody_ConvertsTopLevelTextInputItemToMessage(t *testing.T) {
+	body := []byte(`{"model":"gpt-5.4","input":[{"type":"text","text":"hello"}],"instructions":"reply briefly"}`)
+
+	normalized, changed, err := normalizeOpenAIPassthroughOAuthBody(body, false)
+	require.NoError(t, err)
+	require.True(t, changed)
+	input := gjson.GetBytes(normalized, "input")
+	require.Equal(t, "message", input.Get("0.type").String())
+	require.Equal(t, "user", input.Get("0.role").String())
+	require.Equal(t, "input_text", input.Get("0.content.0.type").String())
+	require.Equal(t, "hello", input.Get("0.content.0.text").String())
 }

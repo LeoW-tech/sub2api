@@ -227,7 +227,7 @@ var providerOpenAIResponsesAdapter = providerAdapter{
 		return json.Marshal(map[string]any{
 			"model":             model,
 			"instructions":      "You are a channel health-check endpoint. Answer the arithmetic challenge exactly and briefly.",
-			"input":             []map[string]string{{"type": "text", "text": prompt}},
+			"input":             []any{openAIChatGPTInternalTextMessage(prompt)},
 			"max_output_tokens": monitorChallengeMaxTokens,
 			"stream":            false,
 		})
@@ -295,8 +295,19 @@ func extractOpenAIResponsesText(respBytes []byte) string {
 		return text
 	}
 
+	if text := extractOpenAIResponsesOutputText(gjson.GetBytes(respBytes, "output")); strings.TrimSpace(text) != "" {
+		return text
+	}
+
+	if text := extractOpenAIResponsesSSEText(respBytes); strings.TrimSpace(text) != "" {
+		return text
+	}
+
+	return gjson.GetBytes(respBytes, providerOpenAIResponsesAdapter.textPath).String()
+}
+
+func extractOpenAIResponsesOutputText(outputs gjson.Result) string {
 	var texts []string
-	outputs := gjson.GetBytes(respBytes, "output")
 	if outputs.IsArray() {
 		outputs.ForEach(func(_, output gjson.Result) bool {
 			outputType := output.Get("type").String()
@@ -326,7 +337,41 @@ func extractOpenAIResponsesText(respBytes []byte) string {
 	if len(texts) > 0 {
 		return strings.Join(texts, "")
 	}
-	return gjson.GetBytes(respBytes, providerOpenAIResponsesAdapter.textPath).String()
+	return ""
+}
+
+func extractOpenAIResponsesSSEText(respBytes []byte) string {
+	var deltas []string
+	var finalTexts []string
+	for _, line := range strings.Split(string(respBytes), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "" || data == "[DONE]" {
+			continue
+		}
+		event := gjson.Parse(data)
+		switch event.Get("type").String() {
+		case "response.output_text.delta":
+			if delta := event.Get("delta").String(); delta != "" {
+				deltas = append(deltas, delta)
+			}
+		case "response.output_item.done":
+			if text := extractOpenAIResponsesOutputText(gjson.Parse("[" + event.Get("item").Raw + "]")); strings.TrimSpace(text) != "" {
+				finalTexts = append(finalTexts, text)
+			}
+		case "response.completed":
+			if text := extractOpenAIResponsesOutputText(event.Get("response.output")); strings.TrimSpace(text) != "" {
+				finalTexts = append(finalTexts, text)
+			}
+		}
+	}
+	if len(deltas) > 0 {
+		return strings.Join(deltas, "")
+	}
+	return strings.Join(finalTexts, "")
 }
 
 // mergeHeaders 把用户自定义 headers 合并到 adapter 默认 headers 上。
