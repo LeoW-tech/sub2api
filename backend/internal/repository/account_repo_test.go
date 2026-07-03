@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	_ "github.com/Wei-Shaw/sub2api/ent/runtime"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -42,6 +43,49 @@ func TestAccountsToService_LargeActiveAccountSetDoesNotExceedPostgresParameterLi
 	got, err := repo.accountsToService(context.Background(), accounts)
 	require.NoError(t, err)
 	require.Len(t, got, len(accounts))
+}
+
+func TestListOpsAccountsForStatsSelectsQuotaAndExpiryFields(t *testing.T) {
+	var capturedSQL string
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherFunc(func(_, actual string) error {
+		capturedSQL = actual
+		return nil
+	})))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	rows := sqlmock.NewRows([]string{
+		"id",
+		"name",
+		"platform",
+		"concurrency",
+		"load_factor",
+		"status",
+		"error_message",
+		"schedulable",
+		"extra",
+		"expires_at",
+		"auto_pause_on_expired",
+		"rate_limit_reset_at",
+		"overload_until",
+		"temp_unschedulable_until",
+	})
+	mock.ExpectQuery("SELECT").WillReturnRows(rows)
+
+	drv := entsql.OpenDB(dialect.Postgres, db)
+	client := dbent.NewClient(dbent.Driver(drv))
+	t.Cleanup(func() { _ = client.Close() })
+	repo := newAccountRepositoryWithSQL(client, nil, nil)
+
+	accounts, err := repo.ListOpsAccountsForStats(context.Background(), service.PlatformOpenAI, nil)
+	require.NoError(t, err)
+	require.Empty(t, accounts)
+	require.NoError(t, mock.ExpectationsWereMet())
+
+	normalized := normalizeSQLWhitespace(capturedSQL)
+	require.Contains(t, normalized, `"extra"`)
+	require.Contains(t, normalized, `"expires_at"`)
+	require.Contains(t, normalized, `"auto_pause_on_expired"`)
 }
 
 func newParameterLimitAccountRepo(t *testing.T) *accountRepository {

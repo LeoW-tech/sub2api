@@ -564,6 +564,44 @@ func (s *AccountRepoSuite) TestListWithFilters_AccountIDs() {
 	s.Require().Equal(acc1.ID, accounts[0].ID)
 }
 
+func (s *AccountRepoSuite) TestListOpsAccountsForStatsIncludesQuotaAndExpiryFields() {
+	now := time.Now().UTC().Truncate(time.Second)
+	expiresAt := now.Add(-time.Hour)
+	account := mustCreateAccount(s.T(), s.client, &service.Account{
+		Name:        "ops-quota-fields",
+		Platform:    service.PlatformOpenAI,
+		Status:      service.StatusActive,
+		Schedulable: true,
+		Extra: map[string]any{
+			"codex_5h_used_percent":   99.0,
+			"auto_pause_5h_threshold": 0.95,
+			"codex_5h_reset_at":       now.Add(time.Hour).Format(time.RFC3339),
+		},
+	})
+	_, err := s.client.Account.UpdateOneID(account.ID).
+		SetAutoPauseOnExpired(true).
+		SetExpiresAt(expiresAt).
+		Save(s.ctx)
+	s.Require().NoError(err)
+
+	accounts, err := s.repo.ListOpsAccountsForStats(s.ctx, service.PlatformOpenAI, nil)
+	s.Require().NoError(err)
+
+	var got *service.Account
+	for i := range accounts {
+		if accounts[i].ID == account.ID {
+			got = &accounts[i]
+			break
+		}
+	}
+	s.Require().NotNil(got)
+	s.Require().Equal(99.0, got.Extra["codex_5h_used_percent"])
+	s.Require().Equal(0.95, got.Extra["auto_pause_5h_threshold"])
+	s.Require().True(got.AutoPauseOnExpired)
+	s.Require().NotNil(got.ExpiresAt)
+	s.Require().True(got.ExpiresAt.Equal(expiresAt))
+}
+
 // --- ListByGroup / ListActive / ListByPlatform ---
 
 func (s *AccountRepoSuite) TestListByGroup() {
