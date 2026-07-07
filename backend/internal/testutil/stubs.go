@@ -79,6 +79,9 @@ func (c StubConcurrencyCache) ListActiveAccountIDs(_ context.Context) ([]int64, 
 func (c StubConcurrencyCache) CleanupExpiredAccountSlots(_ context.Context, _ int64) error {
 	return nil
 }
+func (c StubConcurrencyCache) CleanupExpiredAccountSlotKeys(_ context.Context) error {
+	return nil
+}
 func (c StubConcurrencyCache) CleanupStaleProcessSlots(_ context.Context, _ string) error {
 	return nil
 }

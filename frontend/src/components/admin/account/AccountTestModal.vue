@@ -55,6 +55,17 @@
         />
       </div>
 
+      <div v-if="isOpenAIAccount" class="space-y-1.5">
+        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+          {{ t('admin.accounts.openai.testMode') }}
+        </label>
+        <Select
+          v-model="testMode"
+          :options="openAITestModeOptions"
+          :disabled="status === 'connecting'"
+        />
+      </div>
+
       <div v-if="supportsImageTest" class="space-y-1.5">
         <TextArea
           v-model="testPrompt"
@@ -237,8 +248,8 @@ import Select from '@/components/common/Select.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import { Icon } from '@/components/icons'
 import { useClipboard } from '@/composables/useClipboard'
+import { buildApiUrl } from '@/api/client'
 import { adminAPI } from '@/api/admin'
-import { runAccountTestStream, type AccountTestStreamEvent } from '@/api/admin/accountTestStream'
 import type { Account, ClaudeModel } from '@/types'
 
 const { t } = useI18n()
@@ -276,6 +287,12 @@ const loadingModels = ref(false)
 let abortController: AbortController | null = null
 const generatedImages = ref<PreviewImage[]>([])
 const previewImageUrl = ref('')
+const testMode = ref<'default' | 'compact'>('default')
+const isOpenAIAccount = computed(() => props.account?.platform === 'openai')
+const openAITestModeOptions = computed(() => [
+  { value: 'default', label: t('admin.accounts.openai.testModeDefault') },
+  { value: 'compact', label: t('admin.accounts.openai.testModeCompact') }
+])
 const prioritizedGeminiModels = ['gemini-3.1-flash-image', 'gemini-2.5-flash-image', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-3-flash-preview', 'gemini-3-pro-preview', 'gemini-2.0-flash']
 const supportsGeminiImageTest = computed(() => {
   const modelID = selectedModelId.value.toLowerCase()
@@ -309,6 +326,7 @@ watch(
   async (newVal) => {
     if (newVal && props.account) {
       testPrompt.value = ''
+      testMode.value = 'default'
       resetState()
       await loadAvailableModels()
     } else {
@@ -400,29 +418,74 @@ const startTest = async () => {
   abortController = new AbortController()
 
   try {
-    const result = await runAccountTestStream(
-      props.account.id,
-      {
-        modelId: selectedModelId.value,
-        prompt: supportsImageTest.value ? testPrompt.value.trim() : ''
-      },
-      {
-        signal: abortController.signal,
-        onEvent: handleEvent
-      }
-    )
-
-    if (!result.success) {
-      status.value = 'error'
-      errorMessage.value = result.error || errorMessage.value || 'Test failed'
-      return
+    const requestBody: {
+      model_id: string
+      prompt: string
+      mode?: 'default' | 'compact'
+    } = {
+      model_id: selectedModelId.value,
+      prompt: supportsImageTest.value ? testPrompt.value.trim() : ''
+    }
+    if (isOpenAIAccount.value) {
+      requestBody.mode = testMode.value
     }
 
-    try {
-      const updatedAccount = await adminAPI.accounts.getById(props.account.id)
-      emit('tested', updatedAccount)
-    } catch (error) {
-      console.error('Failed to refresh account after successful test:', error)
+    // Use the configured API base; EventSource does not support POST.
+    const url = buildApiUrl(`/admin/accounts/${props.account.id}/test`)
+
+    // Use fetch with streaming for SSE since EventSource doesn't support POST
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody),
+      signal: abortController.signal
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) {
+      throw new Error('No response body')
+    }
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const jsonStr = line.slice(6).trim()
+          if (jsonStr) {
+            try {
+              const event = JSON.parse(jsonStr)
+              handleEvent(event)
+            } catch (e) {
+              console.error('Failed to parse SSE event:', e)
+            }
+          }
+        }
+      }
+    }
+
+    if (String(status.value) === 'success') {
+      try {
+        const updatedAccount = await adminAPI.accounts.getById(props.account.id)
+        emit('tested', updatedAccount)
+      } catch (error) {
+        console.error('Failed to refresh account after successful test:', error)
+      }
     }
   } catch (error: unknown) {
     if (error instanceof DOMException && error.name === 'AbortError') {
@@ -436,7 +499,15 @@ const startTest = async () => {
   }
 }
 
-const handleEvent = (event: AccountTestStreamEvent) => {
+const handleEvent = (event: {
+  type: string
+  text?: string
+  model?: string
+  success?: boolean
+  error?: string
+  image_url?: string
+  mime_type?: string
+}) => {
   switch (event.type) {
     case 'test_start':
       addLine(t('admin.accounts.connectedToApi'), 'text-green-400')
@@ -467,6 +538,12 @@ const handleEvent = (event: AccountTestStreamEvent) => {
           mimeType: event.mime_type
         })
         addLine(t('admin.accounts.imageReceived', { count: generatedImages.value.length }), 'text-purple-300')
+      }
+      break
+
+    case 'status':
+      if (event.text) {
+        addLine(event.text, 'text-cyan-300')
       }
       break
 

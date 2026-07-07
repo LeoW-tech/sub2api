@@ -433,9 +433,17 @@
                   ({{ row.proxy.country_code }})
                 </span>
               </div>
-              <span v-else class="text-sm text-gray-400 dark:text-dark-500"
-                >-</span
-              >
+              <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
+              <div v-if="row.proxy && row.proxy.expires_at" class="flex items-center gap-2 text-xs">
+                <span class="text-gray-600 dark:text-gray-300">{{ formatDateTime(row.proxy.expires_at) }}</span>
+                <span :class="proxyExpiryBadge(row.proxy)">{{ proxyExpiryText(row.proxy) }}</span>
+              </div>
+              <div v-if="row.proxy_fallback_origin_id" class="flex items-center gap-1">
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :title="t('admin.accounts.fallbackActiveTip', { origin: row.proxy_fallback_origin_name })">
+                  {{ t('admin.accounts.fallbackActive') }}
+                </span>
+                <button class="text-xs px-1.5 py-0.5 rounded border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" @click="onRevertFallback(row)">{{ t('admin.accounts.revertProxy') }}</button>
+              </div>
             </template>
             <template #cell-rate_multiplier="{ row }">
               <span class="text-sm font-mono text-gray-700 dark:text-gray-300">
@@ -443,30 +451,41 @@
               </span>
             </template>
             <template #cell-priority="{ value }">
-              <span class="text-sm text-gray-700 dark:text-gray-300">{{
-                value
-              }}</span>
+              <span class="text-sm text-gray-700 dark:text-gray-300">{{ value }}</span>
+            </template>
+            <template #header-scheduler_score="{ column }">
+              <div class="flex items-center">
+                <span>{{ column.label }}</span>
+                <HelpTooltip :content="t('admin.accounts.schedulerScore.hint')" width-class="w-80" />
+              </div>
+            </template>
+            <template #cell-scheduler_score="{ row }">
+              <div v-if="getSchedulerScoreRows(row).length" class="flex min-w-[7rem] flex-col gap-0.5 font-mono text-[11px] leading-4">
+                <div
+                  v-for="score in getSchedulerScoreRows(row)"
+                  :key="String(score.group_id)"
+                  class="flex items-center gap-1 whitespace-nowrap text-gray-700 dark:text-gray-300"
+                  :title="`${formatSchedulerScoreGroup(score)} / ${formatSchedulerScore(score.base_score)} / ${formatStickySchedulerScore(score)}`"
+                >
+                  <span class="max-w-[4.75rem] truncate text-gray-500 dark:text-dark-400">{{ formatSchedulerScoreGroup(score) }}</span>
+                  <span class="text-gray-300 dark:text-gray-600">/</span>
+                  <span>{{ formatSchedulerScore(score.base_score) }}</span>
+                  <span class="text-gray-300 dark:text-gray-600">/</span>
+                  <span class="text-primary-700 dark:text-primary-300">{{ formatStickySchedulerScore(score) }}</span>
+                </div>
+              </div>
+              <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
             </template>
             <template #cell-last_used_at="{ value }">
-              <span class="text-sm text-gray-500 dark:text-dark-400">{{
-                formatRelativeTime(value)
-              }}</span>
+              <span class="text-sm text-gray-500 dark:text-dark-400">{{ formatRelativeTime(value) }}</span>
             </template>
             <template #cell-created_at="{ value }">
-              <span class="text-sm text-gray-500 dark:text-dark-400">{{
-                formatDateTime(value)
-              }}</span>
+              <span class="text-sm text-gray-500 dark:text-dark-400">{{ formatDateTime(value) }}</span>
             </template>
             <template #cell-expires_at="{ row, value }">
               <div class="flex flex-col items-start gap-1">
-                <span class="text-sm text-gray-500 dark:text-dark-400">{{
-                  formatExpiresAt(value)
-                }}</span>
-                <div
-                  v-if="
-                    isExpired(value) || (row.auto_pause_on_expired && value)
-                  "
-                  class="flex items-center gap-1"
+                <span class="text-sm text-gray-500 dark:text-dark-400">{{ formatExpiresAt(value) }}</span>
+                <div v-if="isExpired(value) || (row.auto_pause_on_expired && value)" class="flex items-center gap-1">
                 >
                   <span
                     v-if="isExpired(value)"
@@ -742,9 +761,11 @@ import TLSFingerprintProfilesModal from "@/components/admin/TLSFingerprintProfil
 import { buildOpenAIUsageRefreshKey } from "@/utils/accountUsageRefresh";
 import { extractApiErrorMessage } from "@/utils/apiError";
 import { formatDateTime, formatRelativeTime } from "@/utils/format";
+import { proxyExpiryBadgeClass, proxyExpiryLabelKey } from "@/utils/proxyExpiry";
 import type {
   Account,
   AccountPlatform,
+  AccountSchedulerGroupScore,
   AccountType,
   Proxy as AccountProxy,
   AdminGroup,
@@ -838,7 +859,7 @@ const exportingData = ref(false);
 
 // Column settings
 const showColumnDropdown = ref(false);
-const showAccountToolsDropdown = showColumnDropdown;
+const showAccountToolsDropdown = ref(false);
 const columnDropdownRef = ref<HTMLElement | null>(null);
 const hiddenColumns = reactive<Set<string>>(new Set());
 const DEFAULT_HIDDEN_COLUMNS = [
@@ -966,6 +987,45 @@ const autoRefreshIntervalLabel = (sec: number) => {
   if (sec === 30) return t("admin.accounts.refreshInterval30s");
   return `${sec}s`;
 };
+
+const formatSchedulerScore = (value: unknown): string => {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return '-'
+  return num.toFixed(6).replace(/\.?0+$/, '')
+}
+
+const formatStickySchedulerScore = (score: AccountSchedulerGroupScore): string => {
+  if (!score) return '-'
+  if (score.sticky_score_infinity) return '+∞'
+  return formatSchedulerScore(score.sticky_score)
+}
+
+const getSchedulerScoreRows = (account: Account): AccountSchedulerGroupScore[] => {
+  const groupRows = Array.isArray(account.scheduler_scores)
+    ? account.scheduler_scores.filter(score => score.group_id != null)
+    : []
+  if (groupRows.length) return groupRows
+  // 未分组账号没有分组维度分数，回退展示后端返回的基础分
+  if (account.scheduler_score) {
+    return [{ group_id: null, ...account.scheduler_score }]
+  }
+  return []
+}
+
+const formatSchedulerScoreGroup = (score: AccountSchedulerGroupScore): string => {
+  if ('group_name' in score && score.group_name) return score.group_name
+  if ('group_id' in score && score.group_id != null) return `#${score.group_id}`
+  return t('admin.accounts.schedulerScore.ungrouped')
+}
+
+const proxyExpiryBadge = (proxy: AccountProxy): string =>
+  proxyExpiryBadgeClass(proxy.expires_at ?? null, proxy.status)
+
+const proxyExpiryText = (proxy: AccountProxy): string => {
+  const label = proxyExpiryLabelKey(proxy.expires_at ?? null, proxy.status)
+  return t(label.key, label.params ?? {})
+}
+
 
 const loadSavedColumns = () => {
   try {
@@ -1566,6 +1626,11 @@ const allColumns = computed(() => {
       key: "priority",
       label: t("admin.accounts.columns.priority"),
       sortable: true,
+    },
+    {
+      key: "scheduler_score",
+      label: t("admin.accounts.columns.schedulerScore"),
+      sortable: false,
     },
     {
       key: "rate_multiplier",
@@ -2207,6 +2272,16 @@ const patchAccountInList = (updatedAccount: Account) => {
   accounts.value = nextAccounts;
   syncAccountRefs(mergedAccount);
 };
+const onRevertFallback = async (account: Account) => {
+  try {
+    await adminAPI.accounts.revertProxyFallback(account.id)
+    appStore.showSuccess(t("admin.accounts.revertProxySuccess"))
+    await load()
+  } catch (error: any) {
+    appStore.showError(error?.response?.data?.message || t("admin.accounts.revertProxyFailed"))
+  }
+}
+
 const handleAccountUpdated = (updatedAccount: Account) => {
   patchAccountInList(updatedAccount);
   enterAutoRefreshSilentWindow();
