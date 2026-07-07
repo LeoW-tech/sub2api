@@ -73,6 +73,9 @@ func (r *crsSyncTestAccountRepo) List(context.Context, pagination.PaginationPara
 func (r *crsSyncTestAccountRepo) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string, string, int64, string, string, string, string, string, []int64) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected")
 }
+func (r *crsSyncTestAccountRepo) ListAllWithFilters(context.Context, string, string, string, string, int64, string, string, string, string, string, []int64) ([]Account, error) {
+	panic("unexpected")
+}
 func (r *crsSyncTestAccountRepo) ListByGroup(context.Context, int64) ([]Account, error) {
 	panic("unexpected")
 }
