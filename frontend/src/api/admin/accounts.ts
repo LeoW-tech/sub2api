@@ -36,6 +36,7 @@ export interface AccountListFilters {
   network_status?: string;
   ip?: string;
   lite?: string;
+  include_scheduler_score?: string;
   sort_by?: string;
   sort_order?: "asc" | "desc";
 }
@@ -50,6 +51,7 @@ export interface AccountListFilters {
 export async function list(
   page: number = 1,
   pageSize: number = 20,
+
   filters?: AccountListFilters,
   options?: {
     signal?: AbortSignal;
@@ -78,6 +80,7 @@ export interface AccountListWithEtagResult {
 export async function listWithEtag(
   page: number = 1,
   pageSize: number = 20,
+
   filters?: AccountListFilters,
   options?: {
     signal?: AbortSignal;
@@ -700,7 +703,9 @@ export async function syncFromCrs(params: {
       warnings?: string[];
       error?: string;
     }>;
-  }>("/admin/accounts/sync/crs", params);
+  }>('/admin/accounts/sync/crs', params, {
+    timeout: 180000 // Sync refreshes each existing account's OAuth token serially.
+  });
   return data;
 }
 

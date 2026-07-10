@@ -7,28 +7,24 @@
 # =============================================================================
 
 ARG NODE_IMAGE=node:24-alpine
-ARG GOLANG_IMAGE=golang:1.26.4-alpine
+ARG GOLANG_IMAGE=golang:1.26.5-alpine
 ARG ALPINE_IMAGE=alpine:3.20
 ARG GOPROXY=https://goproxy.cn,direct
 ARG GOSUMDB=sum.golang.google.cn
-ARG NPM_REGISTRY=https://registry.npmjs.org
-ARG PNPM_VERSION=10
-
 # -----------------------------------------------------------------------------
 # Stage 1: Frontend Builder
 # -----------------------------------------------------------------------------
 FROM ${NODE_IMAGE} AS frontend-builder
 
 WORKDIR /app/frontend
+ENV NODE_OPTIONS=--max-old-space-size=1536
 
-ARG NPM_REGISTRY
-ARG PNPM_VERSION
+ARG NPM_REGISTRY=https://registry.npmjs.org
 
-# Install pnpm
-RUN npm install -g "pnpm@${PNPM_VERSION}" --registry "${NPM_REGISTRY%/}" && \
-    pnpm config set registry "${NPM_REGISTRY%/}" && \
-    pnpm config set fetch-retries 5 && \
-    pnpm config set fetch-retry-maxtimeout 120000
+# Install pnpm. Keep this pinned to the lockfile-compatible major version so
+# Docker builds remain reproducible when pnpm changes config validation rules.
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate && \
+    if [ -n "${NPM_REGISTRY}" ]; then pnpm config set registry "${NPM_REGISTRY%/}"; fi
 
 # Install dependencies first (better caching)
 COPY frontend/package.json frontend/pnpm-lock.yaml ./

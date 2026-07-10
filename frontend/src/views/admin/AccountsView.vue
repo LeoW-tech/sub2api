@@ -857,19 +857,18 @@ const menu = reactive<{
 }>({ show: false, acc: null, pos: null });
 const exportingData = ref(false);
 
-// Column settings
-const showColumnDropdown = ref(false);
-const showAccountToolsDropdown = ref(false);
-const columnDropdownRef = ref<HTMLElement | null>(null);
-const hiddenColumns = reactive<Set<string>>(new Set());
-const DEFAULT_HIDDEN_COLUMNS = [
-  "today_stats",
-  "proxy",
-  "notes",
-  "priority",
-  "rate_multiplier",
-];
-const HIDDEN_COLUMNS_KEY = "account-hidden-columns";
+
+// Column settings and account tools dropdown
+const showColumnDropdown = ref(false)
+const showAccountToolsDropdown = ref(false)
+const columnDropdownRef = ref<HTMLElement | null>(null)
+const hiddenColumns = reactive<Set<string>>(new Set())
+const DEFAULT_HIDDEN_COLUMNS = ['today_stats', 'proxy', 'notes', 'priority', 'scheduler_score', 'rate_multiplier']
+const HIDDEN_COLUMNS_KEY = 'account-hidden-columns'
+// One-time migration: scheduler score is opt-in because calculating it is relatively expensive.
+const HIDDEN_COLUMNS_VERSION_KEY = 'account-hidden-columns-version'
+const HIDDEN_COLUMNS_CURRENT_VERSION = 'scheduler-score-hidden-by-default'
+
 
 // Sorting settings
 const ACCOUNT_SORT_STORAGE_KEY = "account-table-sort";
@@ -1031,14 +1030,23 @@ const loadSavedColumns = () => {
   try {
     const saved = localStorage.getItem(HIDDEN_COLUMNS_KEY);
     if (saved) {
-      const parsed = JSON.parse(saved) as string[];
-      parsed.forEach((key) => {
-        hiddenColumns.add(key);
-      });
+
+      const parsed = JSON.parse(saved) as string[]
+      parsed.forEach(key => {
+        hiddenColumns.add(key)
+      })
+      // Older saved column layouts may have scheduler_score visible; migrate them to the new safe default once.
+      if (localStorage.getItem(HIDDEN_COLUMNS_VERSION_KEY) !== HIDDEN_COLUMNS_CURRENT_VERSION) {
+        hiddenColumns.add('scheduler_score')
+        localStorage.setItem(HIDDEN_COLUMNS_KEY, JSON.stringify([...hiddenColumns]))
+        localStorage.setItem(HIDDEN_COLUMNS_VERSION_KEY, HIDDEN_COLUMNS_CURRENT_VERSION)
+      }
     } else {
-      DEFAULT_HIDDEN_COLUMNS.forEach((key) => {
-        hiddenColumns.add(key);
-      });
+      DEFAULT_HIDDEN_COLUMNS.forEach(key => {
+        hiddenColumns.add(key)
+      })
+      localStorage.setItem(HIDDEN_COLUMNS_VERSION_KEY, HIDDEN_COLUMNS_CURRENT_VERSION)
+
     }
   } catch (e) {
     console.error("Failed to load saved columns:", e);
@@ -1050,10 +1058,10 @@ const loadSavedColumns = () => {
 
 const saveColumnsToStorage = () => {
   try {
-    localStorage.setItem(
-      HIDDEN_COLUMNS_KEY,
-      JSON.stringify([...hiddenColumns]),
-    );
+
+    localStorage.setItem(HIDDEN_COLUMNS_KEY, JSON.stringify([...hiddenColumns]))
+    localStorage.setItem(HIDDEN_COLUMNS_VERSION_KEY, HIDDEN_COLUMNS_CURRENT_VERSION)
+
   } catch (e) {
     console.error("Failed to save columns:", e);
   }
@@ -1134,9 +1142,24 @@ const toggleColumn = (key: string) => {
       );
     });
   }
-};
 
-const isColumnVisible = (key: string) => !hiddenColumns.has(key);
+  if (key === 'scheduler_score') {
+    // The server only returns scheduler scores when this column is visible, so reload the current page immediately.
+    syncAccountListDerivedParams()
+    load().catch((error) => {
+      console.error('Failed to reload accounts after toggling scheduler score column:', error)
+    })
+  }
+}
+
+const isColumnVisible = (key: string) => !hiddenColumns.has(key)
+const shouldIncludeSchedulerScore = () => isColumnVisible('scheduler_score')
+const syncAccountListDerivedParams = () => {
+  // Keep every load path, including auto-refresh and sorting, aligned with the current column visibility.
+  const requestParams = params as any
+  requestParams.include_scheduler_score = shouldIncludeSchedulerScore() ? '1' : '0'
+}
+
 
 const {
   items: accounts,
@@ -1151,16 +1174,19 @@ const {
 } = useTableLoader<Account, any>({
   fetchFn: adminAPI.accounts.list,
   initialParams: {
-    platform: "",
-    type: "",
-    status: "",
-    rt_status: "",
-    capacity_status: "",
-    privacy_mode: "",
-    network_status: "",
-    ip: "",
-    group: "",
-    search: "",
+
+    platform: '',
+    type: '',
+    status: '',
+    rt_status: '',
+    capacity_status: '',
+    privacy_mode: '',
+    network_status: '',
+    ip: '',
+    group: '',
+    search: '',
+    include_scheduler_score: shouldIncludeSchedulerScore() ? '1' : '0',
+
     sort_by: sortState.sort_by,
     sort_order: sortState.sort_order,
   },
@@ -1208,10 +1234,13 @@ const resetAutoRefreshCache = () => {
 const isFirstLoad = ref(true);
 
 const load = async () => {
-  const requestParams = params as any;
-  hasPendingListSync.value = false;
-  resetAutoRefreshCache();
-  pendingTodayStatsRefresh.value = false;
+
+  const requestParams = params as any
+  syncAccountListDerivedParams()
+  hasPendingListSync.value = false
+  resetAutoRefreshCache()
+  pendingTodayStatsRefresh.value = false
+
   if (isFirstLoad.value) {
     requestParams.lite = "1";
   }
@@ -1224,46 +1253,53 @@ const load = async () => {
 };
 
 const reload = async () => {
-  hasPendingListSync.value = false;
-  resetAutoRefreshCache();
-  pendingTodayStatsRefresh.value = false;
-  await baseReload();
-  await refreshTodayStatsBatch();
-};
+
+  syncAccountListDerivedParams()
+  hasPendingListSync.value = false
+  resetAutoRefreshCache()
+  pendingTodayStatsRefresh.value = false
+  await baseReload()
+  await refreshTodayStatsBatch()
+}
 
 const debouncedReload = () => {
-  hasPendingListSync.value = false;
-  resetAutoRefreshCache();
-  pendingTodayStatsRefresh.value = true;
-  baseDebouncedReload();
-};
+  syncAccountListDerivedParams()
+  hasPendingListSync.value = false
+  resetAutoRefreshCache()
+  pendingTodayStatsRefresh.value = true
+  baseDebouncedReload()
+}
 
 const handlePageChange = (page: number) => {
-  hasPendingListSync.value = false;
-  resetAutoRefreshCache();
-  pendingTodayStatsRefresh.value = true;
-  baseHandlePageChange(page);
-};
+  syncAccountListDerivedParams()
+  hasPendingListSync.value = false
+  resetAutoRefreshCache()
+  pendingTodayStatsRefresh.value = true
+  baseHandlePageChange(page)
+}
 
 const handlePageSizeChange = (size: number) => {
-  hasPendingListSync.value = false;
-  resetAutoRefreshCache();
-  pendingTodayStatsRefresh.value = true;
-  baseHandlePageSizeChange(size);
-};
+  syncAccountListDerivedParams()
+  hasPendingListSync.value = false
+  resetAutoRefreshCache()
+  pendingTodayStatsRefresh.value = true
+  baseHandlePageSizeChange(size)
+}
 
 const handleSort = (key: string, order: AccountSortOrder) => {
-  sortState.sort_by = key;
-  sortState.sort_order = order;
-  const requestParams = params as any;
-  requestParams.sort_by = key;
-  requestParams.sort_order = order;
-  pagination.page = 1;
-  hasPendingListSync.value = false;
-  resetAutoRefreshCache();
-  pendingTodayStatsRefresh.value = true;
-  load();
-};
+  sortState.sort_by = key
+  sortState.sort_order = order
+  const requestParams = params as any
+  requestParams.sort_by = key
+  requestParams.sort_order = order
+  syncAccountListDerivedParams()
+  pagination.page = 1
+  hasPendingListSync.value = false
+  resetAutoRefreshCache()
+  pendingTodayStatsRefresh.value = true
+  load()
+}
+
 
 watch(loading, (isLoading, wasLoading) => {
   if (wasLoading && !isLoading && pendingTodayStatsRefresh.value) {
@@ -1359,8 +1395,11 @@ const mergeAccountsIncrementally = (nextRows: Account[]) => {
 };
 
 const refreshAccountsIncrementally = async () => {
-  if (autoRefreshFetching.value) return;
-  autoRefreshFetching.value = true;
+
+  if (autoRefreshFetching.value) return
+  syncAccountListDerivedParams()
+  autoRefreshFetching.value = true
+
   try {
     const result = await adminAPI.accounts.listWithEtag(
       pagination.page,
