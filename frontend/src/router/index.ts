@@ -220,6 +220,19 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/batch-image',
+    name: 'BatchImageGuide',
+    alias: '/docs/batch-image',
+    component: () => import('@/views/user/BatchImageGuideView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Batch Image Guide',
+      titleKey: 'batchImageGuide.title',
+      descriptionKey: 'batchImageGuide.description'
+    }
+  },
+  {
     path: '/usage',
     name: 'Usage',
     component: () => import('@/views/user/UsageView.vue'),
@@ -804,7 +817,19 @@ router.beforeEach(async (to, _from, next) => {
   }
 
 
-  // Check payment requirement (internal payment system only)
+
+  // 首次导航时先加载公共设置，避免把尚未加载的功能开关误判为关闭。
+  if (
+    (to.meta.requiresPayment || to.meta.requiresAffiliate || to.meta.requiresRiskControl) &&
+    !appStore.publicSettingsLoaded
+  ) {
+    try {
+      await appStore.fetchPublicSettings()
+    } catch (error) {
+      console.warn('Failed to load public settings in route guard', error)
+    }
+  }
+
   if (to.meta.requiresPayment && !isFeatureFlagEnabled(FeatureFlags.payment)) {
     next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
     return
@@ -815,12 +840,10 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
 
-  if (to.meta.requiresRiskControl) {
-    const riskControlEnabled = appStore.cachedPublicSettings?.risk_control_enabled === true
-    if (!riskControlEnabled) {
-      next(authStore.isAdmin ? '/admin/settings' : '/dashboard')
-      return
-    }
+
+  if (to.meta.requiresRiskControl && !isFeatureFlagEnabled(FeatureFlags.riskControl)) {
+    next(authStore.isAdmin ? '/admin/settings' : '/dashboard')
+    return
   }
 
   // 简易模式下限制访问某些页面

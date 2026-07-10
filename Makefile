@@ -1,4 +1,4 @@
-.PHONY: build build-backend build-frontend build-datamanagementd test test-backend test-frontend test-frontend-critical test-datamanagementd secret-scan \
+.PHONY: build build-backend build-frontend test test-backend test-frontend test-frontend-critical secret-scan \
 	stable-up stable-down stable-logs stable-status stable-restart stable-rebuild \
 	dev-up dev-down dev-logs dev-status dev-restart dev-rebuild \
 	door-restart door-status \
@@ -27,10 +27,6 @@ build-backend:
 build-frontend:
 	@$(PNPM) --dir frontend run build
 
-# 编译 datamanagementd（宿主机数据管理进程）
-build-datamanagementd:
-	@cd datamanagement && go build -o datamanagementd ./cmd/datamanagementd
-
 # 运行测试（后端 + 前端）
 test: test-backend test-frontend
 
@@ -44,9 +40,6 @@ test-frontend:
 
 test-frontend-critical:
 	@$(PNPM) --dir frontend exec vitest run $(FRONTEND_CRITICAL_VITEST)
-
-test-datamanagementd:
-	@cd datamanagement && go test ./...
 
 secret-scan:
 	@python3 tools/secret_scan.py
