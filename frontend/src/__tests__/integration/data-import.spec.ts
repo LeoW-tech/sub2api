@@ -131,7 +131,10 @@ describe('ImportDataModal', () => {
       data: expect.objectContaining({
         accounts: [{ name: 'a' }]
       }),
-      skip_default_group_bind: true
+      skip_default_group_bind: true,
+      default_concurrency: 10,
+      default_load_factor: 10,
+      bind_all_eligible_groups: true
     })
   })
 
@@ -171,7 +174,10 @@ describe('ImportDataModal', () => {
         proxies: [{ proxy_key: 'p' }],
         accounts: [{ name: 'a' }, { name: 'b' }]
       }),
-      skip_default_group_bind: true
+      skip_default_group_bind: true,
+      default_concurrency: 10,
+      default_load_factor: 10,
+      bind_all_eligible_groups: true
     })
     expect(showSuccess).toHaveBeenCalledWith('admin.accounts.dataImportSuccess')
   })

@@ -317,10 +317,10 @@
                 <PlatformTypeBadge
                   :platform="row.platform"
                   :type="row.type"
-                  :plan-type="row.credentials?.plan_type"
-                  :privacy-mode="row.extra?.privacy_mode"
+                  :plan-type="row.credentials?.plan_type ?? row.parent_plan_type"
+                  :privacy-mode="row.extra?.privacy_mode ?? row.parent_privacy_mode"
                   :subscription-expires-at="
-                    row.credentials?.subscription_expires_at
+                    row.credentials?.subscription_expires_at ?? row.parent_subscription_expires_at
                   "
                 />
                 <span

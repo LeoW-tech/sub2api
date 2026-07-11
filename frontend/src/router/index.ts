@@ -841,7 +841,11 @@ router.beforeEach(async (to, _from, next) => {
   }
 
 
-  if (to.meta.requiresRiskControl && !isFeatureFlagEnabled(FeatureFlags.riskControl)) {
+  if (
+    to.meta.requiresRiskControl &&
+    appStore.publicSettingsLoaded &&
+    !isFeatureFlagEnabled(FeatureFlags.riskControl)
+  ) {
     next(authStore.isAdmin ? '/admin/settings' : '/dashboard')
     return
   }
