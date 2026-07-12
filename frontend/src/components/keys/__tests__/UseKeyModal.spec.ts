@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
+const clipboardMock = vi.hoisted(() => ({
+  copyToClipboard: vi.fn().mockResolvedValue(true)
+}))
+
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     t: (key: string) => key
@@ -10,7 +14,7 @@ vi.mock('vue-i18n', () => ({
 
 vi.mock('@/composables/useClipboard', () => ({
   useClipboard: () => ({
-    copyToClipboard: vi.fn().mockResolvedValue(true)
+    copyToClipboard: clipboardMock.copyToClipboard
   })
 }))
 
@@ -28,6 +32,7 @@ describe('UseKeyModal', () => {
 
   afterEach(() => {
     setUserAgent(originalUserAgent)
+    clipboardMock.copyToClipboard.mockClear()
     vi.restoreAllMocks()
   })
 
@@ -93,9 +98,16 @@ describe('UseKeyModal', () => {
     expect(wrapper.text()).toContain('keys.useKeyModal.openai.copyCommand')
     expect(wrapper.text()).not.toContain('keys.useKeyModal.cliTabs.codexCliWs')
     expect(wrapper.text()).not.toContain('keys.useKeyModal.cliTabs.opencode')
+
+    const downloadLinks = wrapper.findAll('a[target="_blank"]')
+    const hrefs = downloadLinks.map((link) => link.attributes('href'))
+    expect(hrefs).toContain('https://chatgpt.com/zh-Hans-CN/download/')
+    expect(hrefs).toContain('https://t3.znas.cn/H0ogPWjF07')
+    expect(wrapper.text()).toContain('keys.useKeyModal.openai.backupDownload')
+    expect(wrapper.text()).not.toContain('keys.useKeyModal.openai.copyDownloadLink')
   })
 
-  it('renders macOS one-click command with safety checks and success contact hint', () => {
+  it('renders macOS one-click command with safety checks and success contact hint', async () => {
     setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36')
 
     const wrapper = mount(UseKeyModal, {
@@ -131,9 +143,16 @@ describe('UseKeyModal', () => {
     expect(commandButton.exists()).toBe(true)
     expect(wrapper.find('[data-testid="codex-one-click-command"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('CODEX_DIR="$HOME/.codex"')
+
+    await commandButton.trigger('click')
+    expect(clipboardMock.copyToClipboard).toHaveBeenCalledTimes(1)
+    const copiedCommand = String(clipboardMock.copyToClipboard.mock.calls[0]?.[0] ?? '')
+    expect(copiedCommand).toContain('https://chatgpt.com/zh-Hans-CN/download/')
+    expect(copiedCommand).toContain('https://t3.znas.cn/H0ogPWjF07')
+    expect(copiedCommand).not.toContain('https://chatgpt.com/codex/for-work/')
   })
 
-  it('renders Windows PowerShell one-click command with safety checks', () => {
+  it('renders Windows PowerShell one-click command with safety checks', async () => {
     setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
 
     const wrapper = mount(UseKeyModal, {
@@ -160,6 +179,13 @@ describe('UseKeyModal', () => {
     expect(wrapper.find('[data-testid="copy-codex-one-click-command"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="codex-one-click-command"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('$codexDir = Join-Path')
+
+    await wrapper.find('[data-testid="copy-codex-one-click-command"]').trigger('click')
+    expect(clipboardMock.copyToClipboard).toHaveBeenCalledTimes(1)
+    const copiedCommand = String(clipboardMock.copyToClipboard.mock.calls[0]?.[0] ?? '')
+    expect(copiedCommand).toContain('https://chatgpt.com/zh-Hans-CN/download/')
+    expect(copiedCommand).toContain('https://t3.znas.cn/H0ogPWjF07')
+    expect(copiedCommand).not.toContain('https://chatgpt.com/codex/for-work/')
   })
 
   it('renders professional setup as directory, config.toml, and auth.json steps', () => {
@@ -197,7 +223,7 @@ describe('UseKeyModal', () => {
     expect(authSection.text().indexOf('keys.useKeyModal.openai.professional.authJsonDownloadHint'))
       .toBeLessThan(authSection.text().indexOf('"OPENAI_API_KEY": "sk-test"'))
 
-    expect(wrapper.findAll('[data-testid="copy-snippet-button"]').length).toBeGreaterThanOrEqual(4)
+    expect(wrapper.findAll('[data-testid="copy-snippet-button"]').length).toBeGreaterThanOrEqual(3)
     expect(wrapper.findAll('[data-testid="download-config-button"]')).toHaveLength(2)
   })
 

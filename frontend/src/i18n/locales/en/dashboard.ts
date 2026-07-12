@@ -142,7 +142,7 @@ export default {
         "installCodexTitle": "Install the Codex App first",
         "installCodexDescription": "If Codex App is not installed yet, download it from the official page, open it once to initialize, then come back to configure.",
         "downloadCodex": "Open official Codex download page",
-        "copyDownloadLink": "Copy download link",
+        "backupDownload": "Backup cloud download",
         "quitCodexTitle": "Fully quit the Codex App",
         "quitCodexDescriptionPrefix": "Make sure the Codex App is not running right now and is fully closed.",
         "quitCodexDescription": "Do not just close the window. Right-click Codex in the Dock, menu bar, or taskbar and quit it so it is not running in the background.",

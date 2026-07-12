@@ -55,21 +55,21 @@
               </p>
               <div class="mt-2 flex flex-wrap gap-2">
                 <a
-                  href="https://chatgpt.com/codex/for-work/"
+                  :href="CODEX_OFFICIAL_DOWNLOAD_URL"
                   target="_blank"
                   rel="noopener noreferrer"
                   class="inline-flex text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400"
                 >
                   {{ t('keys.useKeyModal.openai.downloadCodex') }}
                 </a>
-                <button
-                  type="button"
-                  data-testid="copy-snippet-button"
-                  class="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-dark-700 dark:text-gray-200 dark:hover:bg-dark-600"
-                  @click="copySnippet('https://chatgpt.com/codex/for-work/')"
+                <a
+                  :href="CODEX_BACKUP_DOWNLOAD_URL"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
                 >
-                  {{ t('keys.useKeyModal.openai.copyDownloadLink') }}
-                </button>
+                  {{ t('keys.useKeyModal.openai.backupDownload') }}
+                </a>
               </div>
             </div>
 
@@ -367,6 +367,7 @@ import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useClipboard } from '@/composables/useClipboard'
+import { CODEX_BACKUP_DOWNLOAD_URL, CODEX_OFFICIAL_DOWNLOAD_URL } from '@/constants/codexDownload'
 import type { GroupPlatform } from '@/types'
 
 interface Props {
@@ -932,7 +933,7 @@ big_error() {
 }
 
 if [ ! -d "$CODEX_DIR" ]; then
-  big_error "未找到 Codex 配置目录：$CODEX_DIR\n请先安装 Codex App，并打开一次完成初始化。\n官方下载：https://chatgpt.com/codex/for-work/\n安装完成后，请回到网页从第一步重新执行配置。"
+  big_error "未找到 Codex 配置目录：$CODEX_DIR\n请先安装 Codex App，并打开一次完成初始化。\n官方下载：${CODEX_OFFICIAL_DOWNLOAD_URL}\n备用网盘：${CODEX_BACKUP_DOWNLOAD_URL}\n安装完成后，请回到网页从第一步重新执行配置。"
   exit 1
 fi
 
@@ -994,7 +995,7 @@ function Show-Sub2ApiError([string]$message) {
 }
 
 if (!(Test-Path $codexDir)) {
-  Show-Sub2ApiError "未找到 Codex 配置目录：$codexDir\`n请先安装 Codex App，并打开一次完成初始化。\`n官方下载：https://chatgpt.com/codex/for-work/\`n安装完成后，请回到网页从第一步重新执行配置。"
+  Show-Sub2ApiError "未找到 Codex 配置目录：$codexDir\`n请先安装 Codex App，并打开一次完成初始化。\`n官方下载：${CODEX_OFFICIAL_DOWNLOAD_URL}\`n备用网盘：${CODEX_BACKUP_DOWNLOAD_URL}\`n安装完成后，请回到网页从第一步重新执行配置。"
   exit 1
 }
 

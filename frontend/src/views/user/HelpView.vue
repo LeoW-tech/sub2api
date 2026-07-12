@@ -207,6 +207,7 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAuthStore } from '@/stores/auth'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
+import { CODEX_BACKUP_DOWNLOAD_URL, CODEX_OFFICIAL_DOWNLOAD_URL } from '@/constants/codexDownload'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -246,8 +247,6 @@ interface HelpStep {
   feature?: HelpFeature
 }
 
-const codexOfficialDownloadUrl = 'https://chatgpt.com/codex/for-work/'
-const quarkDownloadUrl = 'https://pan.quark.cn/s/4a0a101a1eba'
 const tutorialVideoUrls = [
   'https://www.bilibili.com/video/BV1Nd596vEyU/?share_source=copy_web&vd_source=8c193272be30b72d84fe725197bcdf59',
   'https://www.bilibili.com/video/BV1Kk9kBAEJv/?share_source=copy_web&vd_source=8c193272be30b72d84fe725197bcdf59',
@@ -269,8 +268,8 @@ const steps: HelpStep[] = [
     descriptionKey: 'help.steps.install.description',
     noteKey: 'help.steps.install.note',
     actions: [
-      { type: 'external', href: codexOfficialDownloadUrl, labelKey: 'help.links.officialDownload' },
-      { type: 'external', href: quarkDownloadUrl, labelKey: 'help.links.quarkDownload', variant: 'secondary' },
+      { type: 'external', href: CODEX_OFFICIAL_DOWNLOAD_URL, labelKey: 'help.links.officialDownload' },
+      { type: 'external', href: CODEX_BACKUP_DOWNLOAD_URL, labelKey: 'help.links.quarkDownload', variant: 'secondary' },
     ],
     cardTitleKey: 'help.screenshots.install.title',
     card: 'install',

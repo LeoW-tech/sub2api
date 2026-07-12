@@ -142,7 +142,7 @@ export default {
         "installCodexTitle": "请先安装 Codex App",
         "installCodexDescription": "如果还没有安装 Codex App，请先前往官方下载并打开一次完成初始化，然后再回来配置。",
         "downloadCodex": "打开 Codex 官方下载页面",
-        "copyDownloadLink": "复制下载链接",
+        "backupDownload": "备用网盘下载",
         "quitCodexTitle": "请彻底退出 Codex App",
         "quitCodexDescriptionPrefix": "请确保此时此刻，Codex App 没有在运行中，是关闭状态。",
         "quitCodexDescription": "不能只关闭窗口。请右键 Dock、菜单栏或任务栏里的 Codex，选择退出，确保它不在后台运行。",

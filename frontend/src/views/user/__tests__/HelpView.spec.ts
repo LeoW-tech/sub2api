@@ -207,6 +207,9 @@ describe('HelpView', () => {
     expect(labels.some((label) => label.includes('40 分钟全面掌握 Codex'))).toBe(true)
     expect(labels.some((label) => label.includes('Codex App 保姆级全攻略'))).toBe(true)
     expect(labels.some((label) => label.includes('2026 Codex 完整教程'))).toBe(true)
+    const hrefs = externalLinks.map((link) => link.attributes('href'))
+    expect(hrefs).toContain('https://chatgpt.com/zh-Hans-CN/download/')
+    expect(hrefs).toContain('https://t3.znas.cn/H0ogPWjF07')
     for (const link of externalLinks) {
       expect(link.attributes('rel')).toBe('noopener noreferrer')
     }
