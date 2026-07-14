@@ -70,7 +70,8 @@ export default {
       "runtimeConfigResetFailed": "Failed to reset log configuration",
       "cleanupConfirm": "Clean up system logs matching the current filters? This cannot be undone.",
       "cleanupSuccess": "Cleanup complete. Deleted {count} log entries.",
-      "cleanupFailed": "Failed to clean up system logs"
+      "cleanupFailed": "Failed to clean up system logs",
+      "host": "Host"
     },
     "requestsTotal": "Requests (total)",
     "slaScope": "SLA scope:",

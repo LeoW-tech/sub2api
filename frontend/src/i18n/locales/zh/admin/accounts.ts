@@ -330,7 +330,9 @@ export default {
       "grokLastProbe": "探测 {time}",
       "grokLastHeadersSeen": "响应头 {time}",
       "passiveSampled": "被动采样",
-      "activeQuery": "查询"
+      "activeQuery": "查询",
+      "grokFreeQuota24hHint": "按 sub2api 近 24 小时本地 Token 用量估算（上限 2M）",
+      "grokWeeklyUsage": "周额度已用 {percent}%"
     },
     "openaiQuotaReset": {
       "count": "次数",
@@ -577,7 +579,12 @@ export default {
       "testMode": "测试模式",
       "testModeDefault": "常规请求",
       "testModeCompact": "Compact 探测",
-      "modelRestrictionDisabledByPassthrough": "已开启自动透传：模型白名单/映射不会生效。"
+      "modelRestrictionDisabledByPassthrough": "已开启自动透传：模型白名单/映射不会生效。",
+      "longContextBilling": "API 长上下文计费",
+      "longContextBillingDesc": "默认关闭。仅当该账号的上游会按模型阈值收取 OpenAI API 长上下文费率时开启。",
+      "planType": "订阅档位（手动覆盖）",
+      "planTypeDesc": "手动纠正本账号的 ChatGPT 订阅档位（Plus / Pro / Free）。注意：令牌临期刷新或命中 429 限流时，会用真实档位自动覆盖此处设置。",
+      "planTypeClear": "清空（自动识别）"
     },
     "grok": {
       "baseUrlHint": "Grok OAuth 账号会转发到官方 xAI API Base URL。",
@@ -947,7 +954,15 @@ export default {
           "GROK_OAUTH_PROXY_NOT_AVAILABLE": "无法查询 Grok OAuth 代理配置。请检查选择的代理后重试。",
           "GROK_OAUTH_PROXY_NOT_FOUND": "找不到所选代理。请选择可用代理后重试。"
         },
-        "oauthOnlyHint": "首版 Grok 支持仅包含 OAuth 订阅的 Responses API 文本/推理转发。"
+        "oauthOnlyHint": "首版 Grok 支持仅包含 OAuth 订阅的 Responses API 文本/推理转发。",
+        "ssoCookieAuth": "SSO Cookie 导入",
+        "ssoCookieDesc": "每行粘贴一个 Grok Web SSO key，系统会自动走 xAI Device Flow 并转换为 Grok Build OAuth 凭据。",
+        "ssoCookieLabel": "Grok Web SSO Key",
+        "ssoCookiePlaceholder": "每行一个 SSO key\n支持多个，每行一个",
+        "ssoCookieHint": "每行一个 SSO key；多个 key 会 3 路并发导入，耗时约 90 秒 × 批次数，建议使用对应地区代理。",
+        "convertingSSO": "转换中...",
+        "convertSSOAndCreate": "转换并创建账号",
+        "failedToConvertSSO": "Grok SSO 转换失败"
       },
       "gemini": {
         "title": "Gemini 账户授权",

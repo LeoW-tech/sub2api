@@ -579,7 +579,8 @@ export default {
         "active": "生效中",
         "expired": "已过期",
         "revoked": "已撤销"
-      }
+      },
+      "allowUserRefund": "允许用户退款"
     }
   }
 }

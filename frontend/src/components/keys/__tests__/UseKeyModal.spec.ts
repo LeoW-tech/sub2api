@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
@@ -34,6 +34,66 @@ describe('UseKeyModal', () => {
     setUserAgent(originalUserAgent)
     clipboardMock.copyToClipboard.mockClear()
     vi.restoreAllMocks()
+  })
+
+  it('renders Grok Build and OpenCode setup for Grok groups', async () => {
+    const wrapper = mount(UseKeyModal, {
+      props: {
+        show: true,
+        ['api' + 'Key']: 'test-grok-key',
+        baseUrl: 'https://example.com/v1',
+        platform: 'grok'
+      },
+      global: {
+        stubs: {
+          BaseDialog: {
+            template: '<div><slot /><slot name="footer" /></div>'
+          },
+          Icon: {
+            template: '<span />'
+          }
+        }
+      }
+    })
+
+    const grokTab = wrapper.findAll('button').find((button) =>
+      button.text().includes('keys.useKeyModal.cliTabs.grokCli')
+    )
+    expect(grokTab).toBeDefined()
+
+    const grokConfig = wrapper.findAll('pre code')
+      .map((code) => code.text())
+      .find((content) => content.includes('[model."sub2api-grok"]'))
+    expect(grokConfig).toBeDefined()
+    expect(grokConfig).toContain('model = "grok-4.5"')
+    expect(grokConfig).toContain('base_url = "https://example.com/v1"')
+    expect(grokConfig).toContain('api_backend = "responses"')
+
+    const windowsTab = wrapper.findAll('button').find(
+      (button) => button.text().trim() === 'Windows'
+    )
+    expect(windowsTab).toBeDefined()
+    await windowsTab!.trigger('click')
+    await nextTick()
+    expect(wrapper.text()).toContain('%userprofile%\\.grok/config.toml')
+
+    const opencodeTab = wrapper.findAll('button').find((button) =>
+      button.text().includes('keys.useKeyModal.cliTabs.opencode')
+    )
+    expect(opencodeTab).toBeDefined()
+    await opencodeTab!.trigger('click')
+    await nextTick()
+
+    const parsed = JSON.parse(wrapper.find('pre code').text())
+    expect(parsed.provider.grok.npm).toBe('@ai-sdk/openai')
+    expect(parsed.provider.grok.options).toEqual({
+      baseURL: 'https://example.com/v1',
+      ['api' + 'Key']: 'test-grok-key'
+    })
+    expect(parsed.provider.grok.models['grok-4.5']).toBeDefined()
+    expect(parsed.provider.grok.models['grok-build-0.1']).toBeDefined()
+    expect(parsed.provider.grok.models['grok-composer-2.5-fast']).toBeDefined()
+    expect(parsed.provider.grok.models['gpt-5.6']).toBeUndefined()
   })
 
   it('renders GPT-5.5 and goals feature in OpenAI Codex config', () => {
@@ -252,7 +312,6 @@ describe('UseKeyModal', () => {
     expect(wrapper.text()).not.toContain('supports_websockets = true')
     expect(wrapper.text()).not.toContain('GPT-5.4 Mini')
   })
-
 
   it('renders Claude Fable 5 OpenCode config with adaptive thinking', async () => {
     const wrapper = mount(UseKeyModal, {

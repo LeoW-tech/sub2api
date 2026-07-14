@@ -189,7 +189,8 @@ export default {
         "geminiCli": "Gemini CLI",
         "codexCli": "Codex CLI",
         "codexCliWs": "Codex CLI (WebSocket)",
-        "opencode": "OpenCode"
+        "opencode": "OpenCode",
+        "grokCli": "Grok CLI"
       },
       "antigravity": {
         "description": "为 Antigravity 分组配置 API 访问。请根据您使用的客户端选择对应的配置方式。",
@@ -208,7 +209,13 @@ export default {
         "subtitle": "opencode.json",
         "hint": "配置文件路径：~/.config/opencode/opencode.json（或 opencode.jsonc），不存在需手动创建。可使用默认 provider（openai/anthropic/google）或自定义 provider_id。API Key 支持直接配置或通过客户端 /connect 命令配置。示例仅供参考，模型与选项可按需调整。"
       },
-      "download": "下载"
+      "download": "下载",
+      "grok": {
+        "description": "配置 Grok Build 或 OpenCode，让 Responses API 请求通过当前 Sub2API Grok 分组发送。",
+        "configTomlHint": "如已有 config.toml，请先备份再合并此模型配置。保存后运行 grok inspect 验证生效配置。",
+        "note": "保存为 ~/.grok/config.toml，然后运行 grok inspect，并在 /model 中选择 sub2api-grok。",
+        "noteWindows": "保存为 %USERPROFILE%\\.grok\\config.toml，然后运行 grok inspect，并在 /model 中选择 sub2api-grok。"
+      }
     },
     "customKeyLabel": "自定义密钥",
     "customKeyPlaceholder": "输入自定义密钥（至少16个字符）",
@@ -451,7 +458,8 @@ export default {
     "providers": {
       "openai": "OpenAI",
       "anthropic": "Anthropic",
-      "gemini": "Gemini"
+      "gemini": "Gemini",
+      "grok": "Grok"
     },
     "extraModelsHeader": "附加模型",
     "extraModelsEmpty": "无附加模型",

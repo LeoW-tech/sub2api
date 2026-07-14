@@ -997,8 +997,8 @@ export default {
       "scopeOAuth": "OAuth only",
       "scopeAPIKey": "API Key only",
       "scopeBedrock": "Bedrock only",
-      "userIds": "Specific user IDs",
-      "userIdsHint": "Leave empty to apply to all Sub2API users. Specified users match requests from their API keys and take precedence over global rules.",
+      "userIds": "Specific users",
+      "userIdsHint": "Type any part of a user email to search. Leave empty to apply to all Sub2API users. Selected users match requests from their API keys and take precedence over global rules.",
       "userIdPlaceholder": "e.g., 1001",
       "addUserId": "Add user ID",
       "removeUserId": "Remove user ID",
@@ -1011,7 +1011,12 @@ export default {
       "addModelPattern": "Add model pattern",
       "fallbackAction": "Fallback action",
       "fallbackActionHint": "Action for models not matching the whitelist.",
-      "fallbackErrorMessagePlaceholder": "Custom error message when non-whitelisted models are blocked"
+      "fallbackErrorMessagePlaceholder": "Custom error message when non-whitelisted models are blocked",
+      "userSearchPlaceholder": "Search by user email",
+      "userSearchEmpty": "No matching users found",
+      "userDeleted": "(deleted)",
+      "userIdFallback": "User #{id}",
+      "removeUser": "Remove user"
     },
     "wechatConnect": {
       "title": "WeChat Connect",

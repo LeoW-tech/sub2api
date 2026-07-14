@@ -997,8 +997,8 @@ export default {
       "scopeOAuth": "仅 OAuth 账号",
       "scopeAPIKey": "仅 API Key 账号",
       "scopeBedrock": "仅 Bedrock 账号",
-      "userIds": "指定用户 ID",
-      "userIdsHint": "留空表示对全部 Sub2API 用户生效。指定后仅匹配这些用户的 API Key 请求，且优先于全局规则。",
+      "userIds": "指定用户",
+      "userIdsHint": "输入任意邮箱关键词进行模糊搜索。留空表示对全部 Sub2API 用户生效；选中用户的 API Key 请求优先匹配用户规则。",
       "userIdPlaceholder": "例如: 1001",
       "addUserId": "添加用户 ID",
       "removeUserId": "移除用户 ID",
@@ -1011,7 +1011,12 @@ export default {
       "addModelPattern": "添加模型规则",
       "fallbackAction": "未匹配模型处理方式",
       "fallbackActionHint": "当请求模型不在白名单中时的处理方式。",
-      "fallbackErrorMessagePlaceholder": "未匹配模型被拦截时返回的自定义错误消息"
+      "fallbackErrorMessagePlaceholder": "未匹配模型被拦截时返回的自定义错误消息",
+      "userSearchPlaceholder": "输入用户邮箱搜索",
+      "userSearchEmpty": "未找到匹配用户",
+      "userDeleted": "（已删除）",
+      "userIdFallback": "用户 #{id}",
+      "removeUser": "移除用户"
     },
     "wechatConnect": {
       "title": "微信登录",

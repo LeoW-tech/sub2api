@@ -189,7 +189,8 @@ export default {
         "geminiCli": "Gemini CLI",
         "codexCli": "Codex CLI",
         "codexCliWs": "Codex CLI (WebSocket)",
-        "opencode": "OpenCode"
+        "opencode": "OpenCode",
+        "grokCli": "Grok CLI"
       },
       "antigravity": {
         "description": "Configure API access for Antigravity group. Select the configuration method based on your client.",
@@ -208,7 +209,13 @@ export default {
         "subtitle": "opencode.json",
         "hint": "Config path: ~/.config/opencode/opencode.json (or opencode.jsonc), create if not exists. Use default providers (openai/anthropic/google) or custom provider_id. API Key can be configured directly or via /connect command. This is an example, adjust models and options as needed."
       },
-      "download": "Download"
+      "download": "Download",
+      "grok": {
+        "description": "Configure Grok Build or OpenCode to send Responses API traffic through your Sub2API Grok group.",
+        "configTomlHint": "Back up an existing config.toml before merging this model entry. Run grok inspect after saving to verify the effective configuration.",
+        "note": "Save the file as ~/.grok/config.toml, then run grok inspect and select sub2api-grok from /model.",
+        "noteWindows": "Save the file as %USERPROFILE%\\.grok\\config.toml, then run grok inspect and select sub2api-grok from /model."
+      }
     },
     "customKeyLabel": "Custom Key",
     "customKeyPlaceholder": "Enter your custom key (min 16 chars)",
@@ -451,7 +458,8 @@ export default {
     "providers": {
       "openai": "OpenAI",
       "anthropic": "Anthropic",
-      "gemini": "Gemini"
+      "gemini": "Gemini",
+      "grok": "Grok"
     },
     "extraModelsHeader": "Extra Models",
     "extraModelsEmpty": "No extra models",

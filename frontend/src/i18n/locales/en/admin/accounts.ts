@@ -472,7 +472,12 @@ export default {
       "testMode": "Test mode",
       "testModeDefault": "Default request",
       "testModeCompact": "Compact probe",
-      "modelRestrictionDisabledByPassthrough": "Automatic passthrough is enabled: model whitelist/mapping will not take effect."
+      "modelRestrictionDisabledByPassthrough": "Automatic passthrough is enabled: model whitelist/mapping will not take effect.",
+      "longContextBilling": "API long-context pricing",
+      "longContextBillingDesc": "Disabled by default. Enable only when this account's upstream charges OpenAI API long-context rates above the model threshold.",
+      "planType": "Plan tier (manual override)",
+      "planTypeDesc": "Manually correct this account's ChatGPT plan tier (Plus / Pro / Free). Note: a token refresh near expiry or a 429 rate-limit response will auto-overwrite this with the real tier.",
+      "planTypeClear": "Clear (auto-detect)"
     },
     "grok": {
       "baseUrlHint": "Grok OAuth accounts forward to the official xAI API base URL.",
@@ -842,7 +847,15 @@ export default {
           "GROK_OAUTH_PROXY_NOT_AVAILABLE": "Grok OAuth proxy lookup is unavailable. Check the selected proxy and retry.",
           "GROK_OAUTH_PROXY_NOT_FOUND": "The selected proxy could not be found. Choose an available proxy and retry."
         },
-        "oauthOnlyHint": "Initial Grok support is OAuth subscription-backed Responses API text and reasoning traffic only."
+        "oauthOnlyHint": "Initial Grok support is OAuth subscription-backed Responses API text and reasoning traffic only.",
+        "ssoCookieAuth": "SSO Cookie Import",
+        "ssoCookieDesc": "Paste one Grok Web SSO key per line. The server will complete the xAI Device Flow and convert them into Grok Build OAuth credentials.",
+        "ssoCookieLabel": "Grok Web SSO Key",
+        "ssoCookiePlaceholder": "One SSO key per line\nSupports multiple, one per line",
+        "ssoCookieHint": "One SSO key per line. Multiple keys are imported with 3-way concurrency; expect about 90 seconds per batch. Use a matching-region proxy if needed.",
+        "convertingSSO": "Converting...",
+        "convertSSOAndCreate": "Convert & Create Account",
+        "failedToConvertSSO": "Failed to convert Grok SSO cookie"
       },
       "gemini": {
         "title": "Gemini Account Authorization",
@@ -1141,7 +1154,9 @@ export default {
       "grokLastProbe": "Probe {time}",
       "grokLastHeadersSeen": "Headers {time}",
       "passiveSampled": "Passive",
-      "activeQuery": "Query"
+      "activeQuery": "Query",
+      "grokFreeQuota24hHint": "Estimated from local token usage over the rolling 24-hour window (2M limit)",
+      "grokWeeklyUsage": "Weekly {percent}%"
     },
     "openaiQuotaReset": {
       "count": "Credits",
