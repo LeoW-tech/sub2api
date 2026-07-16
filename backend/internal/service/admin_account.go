@@ -1107,7 +1107,7 @@ func (s *adminServiceImpl) resolveBulkUpdateTargetIDs(ctx context.Context, filte
 			filters.PrivacyMode,
 			"",
 			"",
-			"",
+			filters.RTStatus,
 			"",
 			"",
 			"",

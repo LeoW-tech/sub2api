@@ -222,3 +222,10 @@ func TestBulkUpdateAcceptsFilterTargetRequest(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	require.Equal(t, float64(0), resp["code"])
 }
+
+func TestToServiceBulkUpdateAccountFiltersPreservesRTStatus(t *testing.T) {
+	filters := toServiceBulkUpdateAccountFilters(&BulkUpdateAccountFilters{RTStatus: "has_rt"})
+
+	require.NotNil(t, filters)
+	require.Equal(t, "has_rt", filters.RTStatus)
+}

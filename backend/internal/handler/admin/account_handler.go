@@ -2057,6 +2057,7 @@ func toServiceBulkUpdateAccountFilters(filters *BulkUpdateAccountFilters) *servi
 		PrivacyMode:    filters.PrivacyMode,
 		NetworkStatus:  filters.NetworkStatus,
 		ExitIP:         filters.ExitIP,
+		RTStatus:       filters.RTStatus,
 		CapacityStatus: filters.CapacityStatus,
 		SortBy:         filters.SortBy,
 		SortOrder:      filters.SortOrder,
