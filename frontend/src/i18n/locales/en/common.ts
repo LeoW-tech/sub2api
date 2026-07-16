@@ -186,7 +186,8 @@ export default {
     "channelMonitor": "Channel Monitor",
     "channelStatus": "Channel Status",
     "riskControl": "Risk Control",
-    "help": "Help"
+    "help": "Help",
+    "auditLogs": "Audit Logs"
   },
   "auth": {
     "welcomeBack": "Welcome Back",
@@ -475,5 +476,12 @@ export default {
         "video": "Choose one tutorial and finish it"
       }
     }
+  },
+  "stepUp": {
+    "title": "Two-Factor Verification Required",
+    "hint": "Enter the 6-digit code from your authenticator app to continue this sensitive operation.",
+    "verifyFailed": "Verification failed, please try again",
+    "notEnabled": "This operation requires two-factor authentication. Please enable TOTP in your profile first.",
+    "adminApiKeyForbidden": "Admin API keys cannot perform this operation. Use a two-factor verified admin session."
   }
 }

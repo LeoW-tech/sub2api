@@ -42,6 +42,7 @@
               : t('admin.accounts.bulkActions.testActivate')
           }}
         </button>
+        <button @click="$emit('probe-upstream-billing')" class="btn btn-secondary btn-sm">{{ t('admin.accounts.bulkActions.probeUpstreamBilling') }}</button>
         <button @click="$emit('toggle-schedulable', true)" class="btn btn-success btn-sm">{{ t('admin.accounts.bulkActions.enableScheduling') }}</button>
         <button @click="$emit('toggle-schedulable', false)" class="btn btn-warning btn-sm">{{ t('admin.accounts.bulkActions.disableScheduling') }}</button>
         <button @click="$emit('edit-selected')" class="btn btn-primary btn-sm">{{ t('admin.accounts.bulkActions.edit') }}</button>
@@ -74,6 +75,7 @@ defineEmits<{
   (e: 'true-refresh-token'): void
   (e: 'refresh-subscriptions'): void
   (e: 'test-activate'): void
+  (e: 'probe-upstream-billing'): void
 }>()
 
 const { t } = useI18n()

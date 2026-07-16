@@ -580,7 +580,10 @@ export default {
         "expired": "已过期",
         "revoked": "已撤销"
       },
-      "allowUserRefund": "允许用户退款"
+      "allowUserRefund": "允许用户退款",
+      "currency": "币种标注",
+      "currencyPlaceholder": "如 USD / NZD / CNY",
+      "currencyHint": "仅用于价格展示的 ISO 三字母币种码，留空不展示，不影响实际扣款"
     }
   }
 }

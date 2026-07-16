@@ -182,7 +182,12 @@ export default {
             "configToml": "Step 2: Configure config.toml",
             "authJson": "Step 3: Configure auth.json"
           }
-        }
+        },
+        "authModeTitle": "Codex authentication mode",
+        "authModeDescription": "Compatibility mode keeps the existing setup for older Codex clients. API Key Mode authorizes the client-side image executor.",
+        "authModeLegacy": "Compatibility mode",
+        "authModeApiKey": "API Key Mode",
+        "authModeApiKeyRestartNotice": "After saving this configuration, completely quit and restart Codex Desktop or CLI, then create a new task so the client can rebuild its tool registry."
       },
       "cliTabs": {
         "claudeCode": "Claude Code",
@@ -211,11 +216,18 @@ export default {
       },
       "download": "Download",
       "grok": {
-        "description": "Configure Grok Build or OpenCode to send Responses API traffic through your Sub2API Grok group.",
+        "description": "Configure Grok Build, Claude Code, Codex, or OpenCode to send requests through your Sub2API Grok group.",
+        "claudeDescription": "Configure Claude Code to send Messages API traffic through your Sub2API Grok group.",
+        "codexDescription": "Configure Codex to send Responses API traffic through your Sub2API Grok group.",
         "configTomlHint": "Back up an existing config.toml before merging this model entry. Run grok inspect after saving to verify the effective configuration.",
-        "note": "Save the file as ~/.grok/config.toml, then run grok inspect and select sub2api-grok from /model.",
-        "noteWindows": "Save the file as %USERPROFILE%\\.grok\\config.toml, then run grok inspect and select sub2api-grok from /model."
-      }
+        "codexConfigTomlHint": "Back up an existing config.toml before merging this provider configuration.",
+        "note": "Save the file as ~/.grok/config.toml, then run grok inspect and select grok from /model.",
+        "noteWindows": "Save the file as %USERPROFILE%\\.grok\\config.toml, then run grok inspect and select grok from /model.",
+        "claudeNote": "Choose one method: run the terminal commands for the current session, or save settings.json for user-level persistent configuration.",
+        "codexNote": "Save config.toml under ~/.codex and set SUB2API_API_KEY before starting Codex.",
+        "codexNoteWindows": "Save config.toml under %USERPROFILE%\\.codex and set SUB2API_API_KEY in PowerShell before starting Codex."
+      },
+      "claudeSettingsHint": "User-level persistent configuration. Do not commit this file containing your API key to a project repository."
     },
     "customKeyLabel": "Custom Key",
     "customKeyPlaceholder": "Enter your custom key (min 16 chars)",
@@ -279,7 +291,8 @@ export default {
       "inactive": "Inactive",
       "quota_exhausted": "Quota Exhausted",
       "expired": "Expired"
-    }
+    },
+    "id": "ID"
   },
   "usage": {
     "title": "Usage Records",
@@ -361,6 +374,9 @@ export default {
     "imageBillingSize": "Billing size",
     "imageInputSize": "Input size",
     "imageOutputSize": "Output size",
+    "imageInputTokens": "Image Input Tokens",
+    "imageInputTokenPrice": "Image Input Price",
+    "imageInputCost": "Image Input Cost",
     "imageOutputTokens": "Image Output Tokens",
     "imageOutputTokenPrice": "Image Output Price",
     "imageOutputCost": "Image Output Cost",
@@ -549,6 +565,7 @@ export default {
       "outputPrice": "Output",
       "cacheWritePrice": "Cache Write",
       "cacheReadPrice": "Cache Read",
+      "imageInputPrice": "Image Input",
       "imageOutputPrice": "Image Output",
       "perRequestPrice": "Per Request",
       "intervals": "Tiered Pricing",
