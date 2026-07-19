@@ -187,7 +187,10 @@ export default {
     "channelStatus": "Channel Status",
     "riskControl": "Risk Control",
     "help": "Help",
-    "auditLogs": "Audit Logs"
+    "auditLogs": "Audit Logs",
+    "securityAudit": "Security Audit",
+    "contentModeration": "Content Moderation",
+    "promptAudit": "Prompt Audit"
   },
   "auth": {
     "welcomeBack": "Welcome Back",

@@ -130,6 +130,9 @@ func (r *crsSyncTestAccountRepo) ListSchedulableUngroupedByPlatform(context.Cont
 func (r *crsSyncTestAccountRepo) ListSchedulableUngroupedByPlatforms(context.Context, []string) ([]Account, error) {
 	panic("unexpected")
 }
+func (r *crsSyncTestAccountRepo) ListModelAvailabilityCandidates(context.Context, *int64, []string, bool) ([]Account, error) {
+	panic("unexpected")
+}
 func (r *crsSyncTestAccountRepo) SetRateLimited(context.Context, int64, time.Time) error {
 	panic("unexpected")
 }

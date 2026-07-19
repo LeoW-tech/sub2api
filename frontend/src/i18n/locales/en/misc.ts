@@ -583,7 +583,9 @@ export default {
         "active": "Active",
         "expired": "Expired",
         "revoked": "Revoked"
-      }
+      },
+      "validity": "Validity",
+      "validityRequired": "Validity must be greater than 0"
     }
   }
 }

@@ -162,6 +162,10 @@ func (m *mockAccountRepoForGemini) PauseAccountByNetwork(ctx context.Context, ac
 func (m *mockAccountRepoForGemini) RestoreAccountFromNetworkPause(ctx context.Context, accountID int64) (bool, error) {
 	return false, nil
 }
+
+func (m *mockAccountRepoForGemini) ListModelAvailabilityCandidates(ctx context.Context, _ *int64, platforms []string, _ bool) ([]Account, error) {
+	return m.ListSchedulableByPlatforms(ctx, platforms)
+}
 func (m *mockAccountRepoForGemini) SetRateLimited(ctx context.Context, id int64, resetAt time.Time) error {
 	return nil
 }

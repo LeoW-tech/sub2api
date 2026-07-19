@@ -187,7 +187,10 @@ export default {
     "channelStatus": "渠道状态",
     "riskControl": "风控中心",
     "help": "使用帮助",
-    "auditLogs": "操作日志"
+    "auditLogs": "操作日志",
+    "securityAudit": "安全审计",
+    "contentModeration": "内容审核",
+    "promptAudit": "提示词审计"
   },
   "auth": {
     "welcomeBack": "欢迎回来",

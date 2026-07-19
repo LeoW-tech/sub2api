@@ -328,7 +328,24 @@
             </template>
             <template #cell-name="{ row, value }">
               <div class="flex flex-col">
-                <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+                <HelpTooltip
+                  v-if="accountHomepageUrl(row)"
+                  :content="accountHomepageUrl(row)"
+                  width-class="w-max max-w-sm break-all"
+                  class="-ml-1 self-start"
+                >
+                  <template #trigger>
+                    <a
+                      :href="accountHomepageUrl(row)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="border-b border-dotted border-gray-300 font-medium text-gray-900 dark:border-gray-600 dark:text-white"
+                    >
+                      {{ value }}
+                    </a>
+                  </template>
+                </HelpTooltip>
+                <span v-else class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
                 <span
                   v-if="accountDisplayEmail(row)"
                   class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px]"
@@ -497,7 +514,7 @@
             <template #cell-upstream_billing_rate="{ row }">
               <UpstreamBillingRateCell
                 :account="row"
-                :interval-minutes="upstreamBillingProbeSettings.interval_minutes"
+                :global-probe-enabled="upstreamBillingProbeSettings.enabled"
                 :now="upstreamBillingNow"
                 :probing="probingUpstreamBilling.has(row.id)"
                 @probe="handleProbeUpstreamBilling(row)"
@@ -826,6 +843,7 @@ import { buildOpenAIUsageRefreshKey } from "@/utils/accountUsageRefresh";
 import { extractApiErrorMessage } from "@/utils/apiError";
 import { formatDateTime, formatRelativeTime } from "@/utils/format";
 import { proxyExpiryBadgeClass, proxyExpiryLabelKey } from "@/utils/proxyExpiry";
+import { sanitizeUrl } from "@/utils/url";
 import type {
   Account,
   AccountPlatform,
@@ -959,6 +977,7 @@ const ACCOUNT_SORTABLE_KEYS = new Set([
   "schedulable",
   "priority",
   "rate_multiplier",
+  "upstream_billing_rate",
   "last_used_at",
   "created_at",
   "expires_at",
@@ -980,6 +999,7 @@ const loadInitialAccountSortState = (): AccountSortState => {
   }
 };
 const sortState = reactive<AccountSortState>(loadInitialAccountSortState());
+let lastUpstreamBillingSortRefreshMinute = -1;
 
 // Auto refresh settings
 const showAutoRefreshDropdown = ref(false);
@@ -1328,7 +1348,9 @@ const load = async () => {
 };
 
 const reload = async () => {
-
+  if (sortState.sort_by === "upstream_billing_rate") {
+    lastUpstreamBillingSortRefreshMinute = Math.floor(Date.now() / 60_000);
+  }
   syncAccountListDerivedParams()
   hasPendingListSync.value = false
   resetAutoRefreshCache()
@@ -1336,6 +1358,14 @@ const reload = async () => {
   await baseReload()
   await refreshTodayStatsBatch()
 }
+
+const refreshUpstreamBillingSortedList = async (force = false) => {
+  if (sortState.sort_by !== "upstream_billing_rate") return;
+  const minute = Math.floor(upstreamBillingNow.value / 60_000);
+  if (!force && lastUpstreamBillingSortRefreshMinute === minute) return;
+  lastUpstreamBillingSortRefreshMinute = minute;
+  await reload();
+};
 
 const debouncedReload = () => {
   syncAccountListDerivedParams()
@@ -1665,6 +1695,14 @@ function normalizeOpenAICompactMode(value: unknown): string {
   return typeof value === "string" ? value.trim().toLowerCase() : "auto";
 }
 
+function accountHomepageUrl(row: Account): string {
+  if (row.type !== "apikey" || typeof row.credentials?.base_url !== "string") {
+    return "";
+  }
+  const baseUrl = sanitizeUrl(row.credentials.base_url);
+  return baseUrl ? new URL(baseUrl).origin : "";
+}
+
 // 账号显示邮箱:优先账号自身(extra/credentials),影子账号回退母账号 parent_email。
 function accountDisplayEmail(row: any): string {
   return row.extra?.email_address || row.extra?.email || row.credentials?.email || row.parent_email || '';
@@ -1806,7 +1844,7 @@ const allColumns = computed(() => {
     {
       key: "upstream_billing_rate",
       label: t("admin.accounts.columns.upstreamBillingRate"),
-      sortable: false,
+      sortable: true,
     },
     {
       key: "last_used_at",
@@ -2034,6 +2072,7 @@ const handleBulkProbeUpstreamBilling = async () => {
         patchUpstreamBillingSnapshot(result.account_id, result.snapshot);
       }
     });
+    await refreshUpstreamBillingSortedList(true);
     const failed = results.filter((result) => result.error).length;
     if (failed > 0) {
       appStore.showError(
@@ -2500,6 +2539,7 @@ const onRevertFallback = async (account: Account) => {
 const patchUpstreamBillingSnapshot = (accountID: number, snapshot: UpstreamBillingProbeSnapshot) => {
   const account = accounts.value.find((item) => item.id === accountID);
   if (!account) return;
+  upstreamBillingNow.value = Date.now();
   patchAccountInList({
     ...account,
     extra: { ...account.extra, upstream_billing_probe: snapshot },
@@ -2512,6 +2552,7 @@ const handleProbeUpstreamBilling = async (account: Account) => {
     const result = await adminAPI.accounts.probeUpstreamBilling(account.id);
     if (result.snapshot) {
       patchUpstreamBillingSnapshot(account.id, result.snapshot);
+      await refreshUpstreamBillingSortedList(true);
     }
   } catch (error) {
     console.error("Failed to probe upstream billing:", error);

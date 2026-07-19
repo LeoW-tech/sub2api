@@ -583,7 +583,9 @@ export default {
       "allowUserRefund": "允许用户退款",
       "currency": "币种标注",
       "currencyPlaceholder": "如 USD / NZD / CNY",
-      "currencyHint": "仅用于价格展示的 ISO 三字母币种码，留空不展示，不影响实际扣款"
+      "currencyHint": "仅用于价格展示的 ISO 三字母币种码，留空不展示，不影响实际扣款",
+      "validity": "有效期",
+      "validityRequired": "有效期必须大于 0"
     }
   }
 }
