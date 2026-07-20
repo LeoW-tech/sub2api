@@ -29,6 +29,21 @@
 - stable 同时支持本机 `http://127.0.0.1:8080/` 和局域网 `http://<本机局域网IP>:8080/`
 - dev 默认仅本机访问 `http://127.0.0.1:8081/`
 
+### stable 反代客户端 IP
+
+新版本只解析 `server.trusted_proxies` 声明的可信代理链，不再直接信任请求携带的 `CF-Connecting-IP`、`X-Real-IP` 或 `X-Forwarded-For`。配置留空时，Cloudflare Tunnel 流量在使用记录中会显示为 Docker 网关地址。
+
+当前 Linux stable 的请求链路为 `Cloudflare Tunnel -> 127.0.0.1:18444 h2proxy -> 127.0.0.1:8080 -> Docker bridge -> Sub2API`。`/srv/sub2api/runtime/stable/data/config.yaml` 需要信任两跳代理：
+
+```yaml
+server:
+  trusted_proxies:
+    - 172.18.0.1/32
+    - 127.0.0.1/32
+```
+
+其中 `172.18.0.1` 必须与 stable Compose 网络的实际网关一致，可通过 `docker network inspect <stable-network>` 核对。不要配置 `0.0.0.0/0`、整个 Docker 私网或恢复无条件读取转发头，否则客户端可伪造 IP。若网络重建后网关变化，应同步更新 runtime 配置并重启 stable；Mac/Colima 使用其实际直连代理地址，不能照抄 Linux 网关。
+
 ## OpenAI OAuth 双机回调助手
 
 OpenAI/Codex OAuth 官方 client 的回调地址保持为 `http://localhost:1455/auth/callback`。如果你在 Mac 浏览器里授权 Linux 上的 sub2api 后台，`localhost` 会指向 Mac 自己，而不是 Linux，所以需要在 Mac 上启动一个本地回调助手：
