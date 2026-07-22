@@ -508,11 +508,13 @@ func ProvideTelegramNotificationService(settingService *SettingService) *Telegra
 func ProvideAccountBulkTestActivateService(
 	accountRepo AccountRepository,
 	accountTestSvc *AccountTestService,
+	rateLimitSvc *RateLimitService,
 	telegram *TelegramNotificationService,
 	auditRepo AccountBulkTestActivateAuditRepository,
 	cfg *config.Config,
 ) *AccountBulkTestActivateService {
 	svc := NewAccountBulkTestActivateService(accountRepo, accountTestSvc, telegram, cfg)
+	svc.rateLimitRecovery = rateLimitSvc
 	svc.auditRepo = auditRepo
 	svc.Start()
 	return svc

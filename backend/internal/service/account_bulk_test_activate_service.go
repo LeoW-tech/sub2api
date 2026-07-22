@@ -11,12 +11,13 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/robfig/cron/v3"
 )
 
 const (
-	accountBulkTestActivateDefaultModel      = "gpt-5.4"
+	accountBulkTestActivateDefaultModel      = openai.DefaultTestModel
 	accountBulkTestActivateConcurrency       = 20
 	accountBulkTestActivateSchedule          = "0 */6 * * *"
 	accountBulkTestActivatePageSize          = 200
@@ -63,11 +64,12 @@ type AccountBulkTestActivateSummary struct {
 }
 
 type AccountBulkTestActivateService struct {
-	accountRepo    AccountRepository
-	accountTestSvc accountBulkTestRunner
-	telegram       accountBulkTestActivateNotifier
-	auditRepo      AccountBulkTestActivateAuditRepository
-	cfg            *config.Config
+	accountRepo       AccountRepository
+	accountTestSvc    accountBulkTestRunner
+	rateLimitRecovery accountBulkTestActivateRecovery
+	telegram          accountBulkTestActivateNotifier
+	auditRepo         AccountBulkTestActivateAuditRepository
+	cfg               *config.Config
 
 	cron      *cron.Cron
 	startOnce sync.Once
@@ -100,6 +102,10 @@ func NewAccountBulkTestActivateService(
 
 type accountBulkTestRunner interface {
 	RunTestBackground(ctx context.Context, accountID int64, modelID string) (*ScheduledTestResult, error)
+}
+
+type accountBulkTestActivateRecovery interface {
+	RecoverAccountAfterSuccessfulTest(ctx context.Context, accountID int64) (*SuccessfulTestRecoveryResult, error)
 }
 
 type accountBulkTestActivateNotifier interface {
@@ -267,6 +273,9 @@ func (s *AccountBulkTestActivateService) execute(ctx context.Context, accountIDs
 
 			testResult := s.runAccountTestWithRetry(ctx, accountID, originalStatus[accountID])
 			success := strings.EqualFold(strings.TrimSpace(testResult.Status), "success")
+			if success {
+				s.recoverSuccessfulAccount(ctx, accountID)
+			}
 
 			mu.Lock()
 			processed++
@@ -363,7 +372,7 @@ func (s *AccountBulkTestActivateService) runAccountTestWithRetry(ctx context.Con
 
 	for attempts < maxAttempts {
 		attempts++
-		result, err := s.accountTestSvc.RunTestBackground(accountTestSuppressStatusMutation(ctx), accountID, accountBulkTestActivateDefaultModel)
+		result, err := s.accountTestSvc.RunTestBackground(ctx, accountID, accountBulkTestActivateDefaultModel)
 		lastResult = result
 		lastErr = err
 		if err == nil && result != nil && strings.EqualFold(strings.TrimSpace(result.Status), "success") {
@@ -385,7 +394,7 @@ func (s *AccountBulkTestActivateService) runAccountTestWithRetry(ctx context.Con
 		msg := accountBulkTestActivateResultErrorMessage(result, err)
 		lastMsg = msg
 		category = accountBulkTestActivateClassifyFailure(msg)
-		if attempts >= maxAttempts || !accountBulkTestActivateShouldRetryFailure(category, msg) {
+		if attempts >= maxAttempts || !accountBulkTestActivateShouldRetryFailure(category) {
 			break
 		}
 		if !s.sleepBeforeRetry(ctx) {
@@ -406,6 +415,15 @@ func (s *AccountBulkTestActivateService) runAccountTestWithRetry(ctx context.Con
 		LatencyMs:       accountBulkTestActivateLatency(startedAt, finishedAt, lastResult),
 		StartedAt:       startedAt,
 		FinishedAt:      finishedAt,
+	}
+}
+
+func (s *AccountBulkTestActivateService) recoverSuccessfulAccount(ctx context.Context, accountID int64) {
+	if s == nil || s.rateLimitRecovery == nil {
+		return
+	}
+	if _, err := s.rateLimitRecovery.RecoverAccountAfterSuccessfulTest(ctx, accountID); err != nil {
+		logger.LegacyPrintf("service.account_bulk_test_activate", "[AccountBulkTestActivate] account=%d successful-test recovery failed: %v", accountID, err)
 	}
 }
 
@@ -786,16 +804,8 @@ func accountBulkTestActivateClassifyFailure(msg string) string {
 	}
 }
 
-func accountBulkTestActivateShouldRetryFailure(category, msg string) bool {
-	switch category {
-	case "transient":
-		return true
-	case "rate_limit":
-		lower := strings.ToLower(strings.TrimSpace(msg))
-		return strings.Contains(lower, "temporarily") || strings.Contains(lower, "retry") || strings.Contains(lower, "overloaded")
-	default:
-		return false
-	}
+func accountBulkTestActivateShouldRetryFailure(category string) bool {
+	return category == "transient"
 }
 
 func accountBulkTestActivateAction(originalStatus string, success bool) string {

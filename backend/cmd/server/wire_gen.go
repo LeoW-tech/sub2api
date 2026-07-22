@@ -197,7 +197,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	accountUsageService := service.ProvideAccountUsageService(accountRepository, usageLogRepository, claudeUsageFetcher, geminiQuotaService, antigravityQuotaFetcher, grokQuotaFetcher, grokQuotaService, openAIQuotaService, usageCache, identityCache, tlsFingerprintProfileService, openAIGatewayService)
 	telegramNotificationService := service.ProvideTelegramNotificationService(settingService)
 	accountBulkTestActivateAuditRepository := repository.NewAccountBulkTestActivateAuditRepository(db)
-	accountBulkTestActivateService := service.ProvideAccountBulkTestActivateService(accountRepository, accountTestService, telegramNotificationService, accountBulkTestActivateAuditRepository, configConfig)
+	accountBulkTestActivateService := service.ProvideAccountBulkTestActivateService(accountRepository, accountTestService, rateLimitService, telegramNotificationService, accountBulkTestActivateAuditRepository, configConfig)
 	crsSyncService := service.ProvideCRSSyncService(accountRepository, proxyRepository, oAuthService, openAIOAuthService, geminiOAuthService, configConfig, accountInitialProbeService)
 	accountHandler := admin.ProvideAccountHandler(adminService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, rateLimitService, accountUsageService, accountTestService, accountBulkTestActivateService, concurrencyService, crsSyncService, sessionLimitCache, rpmCache, compositeTokenCacheInvalidator, grokQuotaService)
 	adminAnnouncementHandler := admin.NewAnnouncementHandler(announcementService)

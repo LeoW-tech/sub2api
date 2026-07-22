@@ -153,6 +153,28 @@ func TestAccountBulkTestActivateService_Execute_DoesNotRetryAuthFailures(t *test
 	require.Empty(t, accountRepo.bulkUpdates)
 }
 
+func TestAccountBulkTestActivateService_Execute_DoesNotRetryRateLimitFailures(t *testing.T) {
+	accountRepo := &accountRepoStubForBulkTestActivate{
+		accountsByID: map[int64]*Account{
+			1: {ID: 1, Status: StatusActive},
+		},
+	}
+	accountTestSvc := &accountTestServiceStubForBulkTestActivate{
+		resultSequences: map[int64][]*ScheduledTestResult{
+			1: {
+				{Status: "failed", ErrorMessage: "API returned 429: temporarily unavailable"},
+				{Status: "success"},
+			},
+		},
+	}
+	svc := NewAccountBulkTestActivateService(accountRepo, accountTestSvc, nil, nil)
+
+	summary, err := svc.Execute(context.Background(), []int64{1}, AccountBulkTestActivateTriggerManual)
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Failed)
+	require.Equal(t, []int64{1}, accountTestSvc.calls())
+}
+
 func TestAccountBulkTestActivateService_Execute_RecordsAuditRunAndResults(t *testing.T) {
 	accountRepo := &accountRepoStubForBulkTestActivate{
 		accountsByID: map[int64]*Account{
@@ -212,7 +234,7 @@ func TestAccountBulkTestActivateService_Execute_ManualDetachedFromCallerContext(
 	require.Contains(t, telegram.lastMessage(), "已处理：1")
 }
 
-func TestAccountBulkTestActivateService_Execute_SuppressesAccountTestStatusMutation(t *testing.T) {
+func TestAccountBulkTestActivateService_Execute_PreservesAccountTestStatusMutation(t *testing.T) {
 	accountRepo := &accountRepoStubForBulkTestActivate{
 		accountsByID: map[int64]*Account{
 			1: {ID: 1, Status: StatusActive},
@@ -221,8 +243,8 @@ func TestAccountBulkTestActivateService_Execute_SuppressesAccountTestStatusMutat
 	accountTestSvc := &accountTestServiceStubForBulkTestActivate{
 		runFn: func(ctx context.Context, accountID int64, modelID string) (*ScheduledTestResult, error) {
 			require.Equal(t, int64(1), accountID)
-			require.Equal(t, accountBulkTestActivateDefaultModel, modelID)
-			require.True(t, accountTestShouldSuppressStatusMutation(ctx))
+			require.Equal(t, "gpt-5.6-sol", modelID)
+			require.False(t, accountTestShouldSuppressStatusMutation(ctx))
 			return &ScheduledTestResult{Status: "failed", ErrorMessage: "Authentication failed (401): token_invalidated"}, nil
 		},
 	}
@@ -233,6 +255,23 @@ func TestAccountBulkTestActivateService_Execute_SuppressesAccountTestStatusMutat
 	require.NoError(t, err)
 	require.Equal(t, 1, summary.Failed)
 	require.Empty(t, accountRepo.bulkUpdates)
+}
+
+func TestAccountBulkTestActivateService_Execute_RecoversSuccessfulAccounts(t *testing.T) {
+	accountRepo := &accountRepoStubForBulkTestActivate{
+		accountsByID: map[int64]*Account{1: {ID: 1, Status: StatusError}},
+	}
+	accountTestSvc := &accountTestServiceStubForBulkTestActivate{
+		results: map[int64]*ScheduledTestResult{1: {Status: "success"}},
+	}
+	recoverer := &accountBulkTestActivateRecoveryStub{}
+	svc := NewAccountBulkTestActivateService(accountRepo, accountTestSvc, nil, nil)
+	svc.rateLimitRecovery = recoverer
+
+	summary, err := svc.Execute(context.Background(), []int64{1}, AccountBulkTestActivateTriggerManual)
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Success)
+	require.Equal(t, []int64{1}, recoverer.accountIDs)
 }
 
 func TestAccountBulkTestActivateService_Execute_SkipsSoftDeletedAndFailsMissingIDs(t *testing.T) {
@@ -471,6 +510,15 @@ type accountTestServiceStubForBulkTestActivate struct {
 	runFn           func(ctx context.Context, accountID int64, modelID string) (*ScheduledTestResult, error)
 	called          []int64
 	callCounts      map[int64]int
+}
+
+type accountBulkTestActivateRecoveryStub struct {
+	accountIDs []int64
+}
+
+func (s *accountBulkTestActivateRecoveryStub) RecoverAccountAfterSuccessfulTest(_ context.Context, accountID int64) (*SuccessfulTestRecoveryResult, error) {
+	s.accountIDs = append(s.accountIDs, accountID)
+	return &SuccessfulTestRecoveryResult{}, nil
 }
 
 func (s *accountTestServiceStubForBulkTestActivate) RunTestBackground(ctx context.Context, accountID int64, modelID string) (*ScheduledTestResult, error) {
