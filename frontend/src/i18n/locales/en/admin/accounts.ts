@@ -1170,7 +1170,7 @@ export default {
       "grokLastHeadersSeen": "Headers {time}",
       "passiveSampled": "Passive",
       "activeQuery": "Query",
-      "grokFreeQuota24hHint": "Estimated from local token usage over the rolling 24-hour window (2M limit)",
+      "grokFreeQuota24hHint": "Estimated from local token usage over the rolling 24-hour window ({limit} limit)",
       "grokWeeklyUsage": "Weekly {percent}%"
     },
     "openaiQuotaReset": {
@@ -1266,6 +1266,10 @@ export default {
     "duplicateAccount": "Duplicate Account",
     "duplicateSuccess": "Account duplicated as \"{name}\" and paused. Review its credentials before enabling it.",
     "duplicateFailed": "Failed to duplicate account",
+    "grokClientToolCache": {
+      "title": "Client Tool Cache (May Change Automatic Tool Selection)",
+      "hint": "For detected Grok Free OAuth accounts, this is enabled by default for client function tools such as Codex and Trae. Turn it off to opt out if the automatic tool-selection behavior is not acceptable."
+    },
     "grokCustomBaseUrl": {
       "title": "Custom Upstream URL",
       "hint": "When enabled, account traffic (chat/media/probes) is forwarded to the specified address. OAuth authorization and token refresh are unaffected and stay on the official endpoints.",

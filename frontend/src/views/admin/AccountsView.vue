@@ -109,12 +109,11 @@
               <!-- Column Settings Dropdown -->
               <div class="relative" ref="columnDropdownRef">
                 <button
-                  @click="
-                    showColumnDropdown = !showColumnDropdown;
-                    showAutoRefreshDropdown = false;
-                  "
+                  ref="columnDropdownTriggerRef"
+                  @click="toggleColumnDropdown"
                   class="btn btn-secondary px-2 md:px-3"
                   :title="t('admin.accounts.moreActions')"
+                  :aria-expanded="showColumnDropdown"
                 >
                   <svg
                     class="h-4 w-4 md:mr-1.5"
@@ -133,11 +132,14 @@
                     t("admin.users.columnSettings")
                   }}</span>
                 </button>
-                <div
-                  v-if="showColumnDropdown"
-                  class="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] origin-top-right overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
-                >
-                  <div class="max-h-80 overflow-y-auto p-2">
+                <Teleport to="body">
+                  <div
+                    v-if="showColumnDropdown"
+                    class="fixed z-[9999] origin-top-right overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-dark-700 dark:bg-dark-800"
+                    :style="columnDropdownStyle"
+                    @click.stop
+                  >
+                    <div class="overflow-y-auto p-2" :style="{ maxHeight: `${columnDropdownPosition.maxHeight}px` }">
                     <button class="account-tools-menu-item" @click="openSyncFromCrs">
                       <span class="account-tools-menu-icon bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
                         <Icon name="sync" size="sm" />
@@ -239,8 +241,9 @@
                         <Icon v-if="isColumnVisible(col.key)" name="check" size="sm" class="text-primary-500" />
                       </button>
                     </div>
+                    </div>
                   </div>
-                </div>
+                </Teleport>
               </div>
             </template>
             <template #beforeCreate>
@@ -844,6 +847,7 @@ import { extractApiErrorMessage } from "@/utils/apiError";
 import { formatDateTime, formatRelativeTime } from "@/utils/format";
 import { proxyExpiryBadgeClass, proxyExpiryLabelKey } from "@/utils/proxyExpiry";
 import { sanitizeUrl } from "@/utils/url";
+import { getFloatingPanelPosition } from "@/utils/floatingPanel";
 import type {
   Account,
   AccountPlatform,
@@ -955,6 +959,20 @@ useIntervalFn(() => { upstreamBillingNow.value = Date.now(); }, 60_000);
 const showColumnDropdown = ref(false)
 const showAccountToolsDropdown = ref(false)
 const columnDropdownRef = ref<HTMLElement | null>(null)
+const columnDropdownTriggerRef = ref<HTMLElement | null>(null)
+const columnDropdownPosition = reactive({
+  top: null as number | null,
+  bottom: null as number | null,
+  left: 16,
+  width: 320,
+  maxHeight: 0,
+})
+const columnDropdownStyle = computed(() => ({
+  top: columnDropdownPosition.top == null ? "auto" : `${columnDropdownPosition.top}px`,
+  bottom: columnDropdownPosition.bottom == null ? "auto" : `${columnDropdownPosition.bottom}px`,
+  left: `${columnDropdownPosition.left}px`,
+  width: `${columnDropdownPosition.width}px`,
+}))
 const hiddenColumns = reactive<Set<string>>(new Set())
 const DEFAULT_HIDDEN_COLUMNS = ['today_stats', 'proxy', 'notes', 'priority', 'scheduler_score', 'rate_multiplier']
 const HIDDEN_COLUMNS_KEY = 'account-hidden-columns'
@@ -1549,7 +1567,29 @@ const handleManualRefresh = async () => {
 };
 
 const closeAccountToolsDropdown = () => {
+  showColumnDropdown.value = false
   showAccountToolsDropdown.value = false
+}
+
+const updateColumnDropdownPosition = () => {
+  const trigger = columnDropdownTriggerRef.value
+  if (!trigger) return
+
+  Object.assign(
+    columnDropdownPosition,
+    getFloatingPanelPosition(
+      trigger.getBoundingClientRect(),
+      document.documentElement.clientWidth || window.innerWidth,
+      window.innerHeight,
+    ),
+  )
+}
+
+const toggleColumnDropdown = () => {
+  const nextVisible = !showColumnDropdown.value
+  showAutoRefreshDropdown.value = false
+  if (nextVisible) updateColumnDropdownPosition()
+  showColumnDropdown.value = nextVisible
 }
 
 const openSyncFromCrs = () => {
@@ -2854,9 +2894,14 @@ const isExpired = (value: number | null) => {
   return value * 1000 <= Date.now();
 };
 
-// 滚动时关闭操作菜单（不关闭列设置下拉菜单）
+// 滚动时关闭行操作菜单，并让顶部工具菜单继续贴紧触发按钮。
 const handleScroll = () => {
   menu.show = false;
+  if (showColumnDropdown.value) updateColumnDropdownPosition();
+};
+
+const handleViewportResize = () => {
+  if (showColumnDropdown.value) updateColumnDropdownPosition();
 };
 
 // 点击外部关闭顶部下拉菜单
@@ -2889,6 +2934,7 @@ onMounted(async () => {
     console.error("Failed to load proxies/groups/ip options:", error);
   }
   window.addEventListener("scroll", handleScroll, true);
+  window.addEventListener("resize", handleViewportResize);
   document.addEventListener("click", handleClickOutside);
 
   if (autoRefreshEnabled.value) {
@@ -2901,6 +2947,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener("scroll", handleScroll, true);
+  window.removeEventListener("resize", handleViewportResize);
   document.removeEventListener("click", handleClickOutside);
 });
 </script>

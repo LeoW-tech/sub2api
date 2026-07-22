@@ -332,7 +332,7 @@ export default {
       "grokLastHeadersSeen": "响应头 {time}",
       "passiveSampled": "被动采样",
       "activeQuery": "查询",
-      "grokFreeQuota24hHint": "按 sub2api 近 24 小时本地 Token 用量估算（上限 2M）",
+      "grokFreeQuota24hHint": "按 sub2api 近 24 小时本地 Token 用量估算（上限 {limit}）",
       "grokWeeklyUsage": "周额度已用 {percent}%"
     },
     "openaiQuotaReset": {
@@ -1306,6 +1306,10 @@ export default {
     "duplicateAccount": "复制账号",
     "duplicateSuccess": "账号已复制为「{name}」，已暂停调度，请确认凭据后再启用",
     "duplicateFailed": "复制账号失败",
+    "grokClientToolCache": {
+      "title": "客户端工具缓存（可能改变自动工具选择）",
+      "hint": "仅对已识别为 Free 的 Grok OAuth 账号生效，默认会为 Codex、Trae 等客户端函数工具请求启用上游提示缓存；如不接受自动工具选择行为，可关闭此开关退出。"
+    },
     "grokCustomBaseUrl": {
       "title": "自定义上游地址",
       "hint": "开启后账号流量（对话/媒体/探测）改发指定地址；OAuth 授权与令牌刷新不受影响，仍走官方端点。",

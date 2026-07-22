@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 	"time"
 
@@ -44,12 +43,11 @@ func TestOpsAccountAvailabilityCountsQuotaLimitedSeparately(t *testing.T) {
 			},
 		})
 	}
-	settings, _ := json.Marshal(OpsAdvancedSettings{OpenAIAccountQuotaAutoPause: OpsOpenAIAccountQuotaAutoPauseSettings{DefaultThreshold5h: 0.95}})
 	svc := &OpsService{
 		cfg:         &config.Config{Ops: config.OpsConfig{Enabled: true}},
 		accountRepo: opsAvailabilityAccountRepoStub{accounts: accounts},
-		settingRepo: &fakeSettingRepo{vals: map[string]string{SettingKeyOpsAdvancedSettings: string(settings)}},
 	}
+	svc.storeAdvancedSettingsSnapshot(&OpsAdvancedSettings{OpenAIAccountQuotaAutoPause: OpsOpenAIAccountQuotaAutoPauseSettings{DefaultThreshold5h: 0.95}})
 
 	platform, _, account, _, err := svc.GetAccountAvailabilityStats(context.Background(), PlatformOpenAI, nil)
 	require.NoError(t, err)
@@ -66,7 +64,6 @@ func TestOpsAccountAvailabilityCountsQuotaLimitedSeparately(t *testing.T) {
 func TestOpsAccountAvailabilityRateLimitWinsQuotaCount(t *testing.T) {
 	now := time.Now().UTC()
 	rateReset := now.Add(30 * time.Minute)
-	settings, _ := json.Marshal(OpsAdvancedSettings{OpenAIAccountQuotaAutoPause: OpsOpenAIAccountQuotaAutoPauseSettings{DefaultThreshold7d: 0.95}})
 	svc := &OpsService{
 		cfg: &config.Config{Ops: config.OpsConfig{Enabled: true}},
 		accountRepo: opsAvailabilityAccountRepoStub{accounts: []Account{{
@@ -82,8 +79,8 @@ func TestOpsAccountAvailabilityRateLimitWinsQuotaCount(t *testing.T) {
 				"codex_7d_reset_at":     now.Add(48 * time.Hour).Format(time.RFC3339),
 			},
 		}}},
-		settingRepo: &fakeSettingRepo{vals: map[string]string{SettingKeyOpsAdvancedSettings: string(settings)}},
 	}
+	svc.storeAdvancedSettingsSnapshot(&OpsAdvancedSettings{OpenAIAccountQuotaAutoPause: OpsOpenAIAccountQuotaAutoPauseSettings{DefaultThreshold7d: 0.95}})
 
 	platform, _, account, _, err := svc.GetAccountAvailabilityStats(context.Background(), PlatformOpenAI, nil)
 	require.NoError(t, err)

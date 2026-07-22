@@ -69,6 +69,7 @@ export default {
       "runtimeConfigReset": "Reset to startup log configuration",
       "runtimeConfigResetFailed": "Failed to reset log configuration",
       "cleanupConfirm": "Clean up system logs matching the current filters? This cannot be undone.",
+      "cleanupFilterRequired": "Cleanup requires at least one filter condition (start/end time or another field)",
       "cleanupSuccess": "Cleanup complete. Deleted {count} log entries.",
       "cleanupFailed": "Failed to clean up system logs",
       "host": "Host"

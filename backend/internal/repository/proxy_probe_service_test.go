@@ -62,6 +62,7 @@ func (s *ProxyProbeServiceSuite) TestProbeURLsPreferChatGPTCodexResponses() {
 		require.NotContains(s.T(), probe.url, "api.openai.com/v1/models")
 		require.NotContains(s.T(), probe.url, "ip-api.com")
 		require.NotContains(s.T(), probe.url, "httpbin.org")
+		require.NotContains(s.T(), probe.url, "api64.ipify.org")
 	}
 }
 
@@ -84,9 +85,8 @@ func (s *ProxyProbeServiceSuite) TestProbeProxy_Success_ChatGPTCodexReachability
 
 func (s *ProxyProbeServiceSuite) TestProbeProxy_DoesNotUsePublicIPProbeFallback() {
 	s.setupTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.RequestURI, "ip-api.com") || strings.Contains(r.RequestURI, "httpbin.org") {
+		if strings.Contains(r.RequestURI, "ip-api.com") || strings.Contains(r.RequestURI, "httpbin.org") || strings.Contains(r.RequestURI, "api64.ipify.org") {
 			w.WriteHeader(http.StatusOK)
-			_, _ = io.WriteString(w, `{"origin": "5.6.7.8"}`)
 			return
 		}
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -96,6 +96,7 @@ func (s *ProxyProbeServiceSuite) TestProbeProxy_DoesNotUsePublicIPProbeFallback(
 	require.Error(s.T(), err)
 	require.NotContains(s.T(), err.Error(), "httpbin.org")
 	require.NotContains(s.T(), err.Error(), "ip-api.com")
+	require.NotContains(s.T(), err.Error(), "api64.ipify.org")
 }
 
 func (s *ProxyProbeServiceSuite) TestProbeProxy_AllFailed() {
@@ -204,17 +205,17 @@ func (s *ProxyProbeServiceSuite) TestParseIPAPI_Failure() {
 	require.ErrorContains(s.T(), err, "rate limited")
 }
 
-func (s *ProxyProbeServiceSuite) TestParseHTTPBin_Success() {
-	body := []byte(`{"origin": "9.8.7.6"}`)
-	info, latencyMs, err := s.prober.parseHTTPBin(body, 50)
+func (s *ProxyProbeServiceSuite) TestParseIPify_Success() {
+	body := []byte(`{"ip": "2001:db8::1"}`)
+	info, latencyMs, err := s.prober.parseIPify(body, 50)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), int64(50), latencyMs)
-	require.Equal(s.T(), "9.8.7.6", info.IP)
+	require.Equal(s.T(), "2001:db8::1", info.IP)
 }
 
-func (s *ProxyProbeServiceSuite) TestParseHTTPBin_NoIP() {
-	body := []byte(`{"origin": ""}`)
-	_, _, err := s.prober.parseHTTPBin(body, 50)
+func (s *ProxyProbeServiceSuite) TestParseIPify_NoIP() {
+	body := []byte(`{"ip": ""}`)
+	_, _, err := s.prober.parseIPify(body, 50)
 	require.Error(s.T(), err)
 	require.ErrorContains(s.T(), err, "no IP found")
 }
