@@ -545,6 +545,8 @@ export default {
       "cancelRateLimitWindowModeFixed": "Fixed",
       "alipayForceQRCode": "Force Alipay QR Code",
       "alipayForceQRCodeHint": "When enabled, mobile Alipay users always see a QR code instead of being redirected to the mobile payment page",
+      "alipayMobilePrecreateDeepLink": "Mobile Alipay Precreate Handoff",
+      "alipayMobilePrecreateDeepLinkHint": "Use official Alipay precreate on mobile, open the Alipay app, and show the dynamic QR only if handoff fails. This takes priority over Force Alipay QR Code",
       "helpText": "Help Text",
       "helpImageUrl": "Help Image URL",
       "manageProviders": "Manage Providers",
@@ -642,7 +644,7 @@ export default {
       "guideOpenLabel": "Enable: ",
       "guideCallLabel": "Call: ",
       "guideFallbackLabel": "Fallback: ",
-      "alipayGuideSummary": "Desktop prefers QR precreate and falls back to cashier; mobile prefers WAP checkout.",
+      "alipayGuideSummary": "Desktop prefers QR precreate and falls back to cashier; mobile defaults to WAP checkout and can opt into precreate handoff.",
       "alipayGuideFaceToFaceTitle": "Face-to-face / QR Payment",
       "alipayGuideFaceToFaceOpen": "Enable face-to-face or QR payment capability.",
       "alipayGuideFaceToFaceCall": "Desktop orders call alipay.trade.precreate first and render the QR code directly.",
@@ -653,7 +655,7 @@ export default {
       "alipayGuidePagePayFallback": "The cashier link stays available so users can reopen the checkout page manually.",
       "alipayGuideWapTitle": "WAP Payment",
       "alipayGuideWapOpen": "Enable mobile website payment.",
-      "alipayGuideWapCall": "Mobile orders call alipay.trade.wap.pay first and jump to Alipay checkout.",
+      "alipayGuideWapCall": "By default mobile orders call alipay.trade.wap.pay; enabling the mobile precreate handoff switches to alipay.trade.precreate.",
       "alipayGuideWapFallback": "If mobile payment is unavailable or fails, the frontend switches to QR payment and shows a notice.",
       "wxpayGuideSummary": "Desktop prefers Native QR; mobile routes to JSAPI or H5 based on browser context.",
       "wxpayGuideNote": "The current form defaults to one shared App ID, which fits the common single-subject web, mobile, and Official Account setup.",
@@ -1153,6 +1155,16 @@ export default {
       "intervalHint": "Range: 5–1440 minutes. A successful result remains valid for two detection intervals.",
       "saved": "Upstream rate auto detection settings saved",
       "saveFailed": "Failed to save upstream rate auto detection settings"
+    },
+    "ollamaCloudUsage": {
+      "title": "Ollama Cloud Usage Refresh",
+      "description": "Periodically refresh official Ollama settings-page usage for individually opted-in accounts. Disabled by default.",
+      "enabled": "Enable global automatic refresh",
+      "enabledHint": "Only accounts with a stored browser session and their own automatic refresh switch enabled are refreshed. Manual refresh remains available.",
+      "intervalMinutes": "Refresh interval (minutes)",
+      "intervalHint": "Range: 15–1440 minutes. Failures use bounded exponential backoff.",
+      "saved": "Ollama Cloud usage refresh settings saved",
+      "saveFailed": "Failed to save Ollama Cloud usage refresh settings"
     }
   },
   "errorPassthrough": {

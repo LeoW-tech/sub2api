@@ -637,9 +637,16 @@ func normalizeOpenAIPassthroughInputForChatGPTInternal(body []byte) ([]byte, boo
 	if input.Type == gjson.String {
 		text := strings.TrimSpace(input.String())
 		if text == "" {
-			return body, false, nil
+			return setOpenAIPassthroughInput(body, []any{})
 		}
 		return setOpenAIPassthroughInput(body, []any{openAIChatGPTInternalTextMessage(input.String())})
+	}
+	if input.Type == gjson.JSON && !input.IsArray() {
+		var item any
+		if err := json.Unmarshal([]byte(input.Raw), &item); err != nil {
+			return body, false, fmt.Errorf("normalize passthrough body input object parse: %w", err)
+		}
+		return setOpenAIPassthroughInput(body, []any{item})
 	}
 	if !input.IsArray() {
 		return body, false, nil

@@ -562,6 +562,8 @@ func ProvideAdminService(
 	runtimeBlocker AccountRuntimeBlocker,
 	initialProbeSvc *AccountInitialProbeService,
 	affiliateService *AffiliateService,
+	compositeRouteRepo CompositeModelRouteRepository,
+	compositeRouteResolver *CompositeRouteResolver,
 ) AdminService {
 	svc := NewAdminService(
 		userRepo,
@@ -584,6 +586,8 @@ func ProvideAdminService(
 		concurrencyService,
 		runtimeBlocker,
 		affiliateService,
+		compositeRouteRepo,
+		compositeRouteResolver,
 	)
 	if impl, ok := svc.(*adminServiceImpl); ok {
 		impl.SetInitialProbeEnqueuer(initialProbeSvc)
@@ -785,6 +789,7 @@ var ProviderSet = wire.NewSet(
 	ProvideAPIKeyAuthCacheInvalidator,
 	ProvideAuthCacheInvalidationWorker,
 	NewGroupService,
+	NewCompositeRouteResolver,
 	NewAccountService,
 	NewProxyService,
 	NewRedeemService,
@@ -829,6 +834,7 @@ var ProviderSet = wire.NewSet(
 	ProvideAccountUsageService,
 	ProvideAccountTestService,
 	ProvideUpstreamBillingProbeService,
+	ProvideOllamaCloudUsageService,
 	ProvideSettingService,
 	ProvideTelegramNotificationService,
 	ProvideAccountBulkTestActivateService,

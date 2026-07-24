@@ -24,6 +24,8 @@ const {
   getBetaPolicySettings,
   getUpstreamBillingProbeSettings,
   updateUpstreamBillingProbeSettings,
+  getOllamaCloudUsageSettings,
+  updateOllamaCloudUsageSettings,
   getGroups,
   listProxies,
   getProviders,
@@ -57,6 +59,11 @@ const {
     interval_minutes: 30,
   }),
   updateUpstreamBillingProbeSettings: vi.fn().mockImplementation(async (payload) => payload),
+  getOllamaCloudUsageSettings: vi.fn().mockResolvedValue({
+    enabled: false,
+    interval_minutes: 60,
+  }),
+  updateOllamaCloudUsageSettings: vi.fn().mockImplementation(async (payload) => payload),
   getGroups: vi.fn(),
   listProxies: vi.fn(),
   getProviders: vi.fn(),
@@ -90,6 +97,8 @@ vi.mock("@/api", () => ({
     accounts: {
       getUpstreamBillingProbeSettings,
       updateUpstreamBillingProbeSettings,
+      getOllamaCloudUsageSettings,
+      updateOllamaCloudUsageSettings,
     },
     groups: {
       getAll: getGroups,
@@ -785,6 +794,8 @@ describe("admin SettingsView payment visible method controls", () => {
     getBetaPolicySettings.mockReset();
     getUpstreamBillingProbeSettings.mockReset();
     updateUpstreamBillingProbeSettings.mockReset();
+    getOllamaCloudUsageSettings.mockReset();
+    updateOllamaCloudUsageSettings.mockReset();
     getGroups.mockReset();
     listProxies.mockReset();
     getProviders.mockReset();
@@ -845,6 +856,11 @@ describe("admin SettingsView payment visible method controls", () => {
       interval_minutes: 30,
     });
     updateUpstreamBillingProbeSettings.mockImplementation(async (payload) => payload);
+    getOllamaCloudUsageSettings.mockResolvedValue({
+      enabled: false,
+      interval_minutes: 60,
+    });
+    updateOllamaCloudUsageSettings.mockImplementation(async (payload) => payload);
     getGroups.mockResolvedValue([]);
     listProxies.mockResolvedValue({
       items: [],
@@ -1186,6 +1202,31 @@ describe("admin SettingsView payment visible method controls", () => {
       interval_minutes: 60,
     });
     expect(showSuccess).toHaveBeenCalledWith("上游倍率自动探测设置已保存");
+  });
+
+  it("loads fail-safe-off Ollama Cloud usage refresh settings and saves an explicit opt-in", async () => {
+    const wrapper = mountView();
+
+    await flushPromises();
+    await openGatewayTab(wrapper);
+
+    const card = wrapper.get('[data-testid="ollama-cloud-usage-global-settings"]');
+    expect(card.isVisible()).toBe(true);
+    expect(
+      (card.get('[data-testid="ollama-cloud-usage-global-enabled"]').element as HTMLInputElement)
+        .checked,
+    ).toBe(false);
+    expect(card.find('[data-testid="ollama-cloud-usage-global-interval"]').exists()).toBe(false);
+
+    await card.get('[data-testid="ollama-cloud-usage-global-enabled"]').setValue(true);
+    await card.get('[data-testid="ollama-cloud-usage-global-interval"]').setValue(90);
+    await card.get('[data-testid="ollama-cloud-usage-global-save"]').trigger("click");
+    await flushPromises();
+
+    expect(updateOllamaCloudUsageSettings).toHaveBeenCalledWith({
+      enabled: true,
+      interval_minutes: 90,
+    });
   });
 
   it("places and explains rate controls for both scheduling modes", async () => {
