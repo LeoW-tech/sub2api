@@ -102,19 +102,20 @@ runtime/
   只镜像 `upstream/main`，禁止直接开发
 - `feature/*`
   日常功能开发分支，从 `main` 切出
-- `sync/upstream-YYYYMMDD`
-  同步上游时的临时分支，从 `main` 切出并合入 `upstream-main`
+- `sync/upstream-YYYYMMDD[-vX.Y.Z]`
+  同步上游时的临时分支，从 `main` 切出，合入指定的上游基准后，经验证再合回 `main`。上游基准可以是 `upstream-main`，也可以是任务明确指定的 tag/release 对应提交。
 
 工作规则：
 
 - 不要在 `upstream-main` 上开发
 - 尽量不要直接在 `main` 上做功能开发
 - 新功能优先从 `main` 切 `feature/*`
-- 跟上游同步时，使用统一脚本，不要手动设计新的同步流程
+- 常规跟随 `upstream/main` 时，使用统一脚本更新 `upstream-main` 并创建同步分支；任务明确指定 tag/release 时，以该 tag 对应提交作为同步基准，仍复用既有同步、验证和提交流程
 
 ## 冲突处理原则
 
 - 适用范围包括 `main` 与 `upstream-main` 的同步合并、`sync/upstream-*` 分支上的冲突处理，以及同类的 `merge`、`cherry-pick`、`revert` 冲突。
+- 任务明确指定 tag/release 时，同步范围和冲突判断以上述 tag 对应提交为准；除非用户明确要求，不自动吸收该 tag 之后 `upstream/main` 的提交。
 - 本地已有且仍需保留的定制功能，如果上游本次更新没有覆盖该能力，冲突时优先保留本地定制。
 - 如果本地定制对应的能力，上游本次更新已经实现、吸收或以新的结构重构覆盖，冲突时以上游实现为准，再按需重新评估是否补回少量仍然必要的本地差异。
 - 如果无法明确判断两边是否属于同一能力，或无法确认取舍后是否会影响当前运行面与既有行为，就停止自动处理，保留冲突点，等待人工裁定。
