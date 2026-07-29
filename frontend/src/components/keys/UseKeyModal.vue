@@ -51,65 +51,6 @@
           </nav>
         </div>
 
-        <!-- Codex Authentication Mode -->
-        <div
-          v-if="showCodexAuthMode"
-          class="rounded-lg border border-gray-200 p-3 dark:border-dark-700"
-        >
-          <div class="mb-2">
-            <p class="text-sm font-medium text-gray-900 dark:text-white">
-              {{ t('keys.useKeyModal.openai.authModeTitle') }}
-            </p>
-            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              {{ t('keys.useKeyModal.openai.authModeDescription') }}
-            </p>
-          </div>
-          <div
-            class="grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-1 dark:bg-dark-700"
-            role="radiogroup"
-            :aria-label="t('keys.useKeyModal.openai.authModeTitle')"
-          >
-            <button
-              type="button"
-              role="radio"
-              data-testid="codex-auth-mode-legacy"
-              :aria-checked="codexAuthMode === 'legacy'"
-              :class="[
-                'rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                codexAuthMode === 'legacy'
-                  ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
-                  : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
-              ]"
-              @click="codexAuthMode = 'legacy'"
-            >
-              {{ t('keys.useKeyModal.openai.authModeLegacy') }}
-            </button>
-            <button
-              type="button"
-              role="radio"
-              data-testid="codex-auth-mode-api-key"
-              :aria-checked="codexAuthMode === 'api-key'"
-              :class="[
-                'rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                codexAuthMode === 'api-key'
-                  ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
-                  : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
-              ]"
-              @click="codexAuthMode = 'api-key'"
-            >
-              {{ t('keys.useKeyModal.openai.authModeApiKey') }}
-            </button>
-          </div>
-          <div
-            v-if="codexAuthMode === 'api-key'"
-            data-testid="codex-api-key-restart-notice"
-            class="mt-3 flex items-start gap-2 border-l-2 border-amber-400 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-500 dark:bg-amber-950/30 dark:text-amber-200"
-          >
-            <Icon name="exclamationCircle" size="sm" class="mt-0.5 flex-shrink-0" />
-            <p>{{ t('keys.useKeyModal.openai.authModeApiKeyRestartNotice') }}</p>
-          </div>
-        </div>
-
         <template v-if="isOpenAICodex">
           <!-- Beginner one-command setup -->
           <section class="rounded-xl border border-primary-200 dark:border-primary-800 bg-primary-50/60 dark:bg-primary-900/10 p-4 space-y-4">
@@ -435,7 +376,6 @@ interface Props {
   apiKey: string
   baseUrl: string
   platform: GroupPlatform | null
-  allowMessagesDispatch?: boolean
 }
 
 interface Emits {
@@ -464,8 +404,6 @@ const { copyToClipboard: clipboardCopy } = useClipboard()
 const copiedIndex = ref<number | null>(null)
 const activeTab = ref<string>('unix')
 const activeClientTab = ref<string>('claude')
-type CodexAuthMode = 'legacy' | 'api-key'
-const codexAuthMode = ref<CodexAuthMode>('legacy')
 
 // Reset tabs when platform changes
 const defaultClientTab = computed(() => {
@@ -486,14 +424,7 @@ const defaultClientTab = computed(() => {
 watch(() => props.platform, () => {
   activeTab.value = 'unix'
   activeClientTab.value = defaultClientTab.value
-  codexAuthMode.value = 'legacy'
 }, { immediate: true })
-
-watch(() => props.show, (show) => {
-  if (show) {
-    codexAuthMode.value = 'legacy'
-  }
-})
 
 // Reset shell tab when client changes
 watch(activeClientTab, () => {
@@ -566,17 +497,8 @@ const SparkleIcon = {
 const clientTabs = computed((): TabConfig[] => {
   if (!props.platform) return []
   switch (props.platform) {
-    case 'openai': {
-      const tabs: TabConfig[] = [
-        { id: 'codex', label: t('keys.useKeyModal.cliTabs.codexCli'), icon: TerminalIcon },
-        { id: 'codex-ws', label: t('keys.useKeyModal.cliTabs.codexCliWs'), icon: TerminalIcon }
-      ]
-      if (props.allowMessagesDispatch) {
-        tabs.push({ id: 'claude', label: t('keys.useKeyModal.cliTabs.claudeCode'), icon: TerminalIcon })
-      }
-      tabs.push({ id: 'opencode', label: t('keys.useKeyModal.cliTabs.opencode'), icon: TerminalIcon })
-      return tabs
-    }
+    case 'openai':
+      return []
     case 'gemini':
       return [
         { id: 'gemini', label: t('keys.useKeyModal.cliTabs.geminiCli'), icon: SparkleIcon },
@@ -616,14 +538,9 @@ const openaiTabs: TabConfig[] = [
   { id: 'windows', label: 'Windows', icon: WindowsIcon }
 ]
 
-const isOpenAICodex = computed(() => props.platform === 'openai' && activeClientTab.value === 'codex')
+const isOpenAICodex = computed(() => props.platform === 'openai')
 
 const showShellTabs = computed(() => !isOpenAICodex.value && activeClientTab.value !== 'opencode')
-
-const showCodexAuthMode = computed(() =>
-  props.platform === 'openai' &&
-  (activeClientTab.value === 'codex' || activeClientTab.value === 'codex-ws')
-)
 
 const currentTabs = computed(() => {
   if (!showShellTabs.value) return []
@@ -636,9 +553,6 @@ const currentTabs = computed(() => {
 const platformDescription = computed(() => {
   switch (props.platform) {
     case 'openai':
-      if (activeClientTab.value === 'claude') {
-        return t('keys.useKeyModal.description')
-      }
       return t('keys.useKeyModal.openai.description')
     case 'gemini':
       return t('keys.useKeyModal.gemini.description')
@@ -660,9 +574,6 @@ const platformDescription = computed(() => {
 const platformNote = computed(() => {
   switch (props.platform) {
     case 'openai':
-      if (activeClientTab.value === 'claude') {
-        return t('keys.useKeyModal.note')
-      }
       return activeTab.value === 'windows'
         ? t('keys.useKeyModal.openai.noteWindows')
         : t('keys.useKeyModal.openai.note')
@@ -812,12 +723,6 @@ const currentFiles = computed((): FileConfig[] => {
 
   switch (props.platform) {
     case 'openai':
-      if (activeClientTab.value === 'claude') {
-        return generateAnthropicFiles(baseUrl, apiKey)
-      }
-      if (activeClientTab.value === 'codex-ws') {
-        return generateOpenAIWsFiles(baseUrl, apiKey)
-      }
       return generateOpenAIFiles(baseUrl, apiKey)
     case 'gemini':
       return [generateGeminiCliContent(baseUrl, apiKey)]
@@ -1012,7 +917,7 @@ windows_wsl_setup_acknowledged = true
 name = "OpenAI"
 base_url = "${baseUrl}"
 wire_api = "responses"
-${generateCodexProviderAuthConfig()}
+requires_openai_auth = true
 
 [features]
 goals = true`
@@ -1033,15 +938,6 @@ goals = true`
       content: authContent
     }
   ]
-}
-
-function generateCodexProviderAuthConfig(): string {
-  if (codexAuthMode.value === 'api-key') {
-    return `requires_openai_auth = false
-http_headers = { "x-openai-actor-authorization" = "local-image-extension" }`
-  }
-
-  return 'requires_openai_auth = true'
 }
 
 function generateGrokFiles(baseUrl: string, apiKey: string): FileConfig[] {
@@ -1100,48 +996,6 @@ responses_websockets_v2 = true`
     {
       path: isWindows ? 'PowerShell' : 'Terminal',
       content: environmentContent
-    }
-  ]
-}
-
-function generateOpenAIWsFiles(baseUrl: string, apiKey: string): FileConfig[] {
-  const isWindows = activeTab.value === 'windows'
-  const configDir = isWindows ? '%userprofile%\\.codex' : '~/.codex'
-
-  // config.toml content with WebSocket v2
-  const configContent = `model_provider = "OpenAI"
-model = "gpt-5.5"
-review_model = "gpt-5.5"
-model_reasoning_effort = "xhigh"
-disable_response_storage = true
-network_access = "enabled"
-windows_wsl_setup_acknowledged = true
-
-[model_providers.OpenAI]
-name = "OpenAI"
-base_url = "${baseUrl}"
-wire_api = "responses"
-supports_websockets = true
-${generateCodexProviderAuthConfig()}
-
-[features]
-responses_websockets_v2 = true
-goals = true`
-
-  // auth.json content
-  const authContent = `{
-  "OPENAI_API_KEY": "${apiKey}"
-}`
-
-  return [
-    {
-      path: `${configDir}/config.toml`,
-      content: configContent,
-      hint: t('keys.useKeyModal.openai.configTomlHint')
-    },
-    {
-      path: `${configDir}/auth.json`,
-      content: authContent
     }
   ]
 }
