@@ -268,8 +268,9 @@ describe('UseKeyModal', () => {
     const configToml = codeBlocks.find((content) => content.includes('model_provider = "OpenAI"'))
 
     expect(configToml).toBeDefined()
-    expect(configToml).toContain('model = "gpt-5.5"')
-    expect(configToml).toContain('review_model = "gpt-5.5"')
+    expect(configToml).toContain('model = "gpt-5.6-sol"')
+    expect(configToml).toContain('review_model = "gpt-5.6-sol"')
+    expect(configToml).not.toContain('gpt-5.5')
     expect(configToml).not.toContain('model = "gpt-5.4"')
     expect(configToml).not.toContain('model_context_window')
     expect(configToml).not.toContain('model_auto_compact_token_limit')
@@ -412,6 +413,8 @@ describe('UseKeyModal', () => {
     const copiedCommand = String(copyToClipboardMock.mock.calls[0]?.[0] ?? '')
     expect(copiedCommand).toContain('https://chatgpt.com/zh-Hans-CN/download/')
     expect(copiedCommand).toContain('https://t3.znas.cn/H0ogPWjF07')
+    expect(copiedCommand).toContain('model = "gpt-5.6-sol"')
+    expect(copiedCommand).not.toContain('model = "gpt-5.5"')
     expect(copiedCommand).not.toContain('https://chatgpt.com/codex/for-work/')
   })
 
@@ -449,6 +452,8 @@ describe('UseKeyModal', () => {
     const copiedCommand = String(copyToClipboardMock.mock.calls[0]?.[0] ?? '')
     expect(copiedCommand).toContain('https://chatgpt.com/zh-Hans-CN/download/')
     expect(copiedCommand).toContain('https://t3.znas.cn/H0ogPWjF07')
+    expect(copiedCommand).toContain('model = "gpt-5.6-sol"')
+    expect(copiedCommand).not.toContain('model = "gpt-5.5"')
     expect(copiedCommand).not.toContain('https://chatgpt.com/codex/for-work/')
   })
 

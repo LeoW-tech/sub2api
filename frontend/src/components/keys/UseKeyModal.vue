@@ -76,12 +76,12 @@
               <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
                 {{ t('keys.useKeyModal.openai.installCodexDescription') }}
               </p>
-              <div class="mt-2 flex flex-wrap gap-2">
+              <div class="mt-2 flex flex-col items-start gap-2">
                 <a
                   :href="CODEX_OFFICIAL_DOWNLOAD_URL"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="inline-flex text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400"
+                  class="text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400"
                 >
                   {{ t('keys.useKeyModal.openai.downloadCodex') }}
                 </a>
@@ -89,7 +89,7 @@
                   :href="CODEX_BACKUP_DOWNLOAD_URL"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="inline-flex text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
+                  class="text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
                 >
                   {{ t('keys.useKeyModal.openai.backupDownload') }}
                 </a>
@@ -906,8 +906,8 @@ function generateOpenAIFiles(baseUrl: string, apiKey: string, isWindows = active
 
   // config.toml content
   const configContent = `model_provider = "OpenAI"
-model = "gpt-5.5"
-review_model = "gpt-5.5"
+model = "gpt-5.6-sol"
+review_model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
 disable_response_storage = true
 network_access = "enabled"
@@ -1057,7 +1057,7 @@ cat > "$AUTH_FILE" <<'SUB2API_AUTH_JSON'
 ${authContent}
 SUB2API_AUTH_JSON
 
-if ! grep -Fq 'model = "gpt-5.5"' "$CONFIG_FILE" || ! grep -Fq 'wire_api = "responses"' "$CONFIG_FILE" || ! grep -Fq 'base_url = "${props.baseUrl || window.location.origin}"' "$CONFIG_FILE"; then
+if ! grep -Fq 'model = "gpt-5.6-sol"' "$CONFIG_FILE" || ! grep -Fq 'wire_api = "responses"' "$CONFIG_FILE" || ! grep -Fq 'base_url = "${props.baseUrl || window.location.origin}"' "$CONFIG_FILE"; then
   big_error "config.toml 写入后校验失败。旧配置已备份在 $CODEX_DIR，请联系网页右上角客服咨询。"
   exit 1
 fi
@@ -1126,7 +1126,7 @@ Set-Content -Path $authFile -Value $authContent -Encoding UTF8
 $writtenConfig = Get-Content -Path $configFile -Raw
 $writtenAuth = Get-Content -Path $authFile -Raw
 
-if (!$writtenConfig.Contains('model = "gpt-5.5"') -or !$writtenConfig.Contains('wire_api = "responses"') -or !$writtenConfig.Contains('base_url = "${props.baseUrl || window.location.origin}"')) {
+if (!$writtenConfig.Contains('model = "gpt-5.6-sol"') -or !$writtenConfig.Contains('wire_api = "responses"') -or !$writtenConfig.Contains('base_url = "${props.baseUrl || window.location.origin}"')) {
   Show-Sub2ApiError "config.toml 写入后校验失败。旧配置已备份在 $codexDir，请联系网页右上角客服咨询。"
   exit 1
 }

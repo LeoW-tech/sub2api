@@ -4,6 +4,7 @@ import en from '../locales/en'
 import zh from '../locales/zh'
 
 const openAICodexKeys = [
+  'keys.useKeyModal.download',
   'keys.useKeyModal.openai.description',
   'keys.useKeyModal.openai.detectedMac',
   'keys.useKeyModal.openai.detectedWindows',
@@ -63,5 +64,11 @@ describe('UseKeyModal OpenAI Codex locales', () => {
   it('keeps the two configuration modes explicit in Chinese', () => {
     expect(zh.keys.useKeyModal.openai.beginner.title).toBe('方法一：小白一键配置')
     expect(zh.keys.useKeyModal.openai.professional.title).toBe('方法二：专业人士使用')
+  })
+
+  it('keeps the Codex download links and manual download action in Chinese', () => {
+    expect(zh.keys.useKeyModal.openai.downloadCodex).toBe('地址 1：CODEX 官方下载页面（直接点击打开）')
+    expect(zh.keys.useKeyModal.openai.backupDownload).toBe('地址 2：备用网盘（如果地址 1 官方页面无法打开，请点此下载）')
+    expect(zh.keys.useKeyModal.download).toBe('点击下载')
   })
 })
