@@ -75,6 +75,7 @@ func (s *adminServiceImpl) CreateProxy(ctx context.Context, input *CreateProxyIn
 
 	proxy := &Proxy{
 		Name:           input.Name,
+		ExternalKey:    input.ExternalKey,
 		Protocol:       input.Protocol,
 		Host:           input.Host,
 		Port:           input.Port,
@@ -137,6 +138,9 @@ func (s *adminServiceImpl) UpdateProxy(ctx context.Context, id int64, input *Upd
 	}
 	if input.Status != "" {
 		proxy.Status = input.Status
+	}
+	if input.ExternalKey != nil {
+		proxy.ExternalKey = *input.ExternalKey
 	}
 	// 透传有效期与回退字段
 	proxy.ExpiresAt = input.ExpiresAt
