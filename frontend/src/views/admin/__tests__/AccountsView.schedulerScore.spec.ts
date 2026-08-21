@@ -8,12 +8,14 @@ const {
   listWithEtag,
   getBatchTodayStats,
   getAllProxies,
+  getIPOptions,
   getAllGroups
 } = vi.hoisted(() => ({
   listAccounts: vi.fn(),
   listWithEtag: vi.fn(),
   getBatchTodayStats: vi.fn(),
   getAllProxies: vi.fn(),
+  getIPOptions: vi.fn().mockResolvedValue([]),
   getAllGroups: vi.fn()
 }))
 
@@ -30,7 +32,8 @@ vi.mock('@/api/admin', () => ({
       toggleSchedulable: vi.fn()
     },
     proxies: {
-      getAll: getAllProxies
+      getAll: getAllProxies,
+      getIPOptions
     },
     groups: {
       getAll: getAllGroups

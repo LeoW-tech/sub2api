@@ -36,6 +36,10 @@ vi.mock('@/stores', () => ({
   useOnboardingStore: () => storeState.onboarding
 }))
 
+vi.mock('@/stores/app', () => ({
+  useAppStore: () => storeState.app
+}))
+
 vi.mock('@/stores/adminSettings', () => ({
   useAdminSettingsStore: () => storeState.adminSettings
 }))
@@ -123,7 +127,7 @@ describe('AppHeader contact support placement', () => {
   it('renders help in the user dropdown for compact screens', async () => {
     const wrapper = mountHeader()
 
-    await wrapper.get('button[aria-label="User Menu"]').trigger('click')
+    await wrapper.get('button[aria-label="common.userMenu"]').trigger('click')
 
     const helpLinks = wrapper.findAll('a').filter((link) => link.attributes('href') === '/help')
     expect(helpLinks).toHaveLength(2)

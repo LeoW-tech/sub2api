@@ -268,7 +268,10 @@ export default {
       "anthropic": "Anthropic",
       "gemini": "Gemini",
       "antigravity": "Antigravity",
-      "grok": "Grok"
+      "grok": "Grok",
+      kimi: 'Kimi',
+      zhipu: 'Zhipu GLM',
+      deepseek: 'DeepSeek'
     },
     "types": {
       "oauth": "OAuth",
@@ -313,7 +316,9 @@ export default {
       "quotaLimitedUntil": "限额至 {time}",
       "quotaLimitedAutoResume": "{time} 自动恢复",
       "quota5h": "5h 限额",
-      "quota7d": "7d 限额"
+      "quota7d": "7d 限额",
+      expired: '已过期',
+      tempUnschedulableUntil: '预计 {time} 恢复'
     },
     "tempUnschedulable": {
       "title": "临时不可调度",
@@ -356,7 +361,11 @@ export default {
         "rateLimitDesc": "触发限流 - 暂停 10 分钟",
         "unavailableLabel": "503 维护",
         "unavailableDesc": "服务不可用 - 暂停 30 分钟"
-      }
+      },
+      multipleErrorTrigger: '{minutes} 分钟内累计 {count} 次匹配错误，达到触发阈值（{threshold}）。',
+      multipleErrorTriggerNoWindow: '累计 {count} 次匹配错误，达到触发阈值（{threshold}）。',
+      multipleErrorCountInWindow: '{minutes} 分钟内累计发生 {count} 次匹配错误。',
+      multipleErrorCount: '本次不可调度由累计 {count} 次匹配错误触发。'
     },
     "usageWindow": {
       "statsTitle": "5小时窗口用量统计",
@@ -382,7 +391,13 @@ export default {
       "passiveSampled": "被动采样",
       "activeQuery": "查询",
       "grokFreeQuota24hHint": "按 sub2api 近 24 小时本地 Token 用量估算（上限 {limit}）",
-      "grokWeeklyUsage": "周额度已用 {percent}%"
+      "grokWeeklyUsage": "周额度已用 {percent}%",
+      grokUsed: '已用 $',
+      grokBalance: '余额 $',
+      grokPrepaid: '预付余额',
+      grokMonthlyLimit: '月度已用/上限（USD）',
+      grokOverage: '超额 onDemandUsed/onDemandCap',
+      grokOverageShort: '超额 $'
     },
     "openaiQuotaReset": {
       "count": "次数",
@@ -401,7 +416,11 @@ export default {
       "noCreditsAvailable": "没有可用的重置次数",
       "resetSuccess": "已重置 {windows} 个窗口",
       "confirmTitle": "确认重置周限",
-      "confirmMessage": "将消耗 1 次重置次数立即恢复当前窗口，剩余 {count} 次。此操作不可撤销，确定继续吗？"
+      "confirmMessage": "将消耗 1 次重置次数立即恢复当前窗口，剩余 {count} 次。此操作不可撤销，确定继续吗？",
+      resetCacheRefreshFailed: '窗口已重置、账号状态已恢复，但重置次数未能回读，请重新查询次数。',
+      resetAccountRecoveryFailed: '窗口已重置，但账号状态恢复失败，请手动恢复账号状态。',
+      resetAccountRefreshFailed: '窗口、账号状态和重置次数缓存已更新，但无法加载最新账号显示。',
+      refreshCachePersistFailed: '已显示实时次数，但到期明细获取失败，仍保留原有缓存明细。'
     },
     "tier": {
       "free": "Free",
@@ -476,7 +495,13 @@ export default {
       "refreshSubscriptions": "补抓 OpenAI 订阅到期",
       "refreshSubscriptionsSuccess": "已补抓 {count} 个 OpenAI 账号订阅信息",
       "refreshSubscriptionsPartial": "订阅信息补抓部分完成：{updated} 成功，{failed} 失败",
-      "probeUpstreamBilling": "探测上游倍率"
+      "probeUpstreamBilling": "探测上游倍率",
+      selectedAll: '已选择全部 {count} 个账号',
+      selectAllResults: '全选所有结果（{count}）',
+      selectingAll: '正在选择全部结果...',
+      selectAllFailed: '获取全部账号失败，原有选择未改变',
+      confirmDelete: '确认删除选中的 {count} 个账号吗？此操作不可恢复。',
+      deleteSuccess: '已成功删除 {count} 个账号'
     },
     "bulkEdit": {
       "title": "批量编辑账号",
@@ -490,7 +515,13 @@ export default {
       "failed": "批量更新失败",
       "noSelection": "请选择要编辑的账号",
       "noFieldsSelected": "请至少选择一个要更新的字段",
-      "mixedPlatformWarning": "所选账号跨越多个平台（{platforms}）。显示的模型映射预设为合并结果——请确保映射对每个平台都适用。"
+      "mixedPlatformWarning": "所选账号跨越多个平台（{platforms}）。显示的模型映射预设为合并结果——请确保映射对每个平台都适用。",
+      successWithInherited: '成功更新 {count} 个账号；其中 {inherited} 个影子账号仍跟随母账号。',
+      partialSuccessWithInherited: '部分更新成功：成功 {success} 个，失败 {failed} 个；其中 {inherited} 个影子账号仍跟随母账号。',
+      rateSyncWarning: '已开启上游倍率同步的账号不能批量手工修改倍率，请先在账号编辑页关闭同步。',
+      rateSyncConflict: '无法修改账号倍率：{count} 个目标账号已开启上游倍率同步。',
+      longContextShadowHint: '长上下文计费归母账号所有。选中的影子账号仍跟随母账号，筛选全量目标时同样如此。',
+      longContextParentRequired: '选中的账号全部是影子账号，请选择母账号修改长上下文计费。'
     },
     "bulkDeleteTitle": "批量删除账号",
     "bulkDeleteConfirm": "确定要删除选中的 {count} 个账号吗？此操作无法撤销。",
@@ -635,11 +666,61 @@ export default {
       "longContextBillingDesc": "默认关闭。仅当该账号的上游会按模型阈值收取 OpenAI API 长上下文费率时开启。",
       "planType": "订阅档位（手动覆盖）",
       "planTypeDesc": "手动纠正本账号的 ChatGPT 订阅档位（Plus / Pro / Free）。注意：令牌临期刷新或命中 429 限流时，会用真实档位自动覆盖此处设置。",
-      "planTypeClear": "清空（自动识别）"
+      "planTypeClear": "清空（自动识别）",
+      flattenNamespaces: '摊平 Codex namespace 工具（兼容）',
+      flattenNamespacesDesc: '默认关闭：/responses 上的 namespace 工具声明原样转发，这正是 ChatGPT Codex 后端期望的形态。仅当该 OAuth 账号指向不认识 namespace 的兼容上游时才开启——摊平会把工具改名为 namespace__tool，使按 functions.<命名空间>.<工具> 寻址的模型（如 gpt-5.6 多智能体）无法调用。压缩（compact）请求不受该开关影响，始终摊平。',
+      codexFingerprintMode: 'Codex 指纹收敛',
+      codexFingerprintModeDesc: '多人共享同一 OAuth 账号时，将各用户的设备/会话标识收敛为账号级恒定值，减少上游可见的设备数和会话数。默认关闭（原样透传客户端标识），需要时再显式开启；部分账号开启收敛后出现过额度缩水，请按自己的实测结果选择。',
+      codexFingerprintOff: '关闭（透传，默认）',
+      codexFingerprintDevice: '仅设备',
+      codexFingerprintSession: '设备+会话',
+      codexFingerprintFull: '完全收敛'
     },
     "grok": {
       "baseUrlHint": "Grok OAuth 账号会转发到官方 xAI API Base URL。",
-      "apiKeyHint": "Grok 订阅支持使用 OAuth refresh token；API Key 账号不在本次范围内。"
+      "apiKeyHint": "Grok 订阅支持使用 OAuth refresh token；API Key 账号不在本次范围内。",
+      // 账号连通性测试弹窗
+      testMode: '测试模式',
+      testModeHint: '文本 / 图片 / 视频使用所选模型。网页搜索、TTS、STT、Realtime 走独立接口探测（不是对话里的 tools）。',
+      testModeText: '文本（Responses）',
+      testModeImage: '图片（/images/generations）',
+      testModeVideo: '视频（/videos/generations）',
+      testModeSearch: '网页搜索（/web_search）',
+      testModeTTS: '语音合成 TTS（/tts）',
+      testModeSTT: '语音识别 STT（/stt）',
+      testModeRealtime: '实时语音 Realtime（WS /realtime）',
+      textTestMode: '模式：文本（Responses）',
+      searchTestMode: '模式：网页搜索（/web_search）',
+      ttsTestMode: '模式：TTS（/tts）',
+      sttTestMode: '模式：STT（/stt）',
+      realtimeTestMode: '模式：Realtime（WS /realtime）',
+      searchQueryLabel: '搜索关键词',
+      searchQueryPlaceholder: '例如：xAI Grok',
+      searchQueryDefault: 'xAI Grok',
+      searchTestHint: '独立网页搜索探测（与网关 /v1/web_search 语义一致），不是带 tools 的自由对话。',
+      ttsTextLabel: 'TTS 文本',
+      ttsTextPlaceholder: '例如：Hello from Sub2API connectivity test.',
+      ttsTextDefault: 'Hello from Sub2API account connectivity test.',
+      ttsTestHint: '独立调用 /v1/tts（language=en）；成功时显示音频字节数。',
+      sttTestHint: '独立调用 /v1/stt，使用合成静音 WAV；成功表示接口可达。',
+      realtimeTestHint: '独立 WebSocket 拨号 /v1/realtime（model=grok-voice-latest）。握手成功即连通；若有首包服务端事件会一并显示。',
+      sendingSearchRequest: '正在发送独立 web_search 请求...',
+      sendingTTSRequest: '正在发送独立 /tts 请求...',
+      sendingSTTRequest: '正在发送独立 /stt 请求...',
+      sendingRealtimeRequest: '正在拨号独立 /realtime WebSocket...',
+      selectedTestMode: '测试模式：{mode}',
+      imageUploadLabel: '源图片（可选，图生图/编辑）',
+      videoFirstFrameLabel: '首帧 / 参考图（可选）',
+      imageUploadHint: '建议 PNG/JPEG，宽高均 ≥ 8 像素，编辑建议小于约 4MB。上传源图会走 /images/edits（图生图）；不上传则走 /images/generations 文生图。',
+      videoFirstFrameHint: '可选首帧/参考图用于图生视频。建议 PNG/JPEG，宽高均 ≥ 8 像素。',
+      audioUploadLabel: '音频文件（STT 可选）',
+      audioUploadHint: '上传真实音频做转写；不上传则用静音 WAV 仅测连通。',
+      mediaTooLarge: '文件过大（管理端测试上传上限约 6MB）。',
+      chooseImageFile: '选择图片',
+      chooseAudioFile: '选择音频',
+      uploadPreviewAlt: '上传预览',
+      fileReadFailed: '读取所选文件失败',
+      noResponseBody: '服务器未返回响应体'
     },
     "anthropic": {
       "apiKeyPassthrough": "自动透传（仅替换认证）",
@@ -1026,7 +1107,16 @@ export default {
         "ssoCookieHint": "每行一个 SSO key；多个 key 会 3 路并发导入，耗时约 90 秒 × 批次数，建议使用对应地区代理。",
         "convertingSSO": "转换中...",
         "convertSSOAndCreate": "转换并创建账号",
-        "failedToConvertSSO": "Grok SSO 转换失败"
+        "failedToConvertSSO": "Grok SSO 转换失败",
+        emailPasswordAuth: '邮箱密码登录',
+        emailPasswordDesc: '使用 Grok 网页邮箱与密码登录。服务端仅用密码换取临时 SSO 再转 Build OAuth；密码与 raw SSO 均不会写入账号凭据。',
+        emailPasswordInputLabel: '邮箱----密码',
+        emailPasswordPlaceholder: "user{'@'}example.com----your-password\n支持多个，每行一组",
+        emailPasswordHint: '格式：email----password（密码可含 -）。需要配置 YesCaptcha 密钥；建议搭配代理。',
+        pleaseEnterPassword: '请输入 email----password（每行一组）',
+        pleaseEnterSSOToken: '请输入 SSO Token',
+        failedToValidateSSO: '校验 Grok SSO 失败',
+        failedToAuthorizePassword: 'Grok 密码授权失败'
       },
       "gemini": {
         "title": "Gemini 账户授权",
@@ -1350,7 +1440,11 @@ export default {
       "accountProbeState": "当前账号自动检测：",
       "globalProbeState": "全局探测开关：",
       "enabled": "打开",
-      "disabled": "关闭"
+      "disabled": "关闭",
+      syncRate: '同步上游声明倍率',
+      syncRateHint: '成功探测后自动更新账号倍率，同步的是不含高峰的基准倍率；探测失败或声明超出允许范围时保持不变。开启本项会同时打开“自动探测上游声明倍率”。',
+      syncRateManagedHint: '当前倍率由上游声明的基准倍率（不含高峰）自动维护。',
+      syncedRateTooltip: '该账号倍率由上游声明的基准倍率（不含高峰）自动同步'
     },
     "duplicateAccount": "复制账号",
     "duplicateSuccess": "账号已复制为「{name}」，已暂停调度，请确认凭据后再启用",
@@ -1369,6 +1463,52 @@ export default {
         "cli": "Grok Build CLI",
         "official": "官方 API"
       }
-    }
+    },
+    cnProviders: {
+      accountMode: {
+        title: '账号类型',
+        payg: '按量付费',
+        paygDesc: '消耗账户余额，按 Token 计费。余额不足自动冷却，充值后恢复。',
+        coding: 'Coding Plan',
+        codingDesc: '订阅制编程套餐，按 5 小时 / 每周滚动用量窗口限流。'
+      },
+      apiProtocol: {
+        title: 'API 协议',
+        adaptive: '自适应',
+        adaptiveDesc: '按入站协议优先使用供应商原生端点，仅在没有对应端点时转换。',
+        endpoints: '协议端点',
+        responsesFallbackDesc: '该供应商没有原生 Responses 端点，Responses 请求将转换为 Chat Completions。',
+        chatCompletions: 'Chat Completions',
+        chatCompletionsDesc: '标准 OpenAI 兼容端点，其他格式请求将被转换。',
+        anthropic: 'Anthropic',
+        anthropicDesc: '直通供应商原生 Anthropic 端点，零转换，适配 Claude Code。',
+        responses: 'Responses',
+        responsesDesc: '供应商原生 Responses 端点，适配 Codex。'
+      },
+      balance: '余额 --',
+      window5h: '5 小时窗口',
+      windowWeekly: '每周窗口',
+      probeTooltip: '请求供应商额度端点，查询 5 小时 / 每周滚动窗口用量',
+      balanceLow: '余额不足',
+      noBalanceEndpoint: '该平台暂无余额查询接口',
+      resetSoon: '即将重置'
+    },
+    accountSchedulingThresholdOverride: '账号自动停调阈值覆盖',
+    accountSchedulingThresholdOverrideHint: '仅对当前账号覆盖平台级自动停调阈值；关闭后使用平台设置。',
+    accountSchedulingThresholdOverrideValue: '账号阈值百分比',
+    accountSchedulingThresholdOverrideDisabledHint: '1-100，达到该用量百分比后临时不可调度；100 表示禁用当前账号自动停调。',
+    errorPrefix: '错误：{message}',
+    imagePreviewAlt: '测试图片 {index}',
+    imageLightboxAlt: '图片预览',
+    videoPromptLabel: '视频提示词',
+    videoPromptPlaceholder: '例如：一只红球在白地板上弹跳一次，动作简短。',
+    videoPromptDefault: 'A red ball bouncing once on a white floor, short simple motion.',
+    videoTestHint: '调用独立 /v1/videos/generations，轮询至完成后下载成品视频并在页面上预览。',
+    videoTestMode: '模式：视频生成测试',
+    sendingVideoRequest: '正在发送视频生成测试请求...',
+    audioPreview: '生成音频：',
+    audioReceived: '已收到第 {count} 段测试音频',
+    videoPreview: '生成视频：',
+    videoReceived: '已收到第 {count} 段测试视频'
   }
-}
+};

@@ -15,6 +15,7 @@ vi.mock('vue-i18n', () => ({
         'admin.accounts.bulkActions.refreshToken': '批量刷新令牌',
         'admin.accounts.bulkActions.trueRefreshToken': '批量真正刷新令牌',
         'admin.accounts.bulkActions.refreshSubscriptions': '补抓 OpenAI 订阅到期',
+        'admin.accounts.bulkActions.probeUpstreamBilling': '探测上游倍率',
         'admin.accounts.bulkActions.testActivate': '批量测试激活',
         'admin.accounts.bulkActions.testActivating': '批量测试激活中...',
         'admin.accounts.bulkActions.enableScheduling': '批量启用调度',
@@ -39,11 +40,13 @@ describe('AccountBulkActionsBar', () => {
     const refreshIndex = labels.indexOf('批量真正刷新令牌')
     const refreshSubscriptionsIndex = labels.indexOf('补抓 OpenAI 订阅到期')
     const bulkTestIndex = labels.indexOf('批量测试激活')
+    const billingProbeIndex = labels.indexOf('探测上游倍率')
     const enableSchedulingIndex = labels.indexOf('批量启用调度')
 
     expect(refreshIndex).toBeGreaterThanOrEqual(0)
     expect(bulkTestIndex).toBe(refreshIndex + 1)
-    expect(enableSchedulingIndex).toBe(bulkTestIndex + 1)
+    expect(billingProbeIndex).toBe(bulkTestIndex + 1)
+    expect(enableSchedulingIndex).toBe(billingProbeIndex + 1)
     expect(refreshSubscriptionsIndex).toBeGreaterThan(enableSchedulingIndex)
   })
 
@@ -66,5 +69,41 @@ describe('AccountBulkActionsBar', () => {
     const disabledButton = wrapper.findAll('button').find((button) => button.text() === '批量测试激活中...')
     expect(disabledButton).toBeTruthy()
     expect(disabledButton!.attributes('disabled')).toBeDefined()
+  })
+
+  it('allows selecting all results before any row is selected', async () => {
+    const wrapper = mount(AccountBulkActionsBar, {
+      props: {
+        selectedIds: [],
+        totalResults: 45,
+        selectingAll: false,
+        allResultsSelected: false
+      }
+    })
+
+    const button = wrapper.findAll('button').find(item =>
+      item.text().includes('admin.accounts.bulkActions.selectAllResults')
+    )
+
+    expect(button).toBeDefined()
+    await button!.trigger('click')
+    expect(wrapper.emitted('select-all-results')).toHaveLength(1)
+  })
+
+  it('preserves the upstream billing probe action from v0.1.166', async () => {
+    const wrapper = mount(AccountBulkActionsBar, {
+      props: {
+        selectedIds: [1],
+        totalResults: 45,
+        selectingAll: false,
+        allResultsSelected: false
+      }
+    })
+
+    const button = wrapper.findAll('button').find(item => item.text().includes('探测上游倍率'))
+
+    expect(button).toBeDefined()
+    await button!.trigger('click')
+    expect(wrapper.emitted('probe-upstream-billing')).toHaveLength(1)
   })
 })

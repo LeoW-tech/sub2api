@@ -100,7 +100,14 @@ export default {
         "minutes": "{m}m",
         "withSuffix": "{time} 后解除"
       }
-    }
+    },
+    upload: '上传',
+    remove: '移除',
+    noFileSelected: '未选择文件',
+    selectedFile: '已选：{name}',
+    fileReadFailed: '读取文件失败',
+    selectImageFile: '请选择图片文件',
+    fileTooLargeKb: '文件过大（{size} KB），上限 {max} KB'
   },
   "adminCompliance": {
     "title": "部署与运营合规确认",
@@ -413,7 +420,12 @@ export default {
     "invalidResetLink": "无效的重置链接",
     "invalidResetLinkHint": "此密码重置链接无效或已过期。请重新请求一个新链接。",
     "requestNewResetLink": "请求新的重置链接",
-    "invalidOrExpiredToken": "密码重置链接无效或已过期。请重新请求一个新链接。"
+    "invalidOrExpiredToken": "密码重置链接无效或已过期。请重新请求一个新链接。",
+    emailDomainRegistrationLimit: '该邮箱域名无法注册新账户。请使用主流邮箱注册；如需使用企业邮箱，请联系客服添加域名白名单。',
+    captchaVerified: '验证已完成',
+    captchaLoading: '正在加载验证码…',
+    captchaClickToVerify: '点击完成人机验证',
+    captchaVerifying: '验证中…'
   },
   "help": {
     "title": "使用帮助",
@@ -495,4 +507,4 @@ export default {
     "notEnabled": "此操作需要开启二次验证，请先在个人资料中启用 TOTP。",
     "adminApiKeyForbidden": "管理 API Key 无法执行此操作，请使用已通过二次验证的管理员会话。"
   }
-}
+};

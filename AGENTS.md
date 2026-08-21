@@ -33,6 +33,18 @@
 - 常用命令、运维入口、开发流程、同步流程：见 [`常用命令.md`](常用命令.md)
 - 本地运维细节说明：见 [`docs/LOCAL_DEVELOPMENT_MAINTENANCE.md`](docs/LOCAL_DEVELOPMENT_MAINTENANCE.md)
 
+## VPS 开发验证基础设施
+
+东京 VPS 已持久化配置独立的开发验证工具链，不与 stable runtime 共享运行时数据：
+
+- 环境入口：`/home/ubuntu/.config/sub2api/dev-env.sh`
+- Go 1.26.6：`/home/ubuntu/.local/toolchains/go1.26.6`，入口在 `/home/ubuntu/.local/bin`
+- Go 模块缓存：`/home/ubuntu/.cache/sub2api-go-mod`
+- Go 构建缓存：`/home/ubuntu/.cache/sub2api-go-build`
+- pnpm store：`/home/ubuntu/.cache/sub2api-pnpm-store`
+
+在 VPS 上执行静态验证前先加载该环境入口；不得把这些缓存、`node_modules` 或运行时数据加入 git。依赖权限应保持为 `ubuntu` 用户可读写，避免 Docker root 缓存阻断后续验证。
+
 ## 目录约定
 
 必须遵守下面的目录边界：

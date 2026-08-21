@@ -100,7 +100,14 @@ export default {
         "minutes": "{m}m",
         "withSuffix": "{time} to lift"
       }
-    }
+    },
+    upload: 'Upload',
+    remove: 'Remove',
+    noFileSelected: 'No file selected',
+    selectedFile: 'Selected: {name}',
+    fileReadFailed: 'Failed to read file',
+    selectImageFile: 'Please select an image file',
+    fileTooLargeKb: 'File too large ({size} KB), max {max} KB'
   },
   "adminCompliance": {
     "title": "Deployment and Operation Compliance Acknowledgment",
@@ -413,7 +420,12 @@ export default {
     "invalidResetLink": "Invalid Reset Link",
     "invalidResetLinkHint": "This password reset link is invalid or has expired. Please request a new one.",
     "requestNewResetLink": "Request New Reset Link",
-    "invalidOrExpiredToken": "The password reset link is invalid or has expired. Please request a new one."
+    "invalidOrExpiredToken": "The password reset link is invalid or has expired. Please request a new one.",
+    emailDomainRegistrationLimit: 'This email domain cannot register another account. Please use a mainstream email, or contact support to add your enterprise domain to the allowlist.',
+    captchaVerified: 'Verification completed',
+    captchaLoading: 'Loading verification…',
+    captchaClickToVerify: 'Click to complete verification',
+    captchaVerifying: 'Verifying…'
   },
   "help": {
     "title": "Help",
@@ -495,4 +507,4 @@ export default {
     "notEnabled": "This operation requires two-factor authentication. Please enable TOTP in your profile first.",
     "adminApiKeyForbidden": "Admin API keys cannot perform this operation. Use a two-factor verified admin session."
   }
-}
+};

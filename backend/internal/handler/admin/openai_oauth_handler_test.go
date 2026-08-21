@@ -69,7 +69,7 @@ func TestOpenAIOAuthHandler_CompletePendingCreateCreatesAccount(t *testing.T) {
 	require.NotEmpty(t, state)
 
 	router := gin.New()
-	handler := NewOpenAIOAuthHandler(oauthSvc, adminSvc, nil)
+	handler := NewOpenAIOAuthHandler(oauthSvc, adminSvc, nil, nil)
 	router.POST("/openai/complete-pending-create", handler.CompletePendingCreate)
 
 	body, err := json.Marshal(map[string]string{
@@ -125,7 +125,7 @@ func TestOpenAIOAuthHandler_CompletePendingCreateSkipsDefaultGroupWhenNoGroupSel
 	require.NotEmpty(t, state)
 
 	router := gin.New()
-	handler := NewOpenAIOAuthHandler(oauthSvc, adminSvc, nil)
+	handler := NewOpenAIOAuthHandler(oauthSvc, adminSvc, nil, nil)
 	router.POST("/openai/complete-pending-create", handler.CompletePendingCreate)
 
 	body, err := json.Marshal(map[string]string{
@@ -192,7 +192,7 @@ func TestOpenAIOAuthHandler_RefreshAccountSubscriptionsDryRunFiltersAndLimits(t 
 	}
 
 	router := gin.New()
-	handler := NewOpenAIOAuthHandler(nil, adminSvc, nil)
+	handler := NewOpenAIOAuthHandler(nil, adminSvc, nil, nil)
 	router.POST("/openai/accounts/refresh-subscriptions", handler.RefreshAccountSubscriptions)
 
 	body, err := json.Marshal(map[string]any{"dry_run": true, "limit": 1})

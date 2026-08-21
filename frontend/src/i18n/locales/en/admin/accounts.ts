@@ -99,7 +99,10 @@ export default {
       "openai": "OpenAI",
       "gemini": "Gemini",
       "antigravity": "Antigravity",
-      "grok": "Grok"
+      "grok": "Grok",
+      kimi: 'Kimi',
+      zhipu: 'Zhipu GLM',
+      deepseek: 'DeepSeek'
     },
     "types": {
       "oauth": "OAuth",
@@ -142,7 +145,9 @@ export default {
       "quotaLimitedUntil": "Quota limited until {time}",
       "quotaLimitedAutoResume": "Auto resumes in {time}",
       "quota5h": "5h quota",
-      "quota7d": "7d quota"
+      "quota7d": "7d quota",
+      expired: 'Expired',
+      tempUnschedulableUntil: 'Resumes {time}'
     },
     "columns": {
       "name": "Name",
@@ -303,7 +308,11 @@ export default {
         "rateLimitDesc": "Rate limited - pause 10 minutes",
         "unavailableLabel": "503 Unavailable",
         "unavailableDesc": "Unavailable - pause 30 minutes"
-      }
+      },
+      multipleErrorTrigger: '{count} matching errors in {minutes} minutes reached the trigger threshold ({threshold}).',
+      multipleErrorTriggerNoWindow: '{count} matching errors reached the trigger threshold ({threshold}).',
+      multipleErrorCountInWindow: '{count} matching errors occurred within {minutes} minutes.',
+      multipleErrorCount: '{count} matching errors contributed to this block.'
     },
     "clearRateLimit": "Clear Rate Limit",
     "resetQuota": "Reset Quota",
@@ -371,7 +380,15 @@ export default {
       "refreshSubscriptions": "Backfill OpenAI Subscription Expiry",
       "refreshSubscriptionsSuccess": "Backfilled subscription info for {count} OpenAI account(s)",
       "refreshSubscriptionsPartial": "Subscription backfill partially completed: {updated} succeeded, {failed} failed",
-      "probeUpstreamBilling": "Probe Upstream Rate"
+      "trueRefreshToken": "True refresh token",
+      "trueRefreshTokenStarted": "True refresh-token task started",
+      "probeUpstreamBilling": "Probe Upstream Rate",
+      selectedAll: 'All {count} account(s) selected',
+      selectAllResults: 'Select all results ({count})',
+      selectingAll: 'Selecting all results...',
+      selectAllFailed: 'Failed to load all accounts. The previous selection was kept.',
+      confirmDelete: 'Delete the selected {count} account(s)? This action cannot be undone.',
+      deleteSuccess: 'Deleted {count} account(s)'
     },
     "bulkEdit": {
       "title": "Bulk Edit Accounts",
@@ -385,7 +402,13 @@ export default {
       "failed": "Bulk update failed",
       "noSelection": "Please select accounts to edit",
       "noFieldsSelected": "Select at least one field to update",
-      "mixedPlatformWarning": "Selected accounts span multiple platforms ({platforms}). Model mapping presets shown are combined — ensure mappings are appropriate for each platform."
+      "mixedPlatformWarning": "Selected accounts span multiple platforms ({platforms}). Model mapping presets shown are combined — ensure mappings are appropriate for each platform.",
+      successWithInherited: 'Updated {count} account(s). {inherited} selected shadow account(s) still follow their parent account.',
+      partialSuccessWithInherited: 'Partially updated: {success} succeeded, {failed} failed. {inherited} selected shadow account(s) still follow their parent account.',
+      rateSyncWarning: 'Accounts with upstream rate sync enabled cannot be changed in bulk. Disable sync in the account editor first.',
+      rateSyncConflict: 'Cannot change account rates: {count} target account(s) have upstream rate sync enabled.',
+      longContextShadowHint: 'Long-context billing belongs to the parent account. Selected shadow accounts keep following their parent, including when targets come from a filter.',
+      longContextParentRequired: 'All selected accounts are shadows. Select the parent account to change long-context billing.'
     },
     "bulkDeleteTitle": "Bulk Delete Accounts",
     "bulkDeleteConfirm": "Delete the selected {count} account(s)? This action cannot be undone.",
@@ -528,11 +551,61 @@ export default {
       "longContextBillingDesc": "Disabled by default. Enable only when this account's upstream charges OpenAI API long-context rates above the model threshold.",
       "planType": "Plan tier (manual override)",
       "planTypeDesc": "Manually correct this account's ChatGPT plan tier (Plus / Pro / Free). Note: a token refresh near expiry or a 429 rate-limit response will auto-overwrite this with the real tier.",
-      "planTypeClear": "Clear (auto-detect)"
+      "planTypeClear": "Clear (auto-detect)",
+      flattenNamespaces: 'Flatten Codex namespace tools (compatibility)',
+      flattenNamespacesDesc: 'Disabled by default: Codex namespace tool declarations are forwarded as-is on /responses, which is what the ChatGPT Codex backend expects. Enable only when this OAuth account is routed to a relay that rejects namespace tools — flattening renames them to namespace__tool, which breaks models that address collaboration tools as functions.<namespace>.<tool>. Compaction requests always flatten regardless of this switch.',
+      codexFingerprintMode: 'Codex fingerprint convergence',
+      codexFingerprintModeDesc: 'When multiple users share the same OAuth account, converge device/session identifiers to account-level stable values to reduce upstream-visible device and session count. Off by default (client identifiers pass through as-is); opt in explicitly when needed. Some accounts reported quota shrinkage after enabling convergence, so choose based on your own measurements.',
+      codexFingerprintOff: 'Off (passthrough, default)',
+      codexFingerprintDevice: 'Device only',
+      codexFingerprintSession: 'Device + Session',
+      codexFingerprintFull: 'Full convergence'
     },
     "grok": {
       "baseUrlHint": "Grok OAuth accounts forward to the official xAI API base URL.",
-      "apiKeyHint": "Grok subscription support uses OAuth refresh tokens; API keys are out of scope for this account type."
+      "apiKeyHint": "Grok subscription support uses OAuth refresh tokens; API keys are out of scope for this account type.",
+      // Account connectivity test modal
+      testMode: 'Test mode',
+      testModeHint: 'Text / image / video use the selected model. Web search, TTS, STT and Realtime hit standalone endpoints (not free-form chat tools).',
+      testModeText: 'Text (Responses)',
+      testModeImage: 'Image (/images/generations)',
+      testModeVideo: 'Video (/videos/generations)',
+      testModeSearch: 'Web search (/web_search)',
+      testModeTTS: 'TTS (/tts)',
+      testModeSTT: 'STT (/stt)',
+      testModeRealtime: 'Realtime (WS /realtime)',
+      textTestMode: 'Mode: Text (Responses)',
+      searchTestMode: 'Mode: Web search (/web_search)',
+      ttsTestMode: 'Mode: TTS (/tts)',
+      sttTestMode: 'Mode: STT (/stt)',
+      realtimeTestMode: 'Mode: Realtime (WS /realtime)',
+      searchQueryLabel: 'Search query',
+      searchQueryPlaceholder: 'Example: xAI Grok',
+      searchQueryDefault: 'xAI Grok',
+      searchTestHint: 'Standalone web_search probe (same as gateway /v1/web_search). Not a free-form chat with tools.',
+      ttsTextLabel: 'TTS text',
+      ttsTextPlaceholder: 'Example: Hello from Sub2API connectivity test.',
+      ttsTextDefault: 'Hello from Sub2API account connectivity test.',
+      ttsTestHint: 'Standalone /v1/tts with language=en; success reports audio byte size.',
+      sttTestHint: 'Standalone /v1/stt with a synthetic silent WAV; success means the endpoint is reachable.',
+      realtimeTestHint: 'Standalone WebSocket dial to /v1/realtime (model=grok-voice-latest). Handshake success = connectivity OK; may also show the first server event.',
+      sendingSearchRequest: 'Sending standalone web_search request...',
+      sendingTTSRequest: 'Sending standalone /tts request...',
+      sendingSTTRequest: 'Sending standalone /stt request...',
+      sendingRealtimeRequest: 'Dialing standalone /realtime WebSocket...',
+      selectedTestMode: 'Test mode: {mode}',
+      imageUploadLabel: 'Source image (optional, for edits)',
+      videoFirstFrameLabel: 'First-frame / reference image (optional)',
+      imageUploadHint: 'PNG/JPEG recommended, both sides ≥ 8 px, under ~4 MB for edits. Uploading a source image switches to /images/edits (image-to-image). Leave empty for text-to-image /images/generations.',
+      videoFirstFrameHint: 'Optional first-frame / reference image for image-to-video. PNG/JPEG recommended, both sides ≥ 8 px.',
+      audioUploadLabel: 'Audio file (optional for STT)',
+      audioUploadHint: 'Upload a real audio clip to transcribe. Without a file, a silent WAV is used for connectivity only.',
+      mediaTooLarge: 'File is too large (max ~6 MB for admin test uploads).',
+      chooseImageFile: 'Choose image',
+      chooseAudioFile: 'Choose audio',
+      uploadPreviewAlt: 'Upload preview',
+      fileReadFailed: 'Failed to read the selected file',
+      noResponseBody: 'No response body from server'
     },
     "anthropic": {
       "apiKeyPassthrough": "Auto passthrough (auth only)",
@@ -919,7 +992,16 @@ export default {
         "ssoCookieHint": "One SSO key per line. Multiple keys are imported with 3-way concurrency; expect about 90 seconds per batch. Use a matching-region proxy if needed.",
         "convertingSSO": "Converting...",
         "convertSSOAndCreate": "Convert & Create Account",
-        "failedToConvertSSO": "Failed to convert Grok SSO cookie"
+        "failedToConvertSSO": "Failed to convert Grok SSO cookie",
+        emailPasswordAuth: 'Email + password',
+        emailPasswordDesc: 'Sign in with a Grok web email and password. The server uses the password only to obtain an ephemeral SSO cookie, then converts it to Build OAuth credentials. Neither the password nor raw SSO is stored on the account.',
+        emailPasswordInputLabel: 'email----password',
+        emailPasswordPlaceholder: "user{'@'}example.com----your-password\nMultiple lines supported",
+        emailPasswordHint: 'Format: email----password (password may contain -). Requires YesCaptcha keys; use a matching-region proxy when needed.',
+        pleaseEnterPassword: 'Please enter email----password (one per line)',
+        pleaseEnterSSOToken: 'Please enter an SSO token',
+        failedToValidateSSO: 'Failed to validate Grok SSO',
+        failedToAuthorizePassword: 'Grok password authorization failed'
       },
       "gemini": {
         "title": "Gemini Account Authorization",
@@ -1220,7 +1302,13 @@ export default {
       "passiveSampled": "Passive",
       "activeQuery": "Query",
       "grokFreeQuota24hHint": "Estimated from local token usage over the rolling 24-hour window ({limit} limit)",
-      "grokWeeklyUsage": "Weekly {percent}%"
+      "grokWeeklyUsage": "Weekly {percent}%",
+      grokUsed: 'Used $',
+      grokBalance: 'Bal $',
+      grokPrepaid: 'Prepaid balance',
+      grokMonthlyLimit: 'Monthly used / limit (USD)',
+      grokOverage: 'Overage onDemandUsed/onDemandCap',
+      grokOverageShort: 'OD $'
     },
     "openaiQuotaReset": {
       "count": "Credits",
@@ -1239,7 +1327,11 @@ export default {
       "noCreditsAvailable": "No reset credits available",
       "resetSuccess": "Reset {windows} window(s)",
       "confirmTitle": "Confirm Weekly Limit Reset",
-      "confirmMessage": "This will consume 1 reset credit to immediately restore the current window ({count} remaining). This action cannot be undone. Continue?"
+      "confirmMessage": "This will consume 1 reset credit to immediately restore the current window ({count} remaining). This action cannot be undone. Continue?",
+      resetCacheRefreshFailed: 'The window was reset and account state recovered, but the reset-credit count could not be read back. Query it again.',
+      resetAccountRecoveryFailed: 'The window was reset, but account state recovery failed. Recover the account state manually.',
+      resetAccountRefreshFailed: 'The window, account state, and reset-credit cache were updated, but the latest account display could not be loaded.',
+      refreshCachePersistFailed: 'Showing the live count, but its expiration details were unavailable, so the cached details were kept.'
     },
     "tier": {
       "free": "Free",
@@ -1310,7 +1402,11 @@ export default {
       "accountProbeState": "Automatic detection for this account:",
       "globalProbeState": "Global probe switch:",
       "enabled": "On",
-      "disabled": "Off"
+      "disabled": "Off",
+      syncRate: 'Sync upstream declared rate',
+      syncRateHint: 'Update the account rate after each successful probe, using the base rate excluding peak hours. Failed probes or declarations outside the allowed range leave it unchanged. Enabling this also turns on "Automatically probe upstream declared rate".',
+      syncRateManagedHint: 'The current rate is maintained automatically from the upstream declared base rate (excluding peak hours).',
+      syncedRateTooltip: 'This account rate is synchronized from the upstream declared base rate (excluding peak hours)'
     },
     "duplicateAccount": "Duplicate Account",
     "duplicateSuccess": "Account duplicated as \"{name}\" and paused. Review its credentials before enabling it.",
@@ -1329,6 +1425,52 @@ export default {
         "cli": "Grok Build CLI",
         "official": "Official API"
       }
-    }
+    },
+    cnProviders: {
+      accountMode: {
+        title: 'Account Type',
+        payg: 'Pay-as-you-go',
+        paygDesc: 'Consumes account balance, billed per token. Auto-cools down on low balance and recovers after top-up.',
+        coding: 'Coding Plan',
+        codingDesc: 'Subscription coding package, rate-limited by 5-hour / weekly rolling usage windows.'
+      },
+      apiProtocol: {
+        title: 'API Protocol',
+        adaptive: 'Adaptive',
+        adaptiveDesc: 'Uses the matching native provider endpoint for each inbound protocol, converting only when unavailable.',
+        endpoints: 'Protocol endpoints',
+        responsesFallbackDesc: 'Responses requests are converted to Chat Completions because this provider has no native Responses endpoint.',
+        chatCompletions: 'Chat Completions',
+        chatCompletionsDesc: 'Standard OpenAI-compatible endpoint; requests in other formats are converted.',
+        anthropic: 'Anthropic',
+        anthropicDesc: 'Native passthrough to the provider’s Anthropic endpoint — ideal for Claude Code.',
+        responses: 'Responses',
+        responsesDesc: 'Provider’s native Responses endpoint — ideal for Codex.'
+      },
+      balance: 'Balance --',
+      window5h: '5-hour window',
+      windowWeekly: 'Weekly window',
+      probeTooltip: 'Query the provider quota endpoint for 5-hour / weekly rolling window usage',
+      balanceLow: 'Insufficient balance',
+      noBalanceEndpoint: 'This platform has no balance query endpoint',
+      resetSoon: 'reset soon'
+    },
+    accountSchedulingThresholdOverride: 'Account Auto-Pause Threshold Override',
+    accountSchedulingThresholdOverrideHint: 'Override the platform auto-pause threshold for this account only. Disable to use platform settings.',
+    accountSchedulingThresholdOverrideValue: 'Account threshold percent',
+    accountSchedulingThresholdOverrideDisabledHint: 'Use 1-100. The account becomes temporarily unschedulable after reaching this usage percent; 100 disables it for this account.',
+    errorPrefix: 'Error: {message}',
+    imagePreviewAlt: 'Test image {index}',
+    imageLightboxAlt: 'Image preview',
+    videoPromptLabel: 'Video prompt',
+    videoPromptPlaceholder: 'Example: A red ball bouncing once on a white floor, short simple motion.',
+    videoPromptDefault: 'A red ball bouncing once on a white floor, short simple motion.',
+    videoTestHint: 'Calls standalone /v1/videos/generations, polls until done, then downloads the finished video for on-page preview.',
+    videoTestMode: 'Mode: Video generation test',
+    sendingVideoRequest: 'Sending video generation request...',
+    audioPreview: 'Generated audio:',
+    audioReceived: 'Received test audio #{count}',
+    videoPreview: 'Generated video:',
+    videoReceived: 'Received test video #{count}'
   }
-}
+};

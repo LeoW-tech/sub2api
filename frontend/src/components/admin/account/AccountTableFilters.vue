@@ -76,11 +76,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import { useI18n } from "vue-i18n";
-import Select, { type SelectOption } from "@/components/common/Select.vue";
-import SearchInput from "@/components/common/SearchInput.vue";
-import type { AdminGroup, ProxyIPOption } from "@/types";
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import Select, { type SelectOption } from '@/components/common/Select.vue'
+import SearchInput from '@/components/common/SearchInput.vue'
+import type { AdminGroup, ProxyIPOption } from '@/types'
+import { CONCRETE_PLATFORM_OPTIONS } from '@/constants/platforms'
 
 const props = defineProps<{
   searchQuery: string;
@@ -123,11 +124,7 @@ const updateGroup = (value: string | number | boolean | null) => {
 
 const platformOptions = computed<SelectOption[]>(() => [
   { value: "", label: t("admin.accounts.allPlatforms") },
-  { value: "anthropic", label: "Anthropic" },
-  { value: "openai", label: "OpenAI" },
-  { value: "gemini", label: "Gemini" },
-  { value: "antigravity", label: "Antigravity" },
-  { value: "grok", label: "Grok" },
+  ...CONCRETE_PLATFORM_OPTIONS,
 ]);
 
 const typeOptions = computed<SelectOption[]>(() => [
