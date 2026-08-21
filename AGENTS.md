@@ -94,7 +94,7 @@ runtime/
 - `runtime/dev` 是开发环境，服务端口 `127.0.0.1:8081`
 - `runtime/backups` 是默认运行时备份目录
 - `runtime/` 整体不进 git
-- Linux 当前使用 `systemd` 托管 `stable`，所有节点出口统一依赖 `/srv/egress-control`
+- Linux 当前使用 `systemd` 托管 `stable`；需要固定节点出口时应统一接入 `/srv/egress-control`，但必须先以 `systemctl` 和 `127.0.0.1:19180/health` 核对该主机是否已安装并运行，不得仅按文档假设存在
 - Mac 当前使用 `autostart/launchd` 负责登录后自动恢复 stable 栈
 
 前端访问地址：
@@ -102,7 +102,7 @@ runtime/
 - 稳定环境前端（本机）：`http://127.0.0.1:8080/`
 - 稳定环境前端（局域网）：`http://<本机局域网IP>:8080/`
 - 开发环境前端：`http://127.0.0.1:8081/`
-- egress-control 健康检查：`http://127.0.0.1:19180/health`
+- egress-control 健康检查（仅已安装主机）：`http://127.0.0.1:19180/health`
 
 ## 分支与维护模式
 
@@ -162,7 +162,7 @@ runtime/
 - 不要删除或覆盖用户的运行时数据，除非用户明确要求
 - 修改稳定环境相关内容时，优先保证 `stable` 可恢复
 - 不得恢复旧 `door-gateway` 双轨链路；Sub2API 需要节点出口时只能接入 `/srv/egress-control`
-- Linux 侧要同时考虑 `systemd`、`/etc/systemd/system/sub2api-stable.service`、`egress-control.service`、`egress-control-docker-bridge.service`
+- Linux 侧先检查 `systemd` 与 `/etc/systemd/system/sub2api-stable.service`；如主机已安装 egress-control，再同时检查 `egress-control.service`、`egress-control-docker-bridge.service`
 - Mac 侧要同时考虑 `LaunchAgents`、`colima`、`autostart`、`~/Library/LaunchAgents/com.sub2api.autostart.plist`
 - 如果调整脚本接口，必须同步更新 `docs/LOCAL_DEVELOPMENT_MAINTENANCE.md`
 - 迁移编号静态检查：`scripts/check-migration-numbering`；完整回归：`scripts/tests/check-migration-numbering-test.sh` 或 `make migration-check`
@@ -174,6 +174,6 @@ runtime/
 
 1. `git status` 是否干净或是否只剩预期改动
 2. 如涉及 stable/dev 运行面，相关服务是否真的可访问
-3. 如在 Linux 上操作稳定环境，至少检查 `./scripts/sub2api-local stable status`、`./scripts/sub2api-local systemd status` 与 `http://127.0.0.1:19180/health`
+3. 如在 Linux 上操作稳定环境，至少检查 `./scripts/sub2api-local stable status`、`./scripts/sub2api-local systemd status`；只有主机已安装 egress-control 时才要求 `http://127.0.0.1:19180/health`
 4. 如在 Mac 上操作自动恢复链路，至少检查 `./scripts/sub2api-local autostart status`
 5. 变更是否已经提交本地 git

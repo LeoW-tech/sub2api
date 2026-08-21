@@ -160,7 +160,7 @@ NPM_REGISTRY=https://registry.npmmirror.com ./scripts/sub2api-local stable rebui
 
 ### Linux 主运行面：systemd 托管
 
-如果你希望 Linux 在开机后自动恢复 `stable`，并统一依赖 `/srv/egress-control` 出网，使用：
+如果你希望 Linux 在开机后自动恢复 `stable`，使用：
 
 ```bash
 sudo ./scripts/sub2api-local systemd install
@@ -174,7 +174,7 @@ sudo ./scripts/sub2api-local systemd install
 - 把当前 runtime 根目录显式写入 systemd 环境，避免仓库内外 runtime 路径漂移
 - 在 Linux 自动追加 `deploy/local/docker-compose.runtime.linux.yml`
 - 为 `sub2api` 容器注入 `host.docker.internal:host-gateway`
-- 先恢复 stable 栈，再检查 `egress-control.service` 与 `egress-control-docker-bridge.service`
+- 先恢复 stable 栈；如果本机已经安装 `/srv/egress-control`，再检查对应的两个 systemd unit
 
 查看 Linux 守护状态：
 
@@ -193,14 +193,15 @@ sudo ./scripts/sub2api-local systemd restart
 
 - 当前平台使用的 compose 文件
 - `sub2api/postgres/redis` 容器状态
-- `sub2api` 与 `egress-control` 的 health 结果
+- `sub2api` health，以及 egress-control 已安装时的 health 结果
 - 容器内 `host.docker.internal` 的解析结果
-- Linux 上的 `sub2api-stable.service` / `egress-control.service` 状态
+- Linux 上的 `sub2api-stable.service` 状态，以及已安装时的 egress-control unit 状态
 
 预期恢复链路：
 
-- 宿主机重启后，systemd 恢复 `sub2api-stable.service`，节点出口由独立 `egress-control.service` / `egress-control-docker-bridge.service` 提供
-- Docker 服务恢复后，可执行 `sudo ./scripts/sub2api-local systemd restart` 重新恢复 stable 并验证 egress-control
+- 宿主机重启后，systemd 恢复 `sub2api-stable.service`；仅已部署 egress-control 的主机再由其独立 unit 提供固定出口
+- Docker 服务恢复后，可执行 `sudo ./scripts/sub2api-local systemd restart` 重新恢复 stable；egress-control 需按实机安装状态单独验证
+- 2026-08-22 东京 VPS 未安装 egress-control unit，`127.0.0.1:19180` 未监听；这不影响当前 stable 健康，但需要固定出口的账号不能假设该能力已存在
 - 固定账号绑定的代理映射仍由 Sub2API 数据库记录保持稳定，不由 Sub2API 运维脚本自动迁移
 - 容器本身异常退出后，由 compose 中的 `restart: unless-stopped` 自动恢复
 
