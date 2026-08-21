@@ -1,4 +1,4 @@
-.PHONY: build build-backend build-frontend test test-backend test-frontend test-frontend-critical secret-scan \
+.PHONY: build build-backend build-frontend test test-backend test-frontend test-frontend-critical secret-scan migration-check \
 	stable-up stable-down stable-logs stable-status stable-restart stable-rebuild \
 	dev-up dev-down dev-logs dev-status dev-restart dev-rebuild \
 	door-restart door-status \
@@ -50,6 +50,10 @@ test-frontend-critical:
 
 secret-scan:
 	@python3 tools/secret_scan.py
+
+migration-check:
+	@./scripts/check-migration-numbering
+	@./scripts/tests/check-migration-numbering-test.sh
 
 stable-up:
 	@./scripts/sub2api-local stable up

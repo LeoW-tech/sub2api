@@ -8,7 +8,7 @@ import (
 )
 
 func TestAffiliateLedgerAuditIndexesMigrationIsIdempotent(t *testing.T) {
-	content, err := FS.ReadFile("229_affiliate_ledger_audit_indexes.sql")
+	content, err := FS.ReadFile("900001_local_affiliate_ledger_audit_indexes.sql")
 	require.NoError(t, err)
 
 	sql := strings.Join(strings.Fields(string(content)), " ")

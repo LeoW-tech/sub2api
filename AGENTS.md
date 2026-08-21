@@ -142,6 +142,7 @@ runtime/
 - 核心业务文件、配置文件、依赖注入文件和大型前端视图发生冲突时，禁止未经逐项审查直接使用 `ours`、`theirs` 或整文件覆盖。必须按功能和调用链合并。
 - 生成代码不得作为普通业务代码手工拼接。先解决生成源和依赖图，再使用项目规定的生成工具重新生成，并确认生成结果无陈旧引用。
 - 已经发布或可能落库的迁移文件名和内容视为不可变。不得通过重命名或修改旧迁移解决编号冲突；新变更使用新的迁移文件，并在数据库副本上验证升级路径。
+- 迁移编号规则：历史迁移（包括上游带来的 `001–899999` 文件）视为冻结，不改名、不改内容；本地新增迁移统一使用 `900001+` 保留区间，文件名必须为 `NNNNNN_local_description.sql`，并按 `backend/migrations/NEXT_LOCAL_MIGRATION` 连续递增。新增本地迁移后必须递增该文件，并通过 `scripts/check-migration-numbering`；禁止再创建重复的 `225_*`、`226_*` 等普通前缀。
 - 前后端接口必须核对路由、请求参数、响应类型和实际调用方，不能只确认 TypeScript 或 Go 类型存在。
 - 同步涉及 `frontend/src/i18n/locales/` 的结构性调整时，必须验证受影响组件引用的翻译键在中英文最终合并后的语言树中均可解析；不能只依赖将 `t()` mock 为键名的组件测试。
 
@@ -164,6 +165,7 @@ runtime/
 - Linux 侧要同时考虑 `systemd`、`/etc/systemd/system/sub2api-stable.service`、`egress-control.service`、`egress-control-docker-bridge.service`
 - Mac 侧要同时考虑 `LaunchAgents`、`colima`、`autostart`、`~/Library/LaunchAgents/com.sub2api.autostart.plist`
 - 如果调整脚本接口，必须同步更新 `docs/LOCAL_DEVELOPMENT_MAINTENANCE.md`
+- 迁移编号静态检查：`scripts/check-migration-numbering`；完整回归：`scripts/tests/check-migration-numbering-test.sh` 或 `make migration-check`
 - 这套仓库服务的是双机同步模式：Linux 通常负责提交并按需推送，Mac 从 `origin` 拉取同步更新
 
 ## 完成前检查

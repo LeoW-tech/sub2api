@@ -80,6 +80,17 @@ node scripts/sub2api-oauth-callback-helper.mjs \
 
 ## 统一入口
 
+### 迁移编号静态校验
+
+为避免重复上游编号在多次同步中再次发生，历史迁移文件保持不可变；本地新增迁移使用 `900001+` 保留区间，并通过 `backend/migrations/NEXT_LOCAL_MIGRATION` 记录下一个编号。文件名格式为 `NNNNNN_local_description.sql`。
+
+```bash
+./scripts/check-migration-numbering
+make migration-check
+```
+
+该检查仅扫描仓库文件名和序列文件，不会连接数据库或修改运行时数据。
+
 推荐统一使用 `./scripts/sub2api-local`：
 
 ```bash

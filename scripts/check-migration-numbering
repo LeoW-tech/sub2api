@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MIGRATIONS_DIR="${1:-$REPO_ROOT/backend/migrations}"
+SEQUENCE_FILE="$MIGRATIONS_DIR/NEXT_LOCAL_MIGRATION"
+LOCAL_MIGRATION_MIN=900001
+
+fail() {
+  echo "migration numbering check failed: $*" >&2
+  exit 1
+}
+
+[[ -d "$MIGRATIONS_DIR" ]] || fail "迁移目录不存在: $MIGRATIONS_DIR"
+[[ -f "$SEQUENCE_FILE" ]] || fail "缺少 $SEQUENCE_FILE"
+
+next="$(tr -d '[:space:]' < "$SEQUENCE_FILE")"
+[[ "$next" =~ ^[0-9]+$ ]] || fail "NEXT_LOCAL_MIGRATION 必须是整数"
+(( next >= LOCAL_MIGRATION_MIN )) || fail "NEXT_LOCAL_MIGRATION 不能小于 $LOCAL_MIGRATION_MIN"
+
+shopt -s nullglob
+files=("$MIGRATIONS_DIR"/[0-9]*.sql)
+local_prefixes=""
+
+for file in "${files[@]}"; do
+  name="$(basename "$file")"
+  [[ "$name" =~ ^([0-9]+) ]] || continue
+  prefix=$((10#${BASH_REMATCH[1]}))
+
+  if [[ "$name" == *_local_* ]] && (( prefix < LOCAL_MIGRATION_MIN )); then
+    fail "本地迁移必须使用保留编号区间 $LOCAL_MIGRATION_MIN+: $name"
+  fi
+
+  if (( prefix >= LOCAL_MIGRATION_MIN )); then
+    [[ "$name" =~ ^[0-9]{6}_local_[a-z0-9][a-z0-9_]*\.sql$ ]] \
+      || fail "本地迁移文件名必须为 NNNNNN_local_description.sql: $name"
+    local_prefixes+="$prefix"$'\n'
+  fi
+done
+
+duplicates="$(printf '%s' "$local_prefixes" | LC_ALL=C sort -n | uniq -d)"
+[[ -z "$duplicates" ]] || fail "本地迁移编号重复: $(echo "$duplicates" | tr '\n' ' ')"
+
+expected=$LOCAL_MIGRATION_MIN
+while IFS= read -r prefix; do
+  [[ -n "$prefix" ]] || continue
+  (( prefix == expected )) \
+    || fail "本地迁移编号必须连续，期望 $expected，实际 $prefix"
+  expected=$((expected + 1))
+done < <(printf '%s' "$local_prefixes" | LC_ALL=C sort -n -u)
+
+(( next == expected )) \
+  || fail "NEXT_LOCAL_MIGRATION 必须等于 $expected，实际为 $next"
+
+echo "migration numbering check passed (next local migration: $next)"
