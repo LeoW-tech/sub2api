@@ -301,19 +301,23 @@ describe('UseKeyModal', () => {
     const configToml = codeBlocks.find((content) => content.includes('model_provider = "OpenAI"'))
 
     expect(configToml).toBeDefined()
-    expect(configToml).toContain('model = "gpt-5.6-sol"')
-    expect(configToml).toContain('review_model = "gpt-5.6-sol"')
-    expect(configToml).not.toContain('gpt-5.5')
-    expect(configToml).not.toContain('model = "gpt-5.4"')
-    expect(configToml).not.toContain('model_context_window')
-    expect(configToml).not.toContain('model_auto_compact_token_limit')
-    expect(configToml).toContain('requires_openai_auth = true')
-    expect(configToml).not.toContain('x-openai-actor-authorization')
-    expect(configToml).not.toContain('env_key')
-    expect(configToml).not.toContain('image_generation')
-    expect(configToml).not.toContain('supports_websockets')
-    expect(configToml).not.toContain('responses_websockets_v2')
-    expect(configToml).toContain('[features]\ngoals = true')
+    expect(configToml).toBe([
+      'model_provider = "OpenAI"',
+      'model = "gpt-5.6-sol"',
+      'model_reasoning_effort = "xhigh"',
+      'approval_policy = "never"',
+      'sandbox_mode = "danger-full-access"',
+      '',
+      '[model_providers.OpenAI]',
+      'name = "OpenAI"',
+      'base_url = "https://example.com/v1"',
+      'wire_api = "responses"',
+      'requires_openai_auth = true',
+      '',
+      '[features]',
+      'goals = true'
+    ].join('\n'))
+    expect(configToml?.match(/requires_openai_auth/g)).toHaveLength(1)
     expect(codeBlocks).toContain('{\n  "OPENAI_API_KEY": "sk-test"\n}')
     expect(wrapper.text()).toContain('auth.json')
     expect(wrapper.find('[data-testid="codex-api-key-restart-notice"]').exists()).toBe(false)
@@ -446,9 +450,23 @@ describe('UseKeyModal', () => {
     const copiedCommand = String(copyToClipboardMock.mock.calls[0]?.[0] ?? '')
     expect(copiedCommand).toContain('https://chatgpt.com/zh-Hans-CN/download/')
     expect(copiedCommand).toContain('https://t3.znas.cn/H0ogPWjF07')
-    expect(copiedCommand).toContain('model = "gpt-5.6-sol"')
-    expect(copiedCommand).not.toContain('model = "gpt-5.5"')
+    expect(copiedCommand).toContain('set -Eeuo pipefail')
+    expect(copiedCommand).toContain('cat > "$CONFIG_FILE"')
+    expect(copiedCommand).toContain('cat > "$AUTH_FILE"')
+    expect(copiedCommand).toContain('approval_policy = "never"')
+    expect(copiedCommand).toContain('sandbox_mode = "danger-full-access"')
+    expect(copiedCommand).toContain('✅ Codex完成接入！')
+    expect(copiedCommand).not.toContain('配置成功！Codex CLI 已完成接入')
+    expect(copiedCommand).not.toContain('review_model =')
+    expect(copiedCommand).not.toContain('disable_response_storage')
+    expect(copiedCommand).not.toContain('network_access')
+    expect(copiedCommand).not.toContain('sandbox_workspace_write')
+    expect(copiedCommand).not.toContain('windows_wsl_setup_acknowledged')
     expect(copiedCommand).not.toContain('https://chatgpt.com/codex/for-work/')
+
+    const configToml = wrapper.find('[data-testid="professional-config-toml-step"] pre code').text()
+    expect(copiedCommand).toContain(configToml)
+    expect(copiedCommand).toContain('{\n  "OPENAI_API_KEY": "sk-test"\n}')
   })
 
 
@@ -485,9 +503,24 @@ describe('UseKeyModal', () => {
     const copiedCommand = String(copyToClipboardMock.mock.calls[0]?.[0] ?? '')
     expect(copiedCommand).toContain('https://chatgpt.com/zh-Hans-CN/download/')
     expect(copiedCommand).toContain('https://t3.znas.cn/H0ogPWjF07')
-    expect(copiedCommand).toContain('model = "gpt-5.6-sol"')
-    expect(copiedCommand).not.toContain('model = "gpt-5.5"')
+    expect(copiedCommand).toContain("$ErrorActionPreference = 'Stop'")
+    expect(copiedCommand).toContain('Set-StrictMode -Version Latest')
+    expect(copiedCommand).toContain('Set-Content -Path $configFile')
+    expect(copiedCommand).toContain('Set-Content -Path $authFile')
+    expect(copiedCommand).toContain('approval_policy = "never"')
+    expect(copiedCommand).toContain('sandbox_mode = "danger-full-access"')
+    expect(copiedCommand).toContain('✅ Codex完成接入！')
+    expect(copiedCommand).not.toContain('配置成功！Codex CLI 已完成接入')
+    expect(copiedCommand).not.toContain('review_model =')
+    expect(copiedCommand).not.toContain('disable_response_storage')
+    expect(copiedCommand).not.toContain('network_access')
+    expect(copiedCommand).not.toContain('sandbox_workspace_write')
+    expect(copiedCommand).not.toContain('windows_wsl_setup_acknowledged')
     expect(copiedCommand).not.toContain('https://chatgpt.com/codex/for-work/')
+
+    const configToml = wrapper.find('[data-testid="professional-config-toml-step"] pre code').text()
+    expect(copiedCommand).toContain(configToml)
+    expect(copiedCommand).toContain('{\n  "OPENAI_API_KEY": "sk-test"\n}')
   })
 
 

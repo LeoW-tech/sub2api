@@ -177,19 +177,19 @@ export default {
         },
         professional: {
           title: '方法二：专业人士使用',
-          description: '手动打开配置目录，将下面两个文件放入目录中。适合熟悉配置文件的用户。',
+          description: '手动配置同一套 Codex 配置，需要在目录中放入两个文件：config.toml 和 auth.json。config.toml 使用 approval_policy = "never" 和 sandbox_mode = "danger-full-access"。',
           macOpenDir: '打开 Finder 后按 Command + Shift + G，粘贴 ~/.codex 并回车进入配置目录。',
           windowsOpenDir: '按 Win + R，粘贴 %USERPROFILE%\\.codex 并回车打开配置目录。',
-          configTomlDownloadHint: '直接点击下载 config.toml，将文件放入刚才打开的目录中即可。',
-          configTomlCopyHint: '或者点击复制，将以下内容放在 config.toml 文件的开头部分。',
-          authJsonDownloadHint: '直接点击下载 auth.json，将文件放入刚才打开的目录中即可。',
+          configTomlDownloadHint: '直接点击下载完整的 config.toml，将文件放入刚才打开的目录中即可。',
+          configTomlCopyHint: '或者点击复制，用以下完整内容覆盖 config.toml。',
+          authJsonDownloadHint: '直接点击下载 auth.json，将文件放入刚才打开的目录中，并保留其中的 OPENAI_API_KEY 配置。',
           steps: {
             openDir: '第一步：打开配置目录',
             configToml: '第二步：配置 config.toml 文件',
             authJson: '第三步：配置 auth.json 文件'
           }
         },
-        configTomlHint: '请确保以下内容位于 config.toml 文件的开头部分',
+        configTomlHint: '请使用以下完整内容作为 config.toml，不要保留旧的额外字段',
         note: '请确保配置目录存在。macOS/Linux 用户可运行 mkdir -p ~/.codex 创建目录。',
         noteWindows:
           '按 Win+R，输入 %userprofile%\\.codex 打开配置目录。如目录不存在，请先手动创建。'

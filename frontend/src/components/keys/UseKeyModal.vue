@@ -1002,17 +1002,14 @@ function generateOpenAIFiles(baseUrl: string, apiKey: string, isWindows = active
   // config.toml content
   const configContent = `model_provider = "OpenAI"
 model = "gpt-5.6-sol"
-review_model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
-disable_response_storage = true
-network_access = "enabled"
-windows_wsl_setup_acknowledged = true
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
 
 [model_providers.OpenAI]
 name = "OpenAI"
 base_url = "${baseUrl}"
 wire_api = "responses"
-${generateCodexProviderAuthConfig()}
 requires_openai_auth = true
 
 [features]
@@ -1320,7 +1317,8 @@ const oneClickCommand = computed(() => {
 })
 
 function generateMacCodexCommand(configContent: string, authContent: string): string {
-  return `CODEX_DIR="$HOME/.codex"
+  return `set -Eeuo pipefail
+CODEX_DIR="$HOME/.codex"
 CONFIG_FILE="$CODEX_DIR/config.toml"
 AUTH_FILE="$CODEX_DIR/auth.json"
 STAMP="$(date +%Y%m%d-%H%M%S)"
@@ -1356,7 +1354,7 @@ cat > "$AUTH_FILE" <<'SUB2API_AUTH_JSON'
 ${authContent}
 SUB2API_AUTH_JSON
 
-if ! grep -Fq 'model = "gpt-5.6-sol"' "$CONFIG_FILE" || ! grep -Fq 'wire_api = "responses"' "$CONFIG_FILE" || ! grep -Fq 'base_url = "${props.baseUrl || window.location.origin}"' "$CONFIG_FILE"; then
+if ! grep -Fq 'model = "gpt-5.6-sol"' "$CONFIG_FILE" || ! grep -Fq 'wire_api = "responses"' "$CONFIG_FILE" || ! grep -Fq 'base_url = "${props.baseUrl || window.location.origin}"' "$CONFIG_FILE" || ! grep -Fq 'approval_policy = "never"' "$CONFIG_FILE" || ! grep -Fq 'sandbox_mode = "danger-full-access"' "$CONFIG_FILE" || ! grep -Fq 'requires_openai_auth = true' "$CONFIG_FILE"; then
   big_error "config.toml 写入后校验失败。旧配置已备份在 $CODEX_DIR，请联系网页右上角客服咨询。"
   exit 1
 fi
@@ -1369,7 +1367,7 @@ fi
 open "$CODEX_DIR"
 echo ""
 echo "============================================================"
-echo "✅✅✅  配置成功！Codex CLI 已完成接入  ✅✅✅"
+echo "✅ Codex完成接入！"
 echo "============================================================"
 echo "已写入："
 echo "  $CONFIG_FILE"
@@ -1382,7 +1380,9 @@ echo "============================================================"`
 }
 
 function generateWindowsCodexCommand(configContent: string, authContent: string): string {
-  return `$codexDir = Join-Path $env:USERPROFILE '.codex'
+  return `$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+$codexDir = Join-Path $env:USERPROFILE '.codex'
 $configFile = Join-Path $codexDir 'config.toml'
 $authFile = Join-Path $codexDir 'auth.json'
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -1425,7 +1425,7 @@ Set-Content -Path $authFile -Value $authContent -Encoding UTF8
 $writtenConfig = Get-Content -Path $configFile -Raw
 $writtenAuth = Get-Content -Path $authFile -Raw
 
-if (!$writtenConfig.Contains('model = "gpt-5.6-sol"') -or !$writtenConfig.Contains('wire_api = "responses"') -or !$writtenConfig.Contains('base_url = "${props.baseUrl || window.location.origin}"')) {
+if (!$writtenConfig.Contains('model = "gpt-5.6-sol"') -or !$writtenConfig.Contains('wire_api = "responses"') -or !$writtenConfig.Contains('base_url = "${props.baseUrl || window.location.origin}"') -or !$writtenConfig.Contains('approval_policy = "never"') -or !$writtenConfig.Contains('sandbox_mode = "danger-full-access"') -or !$writtenConfig.Contains('requires_openai_auth = true')) {
   Show-Sub2ApiError "config.toml 写入后校验失败。旧配置已备份在 $codexDir，请联系网页右上角客服咨询。"
   exit 1
 }
@@ -1438,7 +1438,7 @@ if (!$writtenAuth.Contains('"OPENAI_API_KEY": "${props.apiKey}"')) {
 Invoke-Item $codexDir
 Write-Host ''
 Write-Host '============================================================' -ForegroundColor Green
-Write-Host '✅✅✅  配置成功！Codex CLI 已完成接入  ✅✅✅' -ForegroundColor Green
+Write-Host '✅ Codex完成接入！' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host '已写入：'
 Write-Host "  $configFile"

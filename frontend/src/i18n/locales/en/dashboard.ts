@@ -177,19 +177,19 @@ export default {
         },
         professional: {
           title: 'Method 2: For advanced users',
-          description: 'Open the config directory manually and place the following two files there. For users familiar with config files.',
+          description: 'Configure the same Codex setup manually by placing two files in the directory: config.toml and auth.json. config.toml uses approval_policy = "never" and sandbox_mode = "danger-full-access".',
           macOpenDir: 'Open Finder, press Command + Shift + G, paste ~/.codex, then press Enter to open the config directory.',
           windowsOpenDir: 'Press Win + R, paste %USERPROFILE%\\.codex, then press Enter to open the config directory.',
-          configTomlDownloadHint: 'Click Download config.toml and place the file in the directory you just opened.',
-          configTomlCopyHint: 'Or click Copy and put the following content at the beginning of config.toml.',
-          authJsonDownloadHint: 'Click Download auth.json and place the file in the directory you just opened.',
+          configTomlDownloadHint: 'Click Download the complete config.toml and place it in the directory you just opened.',
+          configTomlCopyHint: 'Or click Copy and replace the entire contents of config.toml with it.',
+          authJsonDownloadHint: 'Click Download auth.json and place it in the directory, keeping its existing OPENAI_API_KEY configuration.',
           steps: {
             openDir: 'Step 1: Open the config directory',
             configToml: 'Step 2: Configure config.toml',
             authJson: 'Step 3: Configure auth.json'
           }
         },
-        configTomlHint: 'Make sure the following content is at the beginning of the config.toml file',
+        configTomlHint: 'Use the following complete content as config.toml and remove old extra fields',
         note: 'Make sure the config directory exists. macOS/Linux users can run mkdir -p ~/.codex to create it.',
         noteWindows: 'Press Win+R and enter %userprofile%\\.codex to open the config directory. Create it manually if it does not exist.',
       },

@@ -64,6 +64,10 @@ describe('UseKeyModal OpenAI Codex locales', () => {
   it('keeps the two configuration modes explicit in Chinese', () => {
     expect(zh.keys.useKeyModal.openai.beginner.title).toBe('方法一：小白一键配置')
     expect(zh.keys.useKeyModal.openai.professional.title).toBe('方法二：专业人士使用')
+    expect(zh.keys.useKeyModal.openai.professional.description).toContain('config.toml')
+    expect(zh.keys.useKeyModal.openai.professional.description).toContain('auth.json')
+    expect(zh.keys.useKeyModal.openai.professional.description).toContain('approval_policy = "never"')
+    expect(zh.keys.useKeyModal.openai.professional.description).toContain('sandbox_mode = "danger-full-access"')
   })
 
   it('keeps the Codex download links and manual download action in Chinese', () => {
