@@ -1333,6 +1333,59 @@ big_error() {
   echo ""
 }
 
+TEMP_CONFIG_FILE=""
+TEMP_AUTH_FILE=""
+
+cleanup() {
+  if [ -n "$TEMP_CONFIG_FILE" ]; then
+    rm -f "$TEMP_CONFIG_FILE" >/dev/null 2>&1 || true
+  fi
+  if [ -n "$TEMP_AUTH_FILE" ]; then
+    rm -f "$TEMP_AUTH_FILE" >/dev/null 2>&1 || true
+  fi
+}
+
+trap cleanup EXIT
+trap 'big_error "命令执行失败，错误发生在第 \${LINENO} 行。"' ERR
+
+validate_config_toml() {
+  local file="$1"
+  local line
+  local line_no=0
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line_no=$((line_no + 1))
+    case "$line_no" in
+      1) [[ "$line" == 'model_provider = "OpenAI"' ]] || return 1 ;;
+      2) [[ "$line" == 'model = "gpt-5.6-sol"' ]] || return 1 ;;
+      3) [[ "$line" == 'model_reasoning_effort = "xhigh"' ]] || return 1 ;;
+      4) [[ "$line" == 'approval_policy = "never"' ]] || return 1 ;;
+      5) [[ "$line" == 'sandbox_mode = "danger-full-access"' ]] || return 1 ;;
+      6) [[ -z "$line" ]] || return 1 ;;
+      7) [[ "$line" == '[model_providers.OpenAI]' ]] || return 1 ;;
+      8) [[ "$line" == 'name = "OpenAI"' ]] || return 1 ;;
+      9)
+        case "$line" in
+          'base_url = "'?*'"') ;;
+          *) return 1 ;;
+        esac
+        ;;
+      10) [[ "$line" == 'wire_api = "responses"' ]] || return 1 ;;
+      11) [[ "$line" == 'requires_openai_auth = true' ]] || return 1 ;;
+      12) [[ -z "$line" ]] || return 1 ;;
+      13) [[ "$line" == '[features]' ]] || return 1 ;;
+      14) [[ "$line" == 'goals = true' ]] || return 1 ;;
+      *) return 1 ;;
+    esac
+  done < "$file"
+
+  [[ "$line_no" -eq 14 ]]
+}
+
+validate_auth_json() {
+  osascript -l JavaScript -e 'ObjC.import("Foundation"); var data=$.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile; var text=$.NSString.alloc.initWithDataEncoding(data,$.NSUTF8StringEncoding).js; var value=JSON.parse(text); var keys=Object.keys(value); if (keys.length !== 1 || keys[0] !== "OPENAI_API_KEY" || typeof value.OPENAI_API_KEY !== "string" || value.OPENAI_API_KEY.length === 0) throw new Error("Invalid auth.json");' < "$1" >/dev/null 2>&1
+}
+
 if [ ! -d "$CODEX_DIR" ]; then
   big_error "未找到 Codex 配置目录：$CODEX_DIR\n请先安装 Codex App，并打开一次完成初始化。\n官方下载：${CODEX_OFFICIAL_DOWNLOAD_URL}\n备用网盘：${CODEX_BACKUP_DOWNLOAD_URL}\n安装完成后，请回到网页从第一步重新执行配置。"
   exit 1
@@ -1343,28 +1396,36 @@ if pgrep -if '(^|/)Codex( |$)' >/dev/null 2>&1; then
   exit 1
 fi
 
-[ -f "$CONFIG_FILE" ] && cp "$CONFIG_FILE" "$CONFIG_FILE.sub2api.bak-$STAMP"
-[ -f "$AUTH_FILE" ] && cp "$AUTH_FILE" "$AUTH_FILE.sub2api.bak-$STAMP"
+TEMP_CONFIG_FILE="$(mktemp "$CODEX_DIR/.sub2api-config.XXXXXX")"
+TEMP_AUTH_FILE="$(mktemp "$CODEX_DIR/.sub2api-auth.XXXXXX")"
 
-cat > "$CONFIG_FILE" <<'SUB2API_CONFIG_TOML'
+cat > "$TEMP_CONFIG_FILE" <<'SUB2API_CONFIG_TOML'
 ${configContent}
 SUB2API_CONFIG_TOML
 
-cat > "$AUTH_FILE" <<'SUB2API_AUTH_JSON'
+cat > "$TEMP_AUTH_FILE" <<'SUB2API_AUTH_JSON'
 ${authContent}
 SUB2API_AUTH_JSON
 
-if ! grep -Fq 'model = "gpt-5.6-sol"' "$CONFIG_FILE" || ! grep -Fq 'wire_api = "responses"' "$CONFIG_FILE" || ! grep -Fq 'base_url = "${props.baseUrl || window.location.origin}"' "$CONFIG_FILE" || ! grep -Fq 'approval_policy = "never"' "$CONFIG_FILE" || ! grep -Fq 'sandbox_mode = "danger-full-access"' "$CONFIG_FILE" || ! grep -Fq 'requires_openai_auth = true' "$CONFIG_FILE"; then
-  big_error "config.toml 写入后校验失败。旧配置已备份在 $CODEX_DIR，请联系网页右上角客服咨询。"
+if ! validate_config_toml "$TEMP_CONFIG_FILE"; then
+  big_error "config.toml 临时文件解析校验失败。旧配置未被替换，请联系网页右上角客服咨询。"
   exit 1
 fi
 
-if ! grep -Fq '"OPENAI_API_KEY": "${props.apiKey}"' "$AUTH_FILE"; then
-  big_error "auth.json 写入后校验失败。旧配置已备份在 $CODEX_DIR，请联系网页右上角客服咨询。"
+if ! validate_auth_json "$TEMP_AUTH_FILE"; then
+  big_error "auth.json 临时文件解析校验失败。旧配置未被替换，请联系网页右上角客服咨询。"
   exit 1
 fi
 
-open "$CODEX_DIR"
+[ -f "$CONFIG_FILE" ] && cp "$CONFIG_FILE" "$CONFIG_FILE.sub2api.bak-$STAMP"
+[ -f "$AUTH_FILE" ] && cp "$AUTH_FILE" "$AUTH_FILE.sub2api.bak-$STAMP"
+
+mv -f "$TEMP_CONFIG_FILE" "$CONFIG_FILE"
+TEMP_CONFIG_FILE=""
+mv -f "$TEMP_AUTH_FILE" "$AUTH_FILE"
+TEMP_AUTH_FILE=""
+
+open "$CODEX_DIR" >/dev/null 2>&1 || true
 echo ""
 echo "============================================================"
 echo "✅ Codex完成接入！"
@@ -1386,6 +1447,8 @@ $codexDir = Join-Path $env:USERPROFILE '.codex'
 $configFile = Join-Path $codexDir 'config.toml'
 $authFile = Join-Path $codexDir 'auth.json'
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$tempConfigFile = $null
+$tempAuthFile = $null
 
 function Show-Sub2ApiError([string]$message) {
   Write-Host ''
@@ -1397,19 +1460,98 @@ function Show-Sub2ApiError([string]$message) {
   Write-Host ''
 }
 
-if (!(Test-Path $codexDir)) {
-  Show-Sub2ApiError "未找到 Codex 配置目录：$codexDir\`n请先安装 Codex App，并打开一次完成初始化。\`n官方下载：${CODEX_OFFICIAL_DOWNLOAD_URL}\`n备用网盘：${CODEX_BACKUP_DOWNLOAD_URL}\`n安装完成后，请回到网页从第一步重新执行配置。"
+trap {
+  $errorLine = $_.InvocationInfo.ScriptLineNumber
+  Show-Sub2ApiError "命令执行失败，错误发生在第 $errorLine 行。"
+  if ($null -ne $tempConfigFile -and (Test-Path -LiteralPath $tempConfigFile)) {
+    Remove-Item -LiteralPath $tempConfigFile -Force -ErrorAction SilentlyContinue
+  }
+  if ($null -ne $tempAuthFile -and (Test-Path -LiteralPath $tempAuthFile)) {
+    Remove-Item -LiteralPath $tempAuthFile -Force -ErrorAction SilentlyContinue
+  }
   exit 1
+}
+
+function Stop-CodexSetup([string]$message) {
+  Show-Sub2ApiError $message
+  if ($null -ne $tempConfigFile -and (Test-Path -LiteralPath $tempConfigFile)) {
+    Remove-Item -LiteralPath $tempConfigFile -Force -ErrorAction SilentlyContinue
+  }
+  if ($null -ne $tempAuthFile -and (Test-Path -LiteralPath $tempAuthFile)) {
+    Remove-Item -LiteralPath $tempAuthFile -Force -ErrorAction SilentlyContinue
+  }
+  exit 1
+}
+
+function Validate-CodexConfigToml([string]$Path) {
+  $lines = @(Get-Content -LiteralPath $Path)
+  $expected = @(
+    'model_provider = "OpenAI"'
+    'model = "gpt-5.6-sol"'
+    'model_reasoning_effort = "xhigh"'
+    'approval_policy = "never"'
+    'sandbox_mode = "danger-full-access"'
+    ''
+    '[model_providers.OpenAI]'
+    'name = "OpenAI"'
+    ''
+    'wire_api = "responses"'
+    'requires_openai_auth = true'
+    ''
+    '[features]'
+    'goals = true'
+  )
+
+  if ($lines.Count -ne $expected.Count) {
+    return $false
+  }
+
+  for ($index = 0; $index -lt $expected.Count; $index++) {
+    if ($index -eq 8) {
+      if ($lines[$index] -notmatch '^base_url = "[^"]+"$') {
+        return $false
+      }
+    } elseif ($lines[$index] -cne $expected[$index]) {
+      return $false
+    }
+  }
+
+  return $true
+}
+
+function Validate-CodexAuthJson([string]$Path) {
+  $json = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+  if ($null -eq $json) {
+    return $false
+  }
+
+  $properties = @($json.PSObject.Properties)
+  if ($properties.Count -ne 1 -or $properties[0].Name -ne 'OPENAI_API_KEY') {
+    return $false
+  }
+
+  return -not [string]::IsNullOrEmpty([string]$properties[0].Value)
+}
+
+function Replace-CodexFile([string]$TempPath, [string]$TargetPath) {
+  if (Test-Path -LiteralPath $TargetPath) {
+    [System.IO.File]::Replace($TempPath, $TargetPath, $null)
+  } else {
+    [System.IO.File]::Move($TempPath, $TargetPath)
+  }
+}
+
+if (!(Test-Path -LiteralPath $codexDir)) {
+  Stop-CodexSetup "未找到 Codex 配置目录：$codexDir\`n请先安装 Codex App，并打开一次完成初始化。\`n官方下载：${CODEX_OFFICIAL_DOWNLOAD_URL}\`n备用网盘：${CODEX_BACKUP_DOWNLOAD_URL}\`n安装完成后，请回到网页从第一步重新执行配置。"
 }
 
 $codexProcess = Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -match '^Codex$|^codex$' }
 if ($codexProcess) {
-  Show-Sub2ApiError "检测到 Codex App 仍在运行。\`n请先右键任务栏里的 Codex，选择退出，确保它已完全退出后再重新执行本命令。"
-  exit 1
+  Stop-CodexSetup "检测到 Codex App 仍在运行。\`n请先右键任务栏里的 Codex，选择退出，确保它不在后台运行后再重新执行本命令。"
 }
 
-if (Test-Path $configFile) { Copy-Item $configFile "$configFile.sub2api.bak-$stamp" -Force }
-if (Test-Path $authFile) { Copy-Item $authFile "$authFile.sub2api.bak-$stamp" -Force }
+$tempConfigFile = Join-Path $codexDir ('.sub2api-config-' + [Guid]::NewGuid().ToString('N') + '.tmp')
+$tempAuthFile = Join-Path $codexDir ('.sub2api-auth-' + [Guid]::NewGuid().ToString('N') + '.tmp')
 
 $configContent = @'
 ${configContent}
@@ -1419,23 +1561,30 @@ $authContent = @'
 ${authContent}
 '@
 
-Set-Content -Path $configFile -Value $configContent -Encoding UTF8
-Set-Content -Path $authFile -Value $authContent -Encoding UTF8
+Set-Content -LiteralPath $tempConfigFile -Value $configContent -Encoding UTF8
+Set-Content -LiteralPath $tempAuthFile -Value $authContent -Encoding UTF8
 
-$writtenConfig = Get-Content -Path $configFile -Raw
-$writtenAuth = Get-Content -Path $authFile -Raw
-
-if (!$writtenConfig.Contains('model = "gpt-5.6-sol"') -or !$writtenConfig.Contains('wire_api = "responses"') -or !$writtenConfig.Contains('base_url = "${props.baseUrl || window.location.origin}"') -or !$writtenConfig.Contains('approval_policy = "never"') -or !$writtenConfig.Contains('sandbox_mode = "danger-full-access"') -or !$writtenConfig.Contains('requires_openai_auth = true')) {
-  Show-Sub2ApiError "config.toml 写入后校验失败。旧配置已备份在 $codexDir，请联系网页右上角客服咨询。"
-  exit 1
+if (!(Validate-CodexConfigToml -Path $tempConfigFile)) {
+  Stop-CodexSetup "config.toml 临时文件解析校验失败。旧配置未被替换，请联系网页右上角客服咨询。"
 }
 
-if (!$writtenAuth.Contains('"OPENAI_API_KEY": "${props.apiKey}"')) {
-  Show-Sub2ApiError "auth.json 写入后校验失败。旧配置已备份在 $codexDir，请联系网页右上角客服咨询。"
-  exit 1
+if (!(Validate-CodexAuthJson -Path $tempAuthFile)) {
+  Stop-CodexSetup "auth.json 临时文件解析校验失败。旧配置未被替换，请联系网页右上角客服咨询。"
 }
 
-Invoke-Item $codexDir
+if (Test-Path -LiteralPath $configFile) {
+  Copy-Item -LiteralPath $configFile -Destination "$configFile.sub2api.bak-$stamp" -Force
+}
+if (Test-Path -LiteralPath $authFile) {
+  Copy-Item -LiteralPath $authFile -Destination "$authFile.sub2api.bak-$stamp" -Force
+}
+
+Replace-CodexFile -TempPath $tempConfigFile -TargetPath $configFile
+$tempConfigFile = $null
+Replace-CodexFile -TempPath $tempAuthFile -TargetPath $authFile
+$tempAuthFile = $null
+
+try { Invoke-Item -LiteralPath $codexDir -ErrorAction Stop } catch {}
 Write-Host ''
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host '✅ Codex完成接入！' -ForegroundColor Green
