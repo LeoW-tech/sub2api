@@ -26,15 +26,23 @@ func (s *adminServiceImpl) ListGroups(ctx context.Context, page, pageSize int, p
 	if err != nil {
 		return nil, 0, err
 	}
-	return groups, result.Total, nil
+	return sanitizeGroupsSupportedModelScopes(groups), result.Total, nil
 }
 
 func (s *adminServiceImpl) GetAllGroups(ctx context.Context) ([]Group, error) {
-	return s.groupRepo.ListActive(ctx)
+	groups, err := s.groupRepo.ListActive(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return sanitizeGroupsSupportedModelScopes(groups), nil
 }
 
 func (s *adminServiceImpl) GetAllGroupsByPlatform(ctx context.Context, platform string) ([]Group, error) {
-	return s.groupRepo.ListActiveByPlatform(ctx, platform)
+	groups, err := s.groupRepo.ListActiveByPlatform(ctx, platform)
+	if err != nil {
+		return nil, err
+	}
+	return sanitizeGroupsSupportedModelScopes(groups), nil
 }
 
 func (s *adminServiceImpl) GetAllGroupsIncludingInactive(ctx context.Context) ([]Group, error) {
@@ -45,7 +53,12 @@ func (s *adminServiceImpl) GetAllGroupsIncludingInactive(ctx context.Context) ([
 }
 
 func (s *adminServiceImpl) GetGroup(ctx context.Context, id int64) (*Group, error) {
-	return s.groupRepo.GetByID(ctx, id)
+	group, err := s.groupRepo.GetByID(ctx, id)
+	if err != nil || group == nil {
+		return group, err
+	}
+	sanitized := sanitizeGroupSupportedModelScopes(*group)
+	return &sanitized, nil
 }
 
 func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id int64, platform string) ([]string, error) {
@@ -497,7 +510,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest,
 		ModelRouting:                    input.ModelRouting,
 		MCPXMLInject:                    mcpXMLInject,
-		SupportedModelScopes:            input.SupportedModelScopes,
+		SupportedModelScopes:            FilterSupportedModelScopesForPlatform(platform, input.SupportedModelScopes),
 		AllowMessagesDispatch:           input.AllowMessagesDispatch,
 		AllowLive:                       input.AllowLive,
 		RequireOAuthOnly:                input.RequireOAuthOnly,
@@ -849,6 +862,8 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if input.SupportedModelScopes != nil {
 		group.SupportedModelScopes = *input.SupportedModelScopes
 	}
+
+	group.SupportedModelScopes = FilterSupportedModelScopesForPlatform(group.Platform, group.SupportedModelScopes)
 
 	// OpenAI Messages 调度配置
 	if input.AllowMessagesDispatch != nil {

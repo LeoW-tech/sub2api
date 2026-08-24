@@ -598,6 +598,12 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 		}
 	}
 
+	if s.initialProbeEnqueuer != nil {
+		if err := s.initialProbeEnqueuer.EnqueueAccountInitialProbe(ctx, account.ID, account.Platform, AccountInitialProbeTriggerAdminCreate); err != nil {
+			slog.Warn("enqueue_initial_probe_failed", "account_id", account.ID, "platform", account.Platform, "error", err)
+		}
+	}
+
 	// OAuth 账号：创建后异步设置隐私。
 	// 使用 Ensure（幂等）而非 Force：新建账号 Extra 为空时效果相同，但更安全。
 	if account.Type == AccountTypeOAuth {
