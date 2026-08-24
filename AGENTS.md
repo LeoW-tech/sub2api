@@ -151,10 +151,10 @@ runtime/
 - 本仓库所有代码变更检查和验收都只在 Tokyo stable VPS 完成；上游合并只有在完整检查全部通过后才能视为完成。
 - 同一轮合并只允许一个主执行者在 VPS 上进行写入、提交、生成、安装和验证；子代理只允许只读审查，不得启动重任务或改变 Git、服务状态。
 - `go test ./...`、`golangci-lint`、`pnpm typecheck`、`pnpm test:run`、`go generate`、`pnpm install` 都是重任务，同一时刻最多运行一个；禁止后台运行、`nohup`、`tmux`、`screen` 或多个 SSH 会话重叠执行。仅 `git diff --check`、迁移编号检查、脚本语法检查等轻量静态检查可并行，且不得与重任务重叠。
-- 每次上游合并必须按 `Go -> golangci-lint -> TypeScript -> Vitest` 完成全量检查并全部通过。Go 固定使用 `GOMAXPROCS=1 GOGC=20 GOMEMLIMIT=800MiB go test -p 1 -parallel 1 ./...`；golangci-lint 固定使用 `GOMAXPROCS=1 GOGC=20 GOMEMLIMIT=800MiB golangci-lint run --concurrency 1 ./...`；TypeScript 独占运行 `pnpm typecheck`；Vitest 先使用 `pnpm test:run -- --maxWorkers=1 --minWorkers=1 --no-file-parallelism`，只有该轮实测始终保有至少 768 MiB 可用内存时，下一轮才可提高到两个 worker。
+- 每次上游合并必须按 `Go -> golangci-lint -> TypeScript -> Vitest` 完成全量检查并全部通过。Go 固定使用 `GOMAXPROCS=1 GOGC=5 GOMEMLIMIT=384MiB go test -gcflags=all=-N -gcflags=all=-l -p 1 -parallel 1 ./...`；golangci-lint 固定使用 `GOMAXPROCS=1 GOGC=20 GOMEMLIMIT=800MiB golangci-lint run --concurrency 1 ./...`；TypeScript 独占运行 `pnpm typecheck`；Vitest 先使用 `pnpm test:run -- --maxWorkers=1 --minWorkers=1 --no-file-parallelism`，只有该轮实测始终保有至少 768 MiB 可用内存时，下一轮才可提高到两个 worker。
 - 每次启动重任务前，先人工确认 `sub2api-stable.service` 正常、相关容器 healthy、`MemAvailable >= 2 GiB`、`SwapFree >= 1 GiB`；任一不满足就停止并汇报，不启动验证。
 - 运行 golangci-lint 前必须确认其版本与 CI 一致（当前为 `v2.13`），且 `golangci-lint --version` 显示的构建 Go 版本与 `backend/go.mod` 一致；不满足时先修复验证工具，不得跳过 lint。
-- 单项验证可使用约 60-80% 的 CPU 和物理内存，但不以 90% 以上占用为目标；stable 服务异常或健康检查超时时，或 `MemAvailable < 768 MiB` 时，立即向当前明确的验证 PID 发送 `SIGTERM`。`SwapFree < 1 GiB` 或 `iowait > 20%` 持续 30 秒也必须停止。待资源恢复后从当前项重新执行；禁止跳过当前项、并行下一项、宽泛杀进程或重启整机。
+- 单项验证可使用约 60-80% 的 CPU 和物理内存，但不以 90% 以上占用为目标；`MemAvailable < 768 MiB` 时改为每秒检查并禁止启动下一项，`MemAvailable < 640 MiB`、stable 服务异常或健康检查超时则立即向当前明确的验证 PID 发送 `SIGTERM`。`SwapFree < 1 GiB` 或 `iowait > 20%` 持续 30 秒也必须停止。待资源恢复后从当前项重新执行；禁止跳过当前项、并行下一项、宽泛杀进程或重启整机。
 - 每次合并验收都要在交付说明里写明实际执行的命令、执行顺序、结果，以及未执行项和原因，不能省略。
 
 ### 完成标准
