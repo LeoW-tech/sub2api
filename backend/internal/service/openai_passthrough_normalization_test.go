@@ -26,7 +26,10 @@ func TestNormalizeOpenAIPassthroughOAuthBody_NormalizesCompatibilityFields(t *te
 	normalized, changed, err := normalizeOpenAIPassthroughOAuthBody(body, false)
 	require.NoError(t, err)
 	require.True(t, changed)
-	require.Equal(t, "hello", gjson.GetBytes(normalized, "input.0.content").String())
+	require.Equal(t, "message", gjson.GetBytes(normalized, "input.0.type").String())
+	require.Equal(t, "user", gjson.GetBytes(normalized, "input.0.role").String())
+	require.Equal(t, "input_text", gjson.GetBytes(normalized, "input.0.content.0.type").String())
+	require.Equal(t, "hello", gjson.GetBytes(normalized, "input.0.content.0.text").String())
 	for _, field := range []string{"prompt", "commands", "truncation", "stop_sequences", "chat_template_kwargs"} {
 		require.False(t, gjson.GetBytes(normalized, field).Exists(), field)
 	}
