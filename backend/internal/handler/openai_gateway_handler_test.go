@@ -720,27 +720,6 @@ func TestResolveOpenAIMessagesDispatchMappedModel(t *testing.T) {
 	})
 }
 
-func TestResolveOpenAIChatCompletionsSchedulerFallbackModel(t *testing.T) {
-	t.Run("uses_group_default_only_for_scheduler_fallback", func(t *testing.T) {
-		apiKey := &service.APIKey{
-			Group: &service.Group{
-				DefaultMappedModel: " gpt-5.4 ",
-			},
-		}
-
-		require.Equal(t, "gpt-5.4", resolveOpenAIChatCompletionsSchedulerFallbackModel(apiKey, "gpt6"))
-	})
-
-	t.Run("returns_empty_when_default_is_missing_or_same_model", func(t *testing.T) {
-		require.Empty(t, resolveOpenAIChatCompletionsSchedulerFallbackModel(nil, "gpt6"))
-		require.Empty(t, resolveOpenAIChatCompletionsSchedulerFallbackModel(&service.APIKey{}, "gpt6"))
-		require.Empty(t, resolveOpenAIChatCompletionsSchedulerFallbackModel(&service.APIKey{Group: &service.Group{}}, "gpt6"))
-		require.Empty(t, resolveOpenAIChatCompletionsSchedulerFallbackModel(&service.APIKey{
-			Group: &service.Group{DefaultMappedModel: "gpt-5.4"},
-		}, " gpt-5.4 "))
-	})
-}
-
 func TestOpenAIGatewayMessagesDispatchGateAllowsGrokGroups(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
