@@ -153,6 +153,7 @@ runtime/
 - stable 在线服务期间，禁止并行启动 `go test ./...`、`golangci-lint`、`pnpm typecheck`、`pnpm test:run`、`go generate`、`pnpm install` 这类重任务；也禁止后台运行、`nohup`、`tmux`、`screen` 或多个 SSH 会话重叠执行。
 - 每次上游合并都必须按 `Go -> golangci-lint -> TypeScript -> Vitest` 的顺序完成全量检查并全部通过；全程严格串行。Go 只允许 `GOMAXPROCS=1 GOGC=50 GOMEMLIMIT=2GiB go test -p 1 -parallel 1 ./...`，golangci-lint 只允许 `GOMAXPROCS=1 GOGC=50 GOMEMLIMIT=2GiB golangci-lint run --concurrency 1 ./...`，TypeScript 只允许独占运行 `pnpm typecheck`，Vitest 只允许 `pnpm test:run -- --maxWorkers=1 --minWorkers=1 --no-file-parallelism`。
 - 每次启动重任务前，先人工确认 `sub2api-stable.service` 正常、相关容器 healthy、`MemAvailable >= 2 GiB`、`SwapFree >= 1 GiB`；任一不满足就停止并汇报，不启动验证。
+- 运行 golangci-lint 前必须确认其版本与 CI 一致（当前为 `v2.13`），且 `golangci-lint --version` 显示的构建 Go 版本与 `backend/go.mod` 一致；不满足时先修复验证工具，不得跳过 lint。
 - 单项验证可使用约 60-80% 的 CPU 和物理内存，但不以 90% 以上占用为目标；stable 服务异常或健康检查超时时必须立即停止当前验证命令；`MemAvailable < 768 MiB`、`SwapFree < 1 GiB` 或 `iowait > 20%` 任一项持续 30 秒也必须停止，待资源恢复后从当前项重新执行直至通过；禁止跳过当前项、并行下一项或重启整机。
 - 每次合并验收都要在交付说明里写明实际执行的命令、执行顺序、结果，以及未执行项和原因，不能省略。
 
