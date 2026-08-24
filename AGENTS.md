@@ -149,6 +149,7 @@ runtime/
 ### Tokyo stable VPS 合并验证安全规范
 
 - 本仓库所有代码变更检查和验收都只在 Tokyo stable VPS 完成；默认先做静态检查和与本次改动直接相关的最小验证，不以跑满全量任务为目标。
+- 同一轮合并只允许一个主执行者在 VPS 上进行写入、提交、生成、安装和验证；子代理只允许只读审查，不得启动重任务或改变 Git、服务状态。
 - stable 在线服务期间，禁止并行启动 `go test ./...`、`golangci-lint`、`pnpm typecheck`、`pnpm test:run`、`go generate`、`pnpm install` 这类重任务；也禁止后台运行、`nohup`、`tmux`、`screen` 或多个 SSH 会话重叠执行。
 - 需要跑全量验证时，必须先得到用户明确同意，再按 `Go -> TypeScript -> Vitest` 的顺序严格串行执行；Go 只允许 `GOMAXPROCS=1 go test -p 1 -parallel 1 ./...`，Vitest 只允许 `pnpm test:run -- --maxWorkers=1 --minWorkers=1 --no-file-parallelism`。
 - 每次启动重任务前，先人工确认 `sub2api-stable.service` 正常、相关容器 healthy、`MemAvailable >= 2 GiB`、已使用 swap 不超过 `256 MiB`；任一不满足就停止并汇报，不启动验证。
