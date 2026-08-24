@@ -438,3 +438,18 @@ func TestProvideProxyNetworkMonitorService_StartsByDefault(t *testing.T) {
 	}, time.Second, 10*time.Millisecond)
 	require.Equal(t, 1, svc.LastSummary().Total)
 }
+func (s *proxyNetworkMonitorProxyRepoStub) SweepExpiredProxies(ctx context.Context, now time.Time) (int64, error) {
+	return 0, nil
+}
+
+func (s *proxyNetworkMonitorProxyRepoStub) ListAllForFallback(ctx context.Context) ([]Proxy, error) {
+	return nil, nil
+}
+
+func (s *proxyNetworkMonitorProxyRepoStub) CountExpired(ctx context.Context) (int64, error) {
+	return 0, nil
+}
+
+func (s *proxyNetworkMonitorProxyRepoStub) CountExpiringSoon(ctx context.Context, now time.Time) (int64, error) {
+	return 0, nil
+}

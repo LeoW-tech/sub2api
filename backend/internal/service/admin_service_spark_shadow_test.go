@@ -84,9 +84,6 @@ func (s *sparkShadowRepoStub) ListSchedulableByGroupID(_ context.Context, groupI
 	return result, nil
 }
 
-// ListWithFilters は mockAccountRepoForGemini にないが AccountRepository が要求する。
-// 親の mockAccountRepoForGemini の nil 実装が継承されるため、ここでは省略可。
-
 // ── 追加 stub（AccountRepository に必要な残りのメソッド）──────────────────
 func (s *sparkShadowRepoStub) ExistsByID(_ context.Context, id int64) (bool, error) {
 	_, ok := s.accounts[id]
@@ -113,7 +110,7 @@ func (s *sparkShadowRepoStub) BatchUpdateLastUsed(_ context.Context, _ map[int64
 func (s *sparkShadowRepoStub) ListByGroup(_ context.Context, _ int64) ([]Account, error) {
 	return nil, nil
 }
-func (s *sparkShadowRepoStub) ListWithFilters(_ context.Context, _ pagination.PaginationParams, _, _, _, _ string, _ int64, _ string) ([]Account, *pagination.PaginationResult, error) {
+func (s *sparkShadowRepoStub) ListWithFilters(_ context.Context, _ pagination.PaginationParams, _, _, _, _ string, _ int64, _, _, _, _, _ string, _ []int64) ([]Account, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
 

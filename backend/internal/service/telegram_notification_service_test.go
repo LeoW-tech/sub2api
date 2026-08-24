@@ -87,7 +87,7 @@ func TestTelegramNotificationService_SendTestTextWithConfig_ReturnsTelegramAPIEr
 }
 
 func TestTelegramNotificationService_SendTestTextWithConfig_RedactsTokenFromRequestError(t *testing.T) {
-	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := telegramRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		return nil, errors.New("Post " + req.URL.String() + ": proxy connection refused")
 	})
 	svc := &TelegramNotificationService{
@@ -156,8 +156,8 @@ func (s *settingRepoStubForTelegram) GetAll(_ context.Context) (map[string]strin
 }
 func (s *settingRepoStubForTelegram) Delete(context.Context, string) error { panic("unexpected") }
 
-type roundTripFunc func(*http.Request) (*http.Response, error)
+type telegramRoundTripFunc func(*http.Request) (*http.Response, error)
 
-func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+func (f telegramRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
