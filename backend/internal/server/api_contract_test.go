@@ -744,6 +744,10 @@ func TestAPIContracts(t *testing.T) {
 					"smtp_from_email": "no-reply@example.com",
 					"smtp_from_name": "Sub2API",
 					"smtp_use_tls": true,
+					"telegram_enabled": false,
+					"telegram_bot_token_configured": false,
+					"telegram_chat_ids": "",
+					"telegram_proxy_urls": "",
 					"turnstile_enabled": true,
 					"turnstile_site_key": "site-key",
 					"turnstile_secret_key_configured": true,
@@ -1093,6 +1097,10 @@ func TestAPIContracts(t *testing.T) {
 					"smtp_from_email": "",
 					"smtp_from_name": "",
 					"smtp_use_tls": false,
+					"telegram_enabled": false,
+					"telegram_bot_token_configured": false,
+					"telegram_chat_ids": "",
+					"telegram_proxy_urls": "",
 					"turnstile_enabled": false,
 					"turnstile_site_key": "",
 					"turnstile_secret_key_configured": false,
@@ -1472,7 +1480,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	settingRepo := newStubSettingRepo()
 	settingService := service.NewSettingService(settingRepo, cfg)
 
-	adminService := service.NewAdminService(userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	adminService := service.NewAdminService(userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	authHandler := handler.NewAuthHandler(cfg, nil, userService, settingService, nil, redeemService, nil, nil)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService, nil, nil)
@@ -2006,6 +2014,30 @@ func (s *stubAccountRepo) ClearTempUnschedulable(ctx context.Context, id int64) 
 	return errors.New("not implemented")
 }
 
+func (s *stubAccountRepo) PauseAccountsByProxyNetwork(ctx context.Context, proxyID int64) ([]int64, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (s *stubAccountRepo) ResumeAccountsByProxyNetwork(ctx context.Context, proxyID int64) ([]int64, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (s *stubAccountRepo) ResumeAllAccountsPausedByProxyNetwork(ctx context.Context) ([]int64, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (s *stubAccountRepo) PauseAccountByNetwork(ctx context.Context, accountID int64) (bool, error) {
+	return false, errors.New("not implemented")
+}
+
+func (s *stubAccountRepo) RestoreAccountFromNetworkPause(ctx context.Context, accountID int64) (bool, error) {
+	return false, errors.New("not implemented")
+}
+
+func (s *stubAccountRepo) ClearNetworkAutoPause(ctx context.Context, accountID int64) error {
+	return errors.New("not implemented")
+}
+
 func (s *stubAccountRepo) ClearRateLimit(ctx context.Context, id int64) error {
 	return errors.New("not implemented")
 }
@@ -2062,6 +2094,10 @@ func (stubProxyRepo) GetByID(ctx context.Context, id int64) (*service.Proxy, err
 }
 
 func (stubProxyRepo) ListByIDs(ctx context.Context, ids []int64) ([]service.Proxy, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (stubProxyRepo) ListIPOptions(ctx context.Context) ([]service.ProxyIPOption, error) {
 	return nil, errors.New("not implemented")
 }
 

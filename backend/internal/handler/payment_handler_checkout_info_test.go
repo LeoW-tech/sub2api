@@ -78,7 +78,6 @@ func TestGetCheckoutInfoFiltersModelScopesForNonAntigravityPlans(t *testing.T) {
 	h := NewPaymentHandler(
 		nil,
 		service.NewPaymentConfigService(client, &paymentCheckoutInfoSettingRepoStub{}, []byte("0123456789abcdef0123456789abcdef")),
-		nil,
 	)
 
 	recorder := httptest.NewRecorder()
