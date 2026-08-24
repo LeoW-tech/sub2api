@@ -302,42 +302,6 @@ func (s *adminServiceImpl) applyProxyNetworkResult(ctx context.Context, proxy *P
 	return err
 }
 
-func (s *adminServiceImpl) reconcileAccountProxyNetwork(ctx context.Context, account *Account, _ *int64) error {
-	if account == nil {
-		return nil
-	}
-
-	if account.ProxyID == nil {
-		return s.reconcileAccountWithoutProxy(ctx, account)
-	}
-
-	proxy, err := s.proxyRepo.GetByID(ctx, *account.ProxyID)
-	if err != nil {
-		return err
-	}
-	if proxy.NetworkStatus == ProxyNetworkStatusOffline {
-		_, err := s.accountRepo.PauseAccountByNetwork(ctx, account.ID)
-		return err
-	}
-
-	if account.NetworkAutoPaused {
-		_, err := s.accountRepo.RestoreAccountFromNetworkPause(ctx, account.ID)
-		return err
-	}
-	return s.accountRepo.ClearNetworkAutoPause(ctx, account.ID)
-}
-
-func (s *adminServiceImpl) reconcileAccountWithoutProxy(ctx context.Context, account *Account) error {
-	if account == nil {
-		return nil
-	}
-	if account.NetworkAutoPaused {
-		_, err := s.accountRepo.RestoreAccountFromNetworkPause(ctx, account.ID)
-		return err
-	}
-	return s.accountRepo.ClearNetworkAutoPause(ctx, account.ID)
-}
-
 func (s *adminServiceImpl) ResumeAllAccountsPausedByProxyNetwork(ctx context.Context) ([]int64, error) {
 	if s == nil || s.accountRepo == nil {
 		return nil, nil
