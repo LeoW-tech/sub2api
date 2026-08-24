@@ -998,7 +998,7 @@ const columnDropdownStyle = computed(() => ({
   width: `${columnDropdownPosition.width}px`,
 }))
 const hiddenColumns = reactive<Set<string>>(new Set())
-const DEFAULT_HIDDEN_COLUMNS = ['today_stats', 'proxy', 'notes', 'priority', 'scheduler_score', 'rate_multiplier']
+const DEFAULT_HIDDEN_COLUMNS = ['today_stats', 'proxy', 'notes', 'scheduler_score', 'rate_multiplier']
 const HIDDEN_COLUMNS_KEY = 'account-hidden-columns'
 // One-time migration: scheduler score is opt-in because calculating it is relatively expensive.
 const HIDDEN_COLUMNS_VERSION_KEY = 'account-hidden-columns-version'

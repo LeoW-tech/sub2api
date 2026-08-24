@@ -13,7 +13,7 @@
   - 当前 runtime 根目录：`/srv/sub2api/runtime`
 - Mac 辅助运行面：
   - 仓库根目录：`/Users/meilinwang/Projects/sub2api`
-  - 用途：从 GitHub 拉取更新、开发验证、必要时作为备用运行面
+  - 用途：从 GitHub 拉取更新、必要时作为备用运行面；所有代码变更检查和验收统一在 Tokyo VPS 完成
 - 你的 fork：`origin = https://github.com/LeoW-tech/sub2api.git`
 - 原始仓库：`upstream = https://github.com/Wei-Shaw/sub2api.git`
 - 稳定集成分支：`main`
@@ -146,6 +146,15 @@ runtime/
 - 前后端接口必须核对路由、请求参数、响应类型和实际调用方，不能只确认 TypeScript 或 Go 类型存在。
 - 同步涉及 `frontend/src/i18n/locales/` 的结构性调整时，必须验证受影响组件引用的翻译键在中英文最终合并后的语言树中均可解析；不能只依赖将 `t()` mock 为键名的组件测试。
 
+### Tokyo stable VPS 合并验证安全规范
+
+- 本仓库所有代码变更检查和验收都只在 Tokyo stable VPS 完成；默认先做静态检查和与本次改动直接相关的最小验证，不以跑满全量任务为目标。
+- stable 在线服务期间，禁止并行启动 `go test ./...`、`golangci-lint`、`pnpm typecheck`、`pnpm test:run`、`go generate`、`pnpm install` 这类重任务；也禁止后台运行、`nohup`、`tmux`、`screen` 或多个 SSH 会话重叠执行。
+- 需要跑全量验证时，必须先得到用户明确同意，再按 `Go -> TypeScript -> Vitest` 的顺序严格串行执行；Go 只允许 `GOMAXPROCS=1 go test -p 1 -parallel 1 ./...`，Vitest 只允许 `pnpm test:run -- --maxWorkers=1 --minWorkers=1 --no-file-parallelism`。
+- 每次启动重任务前，先人工确认 `sub2api-stable.service` 正常、相关容器 healthy、`MemAvailable >= 2 GiB`、已使用 swap 不超过 `256 MiB`；任一不满足就停止并汇报，不启动验证。
+- 运行中一旦出现 stable 服务异常、健康检查超时、`MemAvailable < 1.5 GiB` 或已使用 swap `> 512 MiB`，必须先停止当前验证命令，再汇报现场；禁止继续下一项，也禁止把重启整机当作常规恢复手段。
+- 每次合并验收都要在交付说明里写明实际执行的命令、执行顺序、结果，以及未执行项和原因，不能省略。
+
 ### 完成标准
 
 每次上游同步在交付前都必须证明：
@@ -153,7 +162,7 @@ runtime/
 1. 当前结果包含任务指定的精确上游基准，且未意外吸收范围外的上游提交。
 2. 本地定制清单已逐项核对；同功能取上游、不同功能两边保留、疑义项经过人工裁决。
 3. 所有冲突标记已清除，生成代码已重新生成，版本号与指定 release 一致。
-4. 后端编译和测试、前端类型检查和测试、迁移升级验证、配置与脚本静态检查均有实际通过证据；不能以“应该能通过”代替验证。
+4. 验证必须遵守上面的 `Tokyo stable VPS 合并验证安全规范`：后端测试、前端类型检查、前端测试、迁移升级验证、配置与脚本静态检查只能串行执行，并保留实际通过证据；不能以“应该能通过”代替验证。
 5. 同步结果经过独立代码审查后才能合回 `main` 或进入部署流程。
 
 ## 重要约束
