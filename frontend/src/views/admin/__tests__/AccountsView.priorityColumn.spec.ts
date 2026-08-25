@@ -19,7 +19,10 @@ vi.mock('@/api/admin', () => ({
       batchRefresh: vi.fn(),
       toggleSchedulable: vi.fn()
     },
-    proxies: { getAll: vi.fn().mockResolvedValue([]) },
+    proxies: {
+      getAll: vi.fn().mockResolvedValue([]),
+      getIPOptions: vi.fn().mockResolvedValue([])
+    },
     groups: { getAll: vi.fn().mockResolvedValue([]) }
   }
 }))
