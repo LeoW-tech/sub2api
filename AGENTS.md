@@ -33,7 +33,8 @@
 
 - Linux 使用当前 Tokyo 项目的 Dockerfile 和 Compose 文件，核对架构、服务、健康检查、端口、网络、卷和 Postgres `18-alpine` / Redis `8-alpine` 依赖。应用代码变化后镜像摘要可以不同，但运行条件必须一致。
 - 应用镜像使用提交 SHA 标签，并写入 `org.opencontainers.image.revision=<commit-sha>`；不要用含糊的 `stable` 标签作为交付产物。
-- 不使用公共或付费镜像仓库。获得单独部署授权后，Linux 用 `docker save` 压缩包经 SSH 传到 Tokyo，校验 SHA256 后再加载。
+- 不使用公共或付费镜像仓库。获得单独部署授权后，Linux 先记录镜像 ID 和 revision，再执行 `docker save sub2api:<commit-sha> | gzip > sub2api-<commit-sha>.tar.gz`、`sha256sum sub2api-<commit-sha>.tar.gz > sub2api-<commit-sha>.tar.gz.sha256`，并用 `scp sub2api-<commit-sha>.tar.gz* tokyo-vps:/srv/sub2api/incoming/` 传输。
+- Tokyo 仅在独立部署窗口进入 `incoming`，先执行 `sha256sum -c sub2api-<commit-sha>.tar.gz.sha256`，再执行 `docker load < sub2api-<commit-sha>.tar.gz`；用 `docker image inspect` 核对加载后的镜像 ID、`org.opencontainers.image.revision` 与 Linux 记录一致。部署或健康检查失败时保留旧镜像摘要并切回旧镜像，旧镜像、生产数据和配置不得删除；准备阶段不传输、不加载。
 - 准备阶段不加载镜像、不改生产 `.env`、不执行 Compose 或 systemd 重启，也不新增 cgroup、systemd 限额或代码级限制。
 
 ## Tokyo 拉取
