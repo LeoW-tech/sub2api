@@ -2,189 +2,56 @@
 
 请始终用中文与用户交流。
 
-每次完成代码、脚本、配置或文档改动后，请及时提交本地 git。除非用户明确要求，否则不要自动推送远端。
+## 双机职责与目录
 
-## 项目现状
+- Linux `192.168.31.214` 是唯一的主工作区：`/srv/sub2api/primary`。合并、构建、全量检查和镜像制作都在这里完成。
+- Tokyo `43.165.188.95`（`tokyo-vps`）只负责拉取已验证的代码和后续经授权的部署。当前运行目录为 `/srv/sub2api/repo`，stable 服务和生产 runtime 不得在准备阶段改变。
+- Linux 旧目录 `/srv/sub2api/repo` 是历史副本，不是来源，不在其中开发或验证；迁移成功后再单独清理。
+- `origin=https://github.com/LeoW-tech/sub2api.git`，`upstream=https://github.com/Wei-Shaw/sub2api.git`，稳定分支为 `main`。生产密钥、runtime、数据库和 Redis 数据永不进入 Git。
 
-这是一个已经完成本地单仓库整合的 Sub2API 项目。
+## 版本与上游合并
 
-- Linux 主运行面：
-  - 当前仓库根目录：`/srv/sub2api/repo`
-  - 当前 runtime 根目录：`/srv/sub2api/runtime`
-- Mac 辅助运行面：
-  - 仓库根目录：`/Users/meilinwang/Projects/sub2api`
-  - 用途：从 GitHub 拉取更新、必要时作为备用运行面；所有代码变更检查和验收统一在 Tokyo VPS 完成
-- 你的 fork：`origin = https://github.com/LeoW-tech/sub2api.git`
-- 原始仓库：`upstream = https://github.com/Wei-Shaw/sub2api.git`
-- 稳定集成分支：`main`
-- 上游镜像分支：`upstream-main`
+- 任务指定 release/tag 时，以其实际提交作为上游基准；用 `git merge-base --is-ancestor`、提交图和差异确认来源，不以 HEAD 标题或应用显示版号猜测。
+- 当前 `main` 是带本地定制的集成分支，不得为了追上游而重置或丢弃定制功能。
+- 同一能力以上游实现为基准，不同能力两边保留；冲突必须逐项按功能、调用链、配置、迁移、接口和界面处理。无法确认时停止并报告，禁止批量使用 `ours`/`theirs`。
+- 已发布迁移不可改名或修改；本地新迁移使用 `900001+` 保留区间，并运行项目迁移编号检查。生成代码先修复生成源，再按项目工具重新生成。
+- 每次代码、脚本、配置或文档变更完成后立即提交本地 Git；推送只使用可审计的 fast-forward，禁止 force push 和 destructive reset。
 
-本仓库不是“纯上游镜像”，而是：
+## Linux 全量验证
 
-1. 按任务指定的 `upstream/main`、tag 或 release 同步原始仓库
-2. 同时维护用户自己的定制功能
-3. 使用双环境运行，避免开发环境影响稳定环境
+- 全量 Go 测试、golangci-lint、TypeScript、Vitest、迁移/脚本/生成代码检查只在 Linux 主工作区执行；Tokyo 禁止执行这些重任务。
+- 重任务严格一个接一个，不使用后台、`nohup`、`tmux`、`screen` 或重叠 SSH 会话。单个工具内部允许适度并发：
+  `GOMAXPROCS=8 go test -p 8 -parallel 8 ./...`；
+  `golangci-lint run --concurrency 8`；
+  `pnpm typecheck`；
+  `pnpm test:run -- --maxWorkers=8`。
+- 工具链按当前项目要求使用 Go `1.27.0`、Node `24`、pnpm `9.15.9`、golangci-lint `2.13.0`，不得使用 Linux 历史副本的旧工具。
+- 启动重任务前记录时间、执行者、提交 SHA、工具版本和资源快照；目标资源使用约 60%-80%。可用内存不足、swap 持续增长、宿主机 I/O 异常或无关容器持续重启时暂停，不停止无关服务、不宽泛杀进程、不重启整机。
+- 每项检查都要保存命令、并发参数、日志路径和退出码；任一全量检查未通过，不能进入交付。
 
-## 分类导航
+## Docker 与镜像
 
-当前仓库内的信息按下面方式分流：
+- Linux 使用当前 Tokyo 项目的 Dockerfile 和 Compose 文件；核对架构、服务、健康检查、端口、网络、卷和 Postgres `18-alpine`/Redis `8-alpine` 依赖。应用代码变化后镜像摘要可以不同，但运行条件必须一致。
+- 应用镜像使用不可变提交 SHA 标签，并写入 `org.opencontainers.image.revision=<commit-sha>`；不要使用含糊的 `stable` 标签作为构建产物。
+- 生产部署获单独授权后，Linux 用 `docker save` 压缩包经 SSH 传到 Tokyo，校验 SHA256 后再由部署流程加载。当前准备阶段不加载镜像、不改生产 `.env`、不执行 Compose 或 systemd 重启。
+- 不新增 cgroup、systemd 限额或代码级限制；安全边界由本文件规定的工作区、顺序和记录要求保证。
 
-- 项目事实与协作约束：保留在本文件
-- 常用命令、运维入口、开发流程、同步流程：见 [`常用命令.md`](常用命令.md)
-- 本地运维细节说明：见 [`docs/LOCAL_DEVELOPMENT_MAINTENANCE.md`](docs/LOCAL_DEVELOPMENT_MAINTENANCE.md)
+## Tokyo 拉取规则
 
-## VPS 开发验证基础设施
+在 Linux 全量检查和镜像构建成功后，Tokyo 只执行：
 
-东京 VPS 已持久化配置独立的开发验证工具链，不与 stable runtime 共享运行时数据：
-
-- 环境入口：`/home/ubuntu/.config/sub2api/dev-env.sh`
-- Go 1.26.6：`/home/ubuntu/.local/toolchains/go1.26.6`，入口在 `/home/ubuntu/.local/bin`
-- Go 模块缓存：`/home/ubuntu/.cache/sub2api-go-mod`
-- Go 构建缓存：`/home/ubuntu/.cache/sub2api-go-build`
-- pnpm store：`/home/ubuntu/.cache/sub2api-pnpm-store`
-
-在 VPS 上执行静态验证前先加载该环境入口；不得把这些缓存、`node_modules` 或运行时数据加入 git。依赖权限应保持为 `ubuntu` 用户可读写，避免 Docker root 缓存阻断后续验证。
-
-## 目录约定
-
-必须遵守下面的目录边界：
-
-- 源码、脚本、文档、部署模板都在仓库内
-- 所有运行时数据都收敛到 runtime 根目录
-- 严禁把运行时数据重新放回仓库根目录
-
-脚本对 runtime 根目录的真实探测顺序如下：
-
-1. 优先使用仓库内 `repo/runtime/`
-2. 若仓库内不存在有效 runtime，则退回仓库同级 `../runtime/`
-
-当前 Linux 现状使用的是仓库同级 runtime：
-
-```text
-/srv/sub2api/
-  repo/
-  runtime/
-    stable/
-    backups/
+```bash
+cd /srv/sub2api/repo
+git fetch origin main
+git merge --ff-only origin/main
+git status --short
 ```
 
-通用运行时结构如下：
+禁止在 Tokyo 执行 `docker compose build/up/restart`、`systemctl restart`、生产环境变量修改或测试任务。拉取代码不等于部署；stable 容器、镜像、数据和服务状态必须保持原样。
 
-```text
-runtime/
-  stable/
-    .env
-    data/
-    postgres_data/
-    redis_data/
-  dev/
-    .env
-    data/
-    postgres_data/
-    redis_data/
-  backups/
-    <timestamp>/
-      runtime/
-      com.sub2api.autostart.plist
-```
+## 交付标准
 
-说明：
-
-- `runtime/stable` 是稳定环境，默认服务端口 `8080`
-- `runtime/dev` 是开发环境，服务端口 `127.0.0.1:8081`
-- `runtime/backups` 是默认运行时备份目录
-- `runtime/` 整体不进 git
-- Linux 当前使用 `systemd` 托管 `stable`；需要固定节点出口时应统一接入 `/srv/egress-control`，但必须先以 `systemctl` 和 `127.0.0.1:19180/health` 核对该主机是否已安装并运行，不得仅按文档假设存在
-- Mac 当前使用 `autostart/launchd` 负责登录后自动恢复 stable 栈
-
-前端访问地址：
-
-- 稳定环境前端（本机）：`http://127.0.0.1:8080/`
-- 稳定环境前端（局域网）：`http://<本机局域网IP>:8080/`
-- 开发环境前端：`http://127.0.0.1:8081/`
-- egress-control 健康检查（仅已安装主机）：`http://127.0.0.1:19180/health`
-
-## 分支与维护模式
-
-默认分支和用途如下：
-
-- `main`
-  用于稳定集成，只部署用户确认可保留的功能
-- `upstream-main`
-  只镜像 `upstream/main`，禁止直接开发
-- `feature/*`
-  日常功能开发分支，从 `main` 切出
-- `sync/upstream-YYYYMMDD[-vX.Y.Z]`
-  同步上游时的临时分支。可以从 `main` 合入上游基准，也可以以上游基准为底重新叠加本地定制；方向不是约束，功能完整性、来源可追溯和验证结果才是交付标准。上游基准可以是 `upstream-main`，也可以是任务明确指定的 tag/release 对应提交。
-
-工作规则：
-
-- 不要在 `upstream-main` 上开发
-- 尽量不要直接在 `main` 上做功能开发
-- 新功能优先从 `main` 切 `feature/*`
-- 常规跟随 `upstream/main` 时，使用统一脚本更新 `upstream-main` 并创建同步分支；任务明确指定 tag/release 时，以该 tag 对应提交作为同步基准，仍复用既有同步、验证和提交流程
-
-## 上游同步与冲突处理原则
-
-以下原则适用于 `main` 与上游基准的同步、`sync/upstream-*` 分支上的冲突处理，以及同类的 `merge`、`rebase`、`cherry-pick`、`revert` 冲突。
-
-### 核心结果
-
-1. 上游基准包含的功能与本地仍需保留的定制功能必须同时存在，不能因选择某一侧文件而静默丢失。
-2. 如果上游已经实现、吸收或重构了与本地定制相同的能力，以上游实现为基准；仅补回上游尚未覆盖且仍有明确需求的本地差异。
-3. 如果两边是不同能力，则必须同时保留，并核对类型、调用链、配置、迁移、接口和界面是否仍然一致。
-4. 无法确认两边是否属于同一能力，或无法确认取舍影响时，必须停止自动处理，保留冲突并等待人工裁决；禁止猜测性解决。
-
-### 实施约束
-
-- 合并方向不是硬性约束：可以从本地 `main` 合入上游，也可以以上游基准为底叠加本地定制。无论采用哪种方式，都必须保留明确、可审计的上游基准和本地定制来源。
-- 任务明确指定 tag/release 时，只同步该 tag 对应提交；除非用户明确要求，不得吸收其后的 `upstream/main` 提交。
-- 核心业务文件、配置文件、依赖注入文件和大型前端视图发生冲突时，禁止未经逐项审查直接使用 `ours`、`theirs` 或整文件覆盖。必须按功能和调用链合并。
-- 生成代码不得作为普通业务代码手工拼接。先解决生成源和依赖图，再使用项目规定的生成工具重新生成，并确认生成结果无陈旧引用。
-- 已经发布或可能落库的迁移文件名和内容视为不可变。不得通过重命名或修改旧迁移解决编号冲突；新变更使用新的迁移文件，并在数据库副本上验证升级路径。
-- 迁移编号规则：历史迁移（包括上游带来的 `001–899999` 文件）视为冻结，不改名、不改内容；本地新增迁移统一使用 `900001+` 保留区间，文件名必须为 `NNNNNN_local_description.sql`，并按 `backend/migrations/NEXT_LOCAL_MIGRATION` 连续递增。新增本地迁移后必须递增该文件，并通过 `scripts/check-migration-numbering`；禁止再创建重复的 `225_*`、`226_*` 等普通前缀。
-- 前后端接口必须核对路由、请求参数、响应类型和实际调用方，不能只确认 TypeScript 或 Go 类型存在。
-- 同步涉及 `frontend/src/i18n/locales/` 的结构性调整时，必须验证受影响组件引用的翻译键在中英文最终合并后的语言树中均可解析；不能只依赖将 `t()` mock 为键名的组件测试。
-
-### Tokyo stable VPS 合并验证安全规范
-
-- 本仓库所有代码变更检查和验收都只在 Tokyo stable VPS 完成；上游合并只有在完整检查全部通过后才能视为完成。
-- 同一轮合并只允许一个主执行者在 VPS 上进行写入、提交、生成、安装和验证；子代理只允许只读审查，不得启动重任务或改变 Git、服务状态。
-- `go test ./...`、`golangci-lint`、`pnpm typecheck`、`pnpm test:run`、`go generate`、`pnpm install` 都是重任务，同一时刻最多运行一个；禁止后台运行、`nohup`、`tmux`、`screen` 或多个 SSH 会话重叠执行。仅 `git diff --check`、迁移编号检查、脚本语法检查等轻量静态检查可并行，且不得与重任务重叠。
-- 每次上游合并必须按 `Go -> golangci-lint -> TypeScript -> Vitest` 完成全量检查并全部通过。Go 固定使用 `GOMAXPROCS=1 GOGC=5 GOMEMLIMIT=384MiB go test -gcflags=all=-N -gcflags=all=-l -p 1 -parallel 1 ./...`；golangci-lint 固定使用 `GOMAXPROCS=1 GOGC=20 GOMEMLIMIT=800MiB golangci-lint run --concurrency 1 ./...`；TypeScript 独占运行 `pnpm typecheck`；Vitest 先使用 `pnpm test:run -- --maxWorkers=1 --minWorkers=1 --no-file-parallelism`，只有该轮实测始终保有至少 768 MiB 可用内存时，下一轮才可提高到两个 worker。
-- 每次启动重任务前，先人工确认 `sub2api-stable.service` 正常、相关容器 healthy、`MemAvailable >= 2 GiB`、`SwapFree >= 1 GiB`；任一不满足就停止并汇报，不启动验证。
-- 运行 golangci-lint 前必须确认其版本与 CI 一致（当前为 `v2.13`），且 `golangci-lint --version` 显示的构建 Go 版本与 `backend/go.mod` 一致；不满足时先修复验证工具，不得跳过 lint。
-- 单项验证可使用约 60-80% 的 CPU 和物理内存，但不以 90% 以上占用为目标；`MemAvailable < 768 MiB` 时改为每秒检查并禁止启动下一项，`MemAvailable < 640 MiB`、stable 服务异常或健康检查超时则立即向当前明确的验证 PID 发送 `SIGTERM`。`SwapFree < 1 GiB` 或 `iowait > 20%` 持续 30 秒也必须停止。待资源恢复后从当前项重新执行；禁止跳过当前项、并行下一项、宽泛杀进程或重启整机。
-- 每次合并验收都要在交付说明里写明实际执行的命令、执行顺序、结果，以及未执行项和原因，不能省略。
-
-### 完成标准
-
-每次上游同步在交付前都必须证明：
-
-1. 当前结果包含任务指定的精确上游基准，且未意外吸收范围外的上游提交。
-2. 本地定制清单已逐项核对；同功能取上游、不同功能两边保留、疑义项经过人工裁决。
-3. 所有冲突标记已清除，生成代码已重新生成，版本号与指定 release 一致。
-4. 验证必须遵守上面的 `Tokyo stable VPS 合并验证安全规范`：Go、golangci-lint、前端类型检查、Vitest、迁移升级验证、配置与脚本静态检查均须在 Tokyo VPS 实际通过；重任务按规定互斥，任一项未通过或未完成，合并不得视为完成。
-5. 同步结果经过独立代码审查后才能合回 `main` 或进入部署流程。
-
-## 重要约束
-
-- 不要把 `runtime/` 下的文件加入 git
-- 不要删除或覆盖用户的运行时数据，除非用户明确要求
-- 修改稳定环境相关内容时，优先保证 `stable` 可恢复
-- 不得恢复旧 `door-gateway` 双轨链路；Sub2API 需要节点出口时只能接入 `/srv/egress-control`
-- Linux 侧先检查 `systemd` 与 `/etc/systemd/system/sub2api-stable.service`；如主机已安装 egress-control，再同时检查 `egress-control.service`、`egress-control-docker-bridge.service`
-- Mac 侧要同时考虑 `LaunchAgents`、`colima`、`autostart`、`~/Library/LaunchAgents/com.sub2api.autostart.plist`
-- 如果调整脚本接口，必须同步更新 `docs/LOCAL_DEVELOPMENT_MAINTENANCE.md`
-- 迁移编号静态检查：`scripts/check-migration-numbering`；完整回归：`scripts/tests/check-migration-numbering-test.sh` 或 `make migration-check`
-- 这套仓库服务的是双机同步模式：Linux 通常负责提交并按需推送，Mac 从 `origin` 拉取同步更新
-
-## 完成前检查
-
-在声称完成之前，至少确认：
-
-1. `git status` 是否干净或是否只剩预期改动
-2. 如涉及 stable/dev 运行面，相关服务是否真的可访问
-3. 如在 Linux 上操作稳定环境，至少检查 `./scripts/sub2api-local stable status`、`./scripts/sub2api-local systemd status`；只有主机已安装 egress-control 时才要求 `http://127.0.0.1:19180/health`
-4. 如在 Mac 上操作自动恢复链路，至少检查 `./scripts/sub2api-local autostart status`
-5. 变更是否已经提交本地 git
+- 远端 `main`、Linux 主工作区和 Tokyo 仓库指向同一提交，且提交图能证明包含指定上游基准。
+- 全量检查、迁移升级验证、配置/脚本静态检查和独立审查全部通过，冲突标记已清除。
+- 镜像 revision 标签、摘要、构建日志和检查日志可追溯；没有生产密钥、runtime 或数据库数据进入提交或镜像。
+- 交付说明必须列出实际命令、顺序、结果和未执行项；未授权部署、重启和旧目录删除均不得暗中执行。
