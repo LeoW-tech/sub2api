@@ -7,6 +7,8 @@
 - Linux `192.168.31.214` 只用 `/srv/sub2api/primary` 作为主工作区，合并、构建、全量检查和镜像制作都在这里完成。
 - Tokyo `43.165.188.95`（`tokyo-vps`）只做 `git fetch`、`git merge --ff-only` 和经授权的部署；准备阶段不改 stable 服务、容器、镜像、配置或数据。
 - Linux 旧目录 `/srv/sub2api/repo` 只作历史副本，未确认新工作区前不清理、不覆盖。
+- Linux 连接 Tokyo 必须使用 `/home/lim/.ssh/config` 中的 `tokyo-vps`（`ubuntu@43.165.188.95`）和 `~/.ssh/sub2api_tokyo_ed25519`；不得改用 `lim`，也不得在 prompt、日志或仓库暴露私钥。先用 `ssh -o BatchMode=yes -o ConnectTimeout=10 tokyo-vps 'hostname; id -un'` 验证连接。
+- GitHub HTTPS 直连失败时，Linux 使用本机 egress `http://127.0.0.1:19181`，先检查 `http://127.0.0.1:19180/health`；该 egress 不替代 Tokyo 的 SSH 密钥。
 - `origin=https://github.com/LeoW-tech/sub2api.git`，`upstream=https://github.com/Wei-Shaw/sub2api.git`，稳定分支为 `main`。生产密钥、runtime、数据库和 Redis 数据不进入 Git 或镜像。
 
 ## 合并规则
@@ -15,6 +17,7 @@
 - 当前 `main` 是带本地定制的集成分支，不能为了追上游而重置或丢弃定制功能。
 - 同一能力优先保留上游实现，不同能力两边都保留；冲突按功能、调用链、配置、迁移、接口逐项处理，无法确认就停下来报告，禁止批量 `ours`/`theirs`。
 - 已发布迁移不可改名或修改；新迁移用 `900001+` 区间，并按项目工具检查编号。生成代码先修复生成源，再按项目工具重新生成。
+- 需要核对上游时先 `git fetch upstream main --tags`（直连失败时使用 egress），以 `upstream/main` 或 `refs/remotes/upstream/main` 为准；不要使用不存在的 `refs/remotes/origin/upstream`。
 - 推送只使用可审计的 fast-forward，禁止 force push、destructive reset 和未经审查的整文件覆盖。
 
 ## Linux 检查
