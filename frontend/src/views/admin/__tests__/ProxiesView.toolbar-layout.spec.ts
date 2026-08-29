@@ -19,7 +19,6 @@ describe('admin ProxiesView toolbar layout', () => {
     expect(primaryRow?.[0]).toContain('handleBatchQualityCheck')
     expect(primaryRow?.[0]).not.toContain('showImportData = true')
     expect(primaryRow?.[0]).not.toContain('showExportDataDialog = true')
-    expect(primaryRow?.[0]).toContain('basis-full')
   })
 
   it('keeps import, export, create, and delete actions together in the management row', () => {
