@@ -1,0 +1,21 @@
+[Unit]
+Description=Sub2API Fast Responses WebSocket bridge
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/srv/sub2api/fast-bridge
+EnvironmentFile=/etc/sub2api/fast-bridge.env
+ExecStart=/srv/sub2api/fast-bridge/.venv/bin/python /srv/sub2api/fast-bridge/server.py
+Restart=always
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/sub2api/fast-bridge
+
+[Install]
+WantedBy=multi-user.target
