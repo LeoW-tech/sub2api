@@ -333,6 +333,20 @@ export default {
         responses: "Responses",
         responsesDesc: "供应商原生 Responses 端点，适配 Codex。"
       },
+      zhipuTeam: {
+        title: "团队版组织 / 项目 ID",
+        organization: "组织 ID（团队版可选）",
+        organizationPlaceholder: "团队版 Coding Plan 的组织 ID",
+        project: "项目 ID（团队版可选）",
+        projectPlaceholder: "团队版 Coding Plan 的项目 ID",
+        hint: "仅团队版 GLM Coding Plan 需要填写，填写后用量查询走团队版端点；个人版留空即可。获取方式点击左侧问号查看教程。",
+        help: {
+          title: "如何获取组织 / 项目 ID",
+          step1: "用团队版账号登录智谱开放平台（bigmodel.cn），进入「Coding Plan → 团队版 → 我的套餐」页面。",
+          step2: "按 F12 打开浏览器开发者工具，切换到「Network / 网络」标签，然后刷新页面。",
+          step3: "在 Network 的筛选框中输入 /api/biz/v1/organization，点击命中的请求（如 api_keys）。"
+        }
+      },
       balance: "余额 --",
       window5h: "5 小时窗口",
       windowWeekly: "每周窗口",
@@ -809,6 +823,7 @@ export default {
     syncUpstreamModelsEmpty: "上游没有返回可同步的模型",
     syncUpstreamModelsFailed: "同步上游模型失败",
     syncUpstreamModelsError: "同步上游模型失败：{message}",
+    syncUpstreamModelsMetadataIncomplete: "模型 ID 已同步，但能力元数据不完整，能力信息未更新。",
     clearAllModels: "清除所有模型",
     customModelName: "自定义模型名称",
     enterCustomModelName: "输入自定义模型名称",
@@ -984,6 +999,7 @@ export default {
     billingRateMultiplierHint: "0 表示不计费，仅影响账号计费",
     expiresAt: "过期时间",
     expiresAtHint: "留空表示不过期",
+    expiresAtTimezoneHint: "输入按浏览器本地时区（{timezone}）解释。",
     higherPriorityFirst: "数值越小优先级越高",
     mixedScheduling: "在 /v1/messages 中使用",
     mixedSchedulingHint: "启用后可参与 Anthropic/Gemini 分组的调度",
