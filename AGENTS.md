@@ -39,7 +39,7 @@
 - 应用镜像使用提交 SHA 标签，并写入 `org.opencontainers.image.revision=<commit-sha>`；不要用含糊的 `stable` 标签作为交付产物。
 - 不使用公共或付费镜像仓库。Linux 先记录镜像 ID 和 revision，再执行 `docker save sub2api:<commit-sha> | gzip > sub2api-<commit-sha>.tar.gz`、`sha256sum sub2api-<commit-sha>.tar.gz > sub2api-<commit-sha>.tar.gz.sha256`，并用 `scp sub2api-<commit-sha>.tar.gz* tokyo-vps:/srv/sub2api/incoming/` 传输。
 - Tokyo 在部署窗口进入 `incoming`，先执行 `sha256sum -c sub2api-<commit-sha>.tar.gz.sha256`，再执行 `docker load < sub2api-<commit-sha>.tar.gz`；用 `docker image inspect` 核对加载后的镜像 ID、`org.opencontainers.image.revision` 与 Linux 记录一致。部署或健康检查失败时保留旧镜像摘要并切回旧镜像，旧镜像、生产数据和配置不得删除。
-- 准备阶段不启动 Compose 或 systemd，不改生产 `.env`。最终启动必须复用已加载的 SHA 镜像，例如 `SUB2API_IMAGE=sub2api:<commit-sha> docker compose -f deploy/local/docker-compose.runtime.yml up -d --no-build`；禁止在 Tokyo 重新 `build`，以免绕过 Linux 的构建和检查结果。
+- 准备阶段不启动 Compose 或 systemd，不改生产 `.env`。最终启动必须复用已加载的 SHA 镜像，例如在仓库根目录执行 `SUB2API_IMAGE=sub2api:<commit-sha> ./scripts/sub2api-runtime-compose stable up -d --no-build`；该脚本负责注入 runtime 卷路径和 Linux override。禁止在 Tokyo 重新 `build`，以免绕过 Linux 的构建和检查结果。
 
 ## Tokyo 拉取
 
@@ -52,7 +52,7 @@ git merge --ff-only origin/main
 git status --short
 ```
 
-拉取代码不等于部署；在最终部署窗口之前，禁止执行 Compose `up/restart`、`systemctl restart`、生产环境变量修改或测试任务，stable 容器、数据和服务状态必须保持原样。最终窗口只允许使用已校验的 SHA 镜像执行一次 `docker compose ... up -d --no-build`，随后按健康检查决定保留或切回旧镜像。
+拉取代码不等于部署；在最终部署窗口之前，禁止执行 Compose `up/restart`、`systemctl restart`、生产环境变量修改或测试任务，stable 容器、数据和服务状态必须保持原样。最终窗口只允许使用已校验的 SHA 镜像执行一次 `./scripts/sub2api-runtime-compose stable up -d --no-build`，随后按健康检查决定保留或切回旧镜像。
 
 ## 交付
 
