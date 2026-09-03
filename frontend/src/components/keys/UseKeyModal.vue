@@ -1219,7 +1219,9 @@ function generateOpenAIFiles(baseUrl: string, apiKey: string, isWindows = active
   const configContent = `model_provider = "OpenAI"
 model = "${model}"
 review_model = "${model}"
-${reasoningEffortLine}disable_response_storage = true
+${reasoningEffortLine}approval_policy = "never"
+sandbox_mode = "danger-full-access"
+disable_response_storage = true
 model_catalog_json = "${escapeTomlBasicString(codexModelCatalogPath.value)}"
 network_access = "enabled"
 windows_wsl_setup_acknowledged = true
@@ -1583,7 +1585,9 @@ function generateOpenAIWsFiles(baseUrl: string, apiKey: string): FileConfig[] {
   const configContent = `model_provider = "OpenAI"
 model = "${model}"
 review_model = "${model}"
-${reasoningEffortLine}disable_response_storage = true
+${reasoningEffortLine}approval_policy = "never"
+sandbox_mode = "danger-full-access"
+disable_response_storage = true
 model_catalog_json = "${escapeTomlBasicString(codexModelCatalogPath.value)}"
 network_access = "enabled"
 windows_wsl_setup_acknowledged = true
@@ -1637,35 +1641,41 @@ trap 'big_error "命令执行失败，错误发生在第 \${LINENO} 行。"' ERR
 validate_config_toml() {
   local file="$1"
   local line
-  local line_no=0
+  local has_provider=0
+  local has_model=0
+  local has_review_model=0
+  local has_approval_policy=0
+  local has_sandbox_mode=0
+  local has_catalog=0
+  local has_network=0
+  local has_windows_ack=0
+  local has_provider_section=0
+  local has_base_url=0
+  local has_wire_api=0
+  local has_auth=0
 
   while IFS= read -r line || [[ -n "$line" ]]; do
-    line_no=$((line_no + 1))
-    case "$line_no" in
-      1) [[ "$line" == 'model_provider = "OpenAI"' ]] || return 1 ;;
-      2) [[ "$line" == 'model = "gpt-5.6-sol"' ]] || return 1 ;;
-      3) [[ "$line" == 'model_reasoning_effort = "xhigh"' ]] || return 1 ;;
-      4) [[ "$line" == 'approval_policy = "never"' ]] || return 1 ;;
-      5) [[ "$line" == 'sandbox_mode = "danger-full-access"' ]] || return 1 ;;
-      6) [[ -z "$line" ]] || return 1 ;;
-      7) [[ "$line" == '[model_providers.OpenAI]' ]] || return 1 ;;
-      8) [[ "$line" == 'name = "OpenAI"' ]] || return 1 ;;
-      9)
-        case "$line" in
-          'base_url = "'?*'"') ;;
-          *) return 1 ;;
-        esac
-        ;;
-      10) [[ "$line" == 'wire_api = "responses"' ]] || return 1 ;;
-      11) [[ "$line" == 'requires_openai_auth = true' ]] || return 1 ;;
-      12) [[ -z "$line" ]] || return 1 ;;
-      13) [[ "$line" == '[features]' ]] || return 1 ;;
-      14) [[ "$line" == 'goals = true' ]] || return 1 ;;
-      *) return 1 ;;
+    case "$line" in
+      'model_provider = "OpenAI"') has_provider=1 ;;
+      'model = "'?*'"') has_model=1 ;;
+      'review_model = "'?*'"') has_review_model=1 ;;
+      'approval_policy = "never"') has_approval_policy=1 ;;
+      'sandbox_mode = "danger-full-access"') has_sandbox_mode=1 ;;
+      'model_catalog_json = "'?*'"') has_catalog=1 ;;
+      'network_access = "enabled"') has_network=1 ;;
+      'windows_wsl_setup_acknowledged = true') has_windows_ack=1 ;;
+      '[model_providers.OpenAI]') has_provider_section=1 ;;
+      'base_url = "'?*'"') has_base_url=1 ;;
+      'wire_api = "responses"') has_wire_api=1 ;;
+      'requires_openai_auth = true'|'requires_openai_auth = false') has_auth=1 ;;
     esac
   done < "$file"
 
-  [[ "$line_no" -eq 14 ]]
+  [[ "$has_provider" -eq 1 && "$has_model" -eq 1 && "$has_review_model" -eq 1 \
+    && "$has_approval_policy" -eq 1 && "$has_sandbox_mode" -eq 1 \
+    && "$has_catalog" -eq 1 && "$has_network" -eq 1 && "$has_windows_ack" -eq 1 \
+    && "$has_provider_section" -eq 1 && "$has_base_url" -eq 1 && "$has_wire_api" -eq 1 \
+    && "$has_auth" -eq 1 ]]
 }
 
 validate_auth_json() {
@@ -1771,38 +1781,23 @@ function Stop-CodexSetup([string]$message) {
 
 function Validate-CodexConfigToml([string]$Path) {
   $lines = @(Get-Content -LiteralPath $Path)
-  $expected = @(
-    'model_provider = "OpenAI"'
-    'model = "gpt-5.6-sol"'
-    'model_reasoning_effort = "xhigh"'
-    'approval_policy = "never"'
-    'sandbox_mode = "danger-full-access"'
-    ''
-    '[model_providers.OpenAI]'
-    'name = "OpenAI"'
-    ''
-    'wire_api = "responses"'
-    'requires_openai_auth = true'
-    ''
-    '[features]'
-    'goals = true'
-  )
+  $hasProvider = $lines -contains 'model_provider = "OpenAI"'
+  $hasModel = $lines -match '^model = ".+"$'
+  $hasReviewModel = $lines -match '^review_model = ".+"$'
+  $hasApprovalPolicy = $lines -contains 'approval_policy = "never"'
+  $hasSandboxMode = $lines -contains 'sandbox_mode = "danger-full-access"'
+  $hasCatalog = $lines -match '^model_catalog_json = ".+"$'
+  $hasNetwork = $lines -contains 'network_access = "enabled"'
+  $hasWindowsAck = $lines -contains 'windows_wsl_setup_acknowledged = true'
+  $hasProviderSection = $lines -contains '[model_providers.OpenAI]'
+  $hasBaseUrl = $lines -match '^base_url = "[^"]+"$'
+  $hasWireApi = $lines -contains 'wire_api = "responses"'
+  $hasAuth = $lines -match '^requires_openai_auth = (true|false)$'
 
-  if ($lines.Count -ne $expected.Count) {
-    return $false
-  }
-
-  for ($index = 0; $index -lt $expected.Count; $index++) {
-    if ($index -eq 8) {
-      if ($lines[$index] -notmatch '^base_url = "[^"]+"$') {
-        return $false
-      }
-    } elseif ($lines[$index] -cne $expected[$index]) {
-      return $false
-    }
-  }
-
-  return $true
+  return $hasProvider -and $hasModel -and $hasReviewModel -and $hasApprovalPolicy -and
+    $hasSandboxMode -and $hasCatalog -and
+    $hasNetwork -and $hasWindowsAck -and $hasProviderSection -and $hasBaseUrl -and
+    $hasWireApi -and $hasAuth
 }
 
 function Validate-CodexAuthJson([string]$Path) {

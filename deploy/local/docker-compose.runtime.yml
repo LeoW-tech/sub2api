@@ -108,12 +108,14 @@ services:
         hard: 100000
     volumes:
       - ${RUNTIME_REDIS_DIR}:/data
+    # Keep Redis flags in the same inner shell command; without the
+    # continuations each flag line is interpreted as a separate command.
     command: >
       sh -c '
-        redis-server
-        --save 60 1
-        --appendonly yes
-        --appendfsync everysec
+        redis-server \
+        --save 60 1 \
+        --appendonly yes \
+        --appendfsync everysec \
         ${REDIS_PASSWORD:+--requirepass "$REDIS_PASSWORD"}'
     environment:
       - TZ=${TZ:-Asia/Shanghai}

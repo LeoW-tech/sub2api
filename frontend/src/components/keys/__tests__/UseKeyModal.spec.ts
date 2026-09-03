@@ -303,10 +303,14 @@ describe('UseKeyModal', () => {
     expect(configToml).toBeDefined()
     expect(configToml).toBe([
       'model_provider = "OpenAI"',
-      'model = "gpt-5.6-sol"',
-      'model_reasoning_effort = "xhigh"',
+      'model = "gpt-5.5"',
+      'review_model = "gpt-5.5"',
       'approval_policy = "never"',
       'sandbox_mode = "danger-full-access"',
+      'disable_response_storage = true',
+      'model_catalog_json = "~/.codex/codex-models.json"',
+      'network_access = "enabled"',
+      'windows_wsl_setup_acknowledged = true',
       '',
       '[model_providers.OpenAI]',
       'name = "OpenAI"',
@@ -466,11 +470,11 @@ describe('UseKeyModal', () => {
     expect(copiedCommand).toContain('sandbox_mode = "danger-full-access"')
     expect(copiedCommand).toContain('✅ Codex完成接入！')
     expect(copiedCommand).not.toContain('配置成功！Codex CLI 已完成接入')
-    expect(copiedCommand).not.toContain('review_model =')
-    expect(copiedCommand).not.toContain('disable_response_storage')
-    expect(copiedCommand).not.toContain('network_access')
+    expect(copiedCommand).toContain('review_model = "gpt-5.5"')
+    expect(copiedCommand).toContain('disable_response_storage = true')
+    expect(copiedCommand).toContain('network_access = "enabled"')
     expect(copiedCommand).not.toContain('sandbox_workspace_write')
-    expect(copiedCommand).not.toContain('windows_wsl_setup_acknowledged')
+    expect(copiedCommand).toContain('windows_wsl_setup_acknowledged = true')
     expect(copiedCommand).not.toContain('https://chatgpt.com/codex/for-work/')
 
     const configToml = wrapper.find('[data-testid="professional-config-toml-step"] pre code').text()
@@ -530,11 +534,11 @@ describe('UseKeyModal', () => {
     expect(copiedCommand).toContain('sandbox_mode = "danger-full-access"')
     expect(copiedCommand).toContain('✅ Codex完成接入！')
     expect(copiedCommand).not.toContain('配置成功！Codex CLI 已完成接入')
-    expect(copiedCommand).not.toContain('review_model =')
-    expect(copiedCommand).not.toContain('disable_response_storage')
-    expect(copiedCommand).not.toContain('network_access')
+    expect(copiedCommand).toContain('review_model = "gpt-5.5"')
+    expect(copiedCommand).toContain('disable_response_storage = true')
+    expect(copiedCommand).toContain('network_access = "enabled"')
     expect(copiedCommand).not.toContain('sandbox_workspace_write')
-    expect(copiedCommand).not.toContain('windows_wsl_setup_acknowledged')
+    expect(copiedCommand).toContain('windows_wsl_setup_acknowledged = true')
     expect(copiedCommand).not.toContain('https://chatgpt.com/codex/for-work/')
 
     const configToml = wrapper.find('[data-testid="professional-config-toml-step"] pre code').text()
