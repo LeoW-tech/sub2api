@@ -190,7 +190,7 @@ func (r *crsSyncTestAccountRepo) BulkUpdate(context.Context, []int64, AccountBul
 func (r *crsSyncTestAccountRepo) IncrementQuotaUsed(context.Context, int64, float64) error {
 	panic("unexpected")
 }
-func (r *crsSyncTestAccountRepo) ResetQuotaUsed(context.Context, int64) error {
+func (r *crsSyncTestAccountRepo) ResetQuotaUsedAndClearRateLimitCooldown(context.Context, int64) error {
 	panic("unexpected")
 }
 func (r *crsSyncTestAccountRepo) RevertProxyFallback(context.Context, int64) error {
