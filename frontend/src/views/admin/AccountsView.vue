@@ -447,7 +447,7 @@
               />
             </template>
             <template #cell-groups="{ row }">
-              <AccountGroupsCell :groups="row.groups" :max-display="4" />
+              <AccountGroupsCell :groups="accountGroupsForRow(row)" :max-display="4" />
             </template>
             <template #header-usage="{ column }">
               <div class="flex items-center">
@@ -874,6 +874,7 @@ import { formatMultiplier } from "@/utils/formatters";
 import type { AccountUsageInfo } from "@/types";
 import type {
   Account,
+  AccountListItem,
   AccountPlatform,
   AccountSchedulerGroupScore,
   AccountType,
@@ -892,6 +893,13 @@ const authStore = useAuthStore();
 
 const proxies = ref<AccountProxy[]>([]);
 const groups = ref<AdminGroup[]>([]);
+const groupsByID = computed(() => new Map(groups.value.map((group) => [group.id, group])));
+const accountGroupsForRow = (account: Pick<AccountListItem, "group_ids">): AdminGroup[] => {
+  const groupIDs = account.group_ids ?? [];
+  return groupIDs
+    .map((id) => groupsByID.value.get(id))
+    .filter((group): group is AdminGroup => Boolean(group));
+};
 const ipOptions = ref<ProxyIPOption[]>([]);
 const accountTableRef = ref<HTMLElement | null>(null);
 const dataTableRef = ref<InstanceType<typeof DataTable> | null>(null);
@@ -1460,7 +1468,7 @@ const {
   debouncedReload: baseDebouncedReload,
   handlePageChange: baseHandlePageChange,
   handlePageSizeChange: baseHandlePageSizeChange,
-} = useTableLoader<Account, any>({
+} = useTableLoader<AccountListItem, any>({
   fetchFn: adminAPI.accounts.list,
   initialParams: {
 
@@ -1495,7 +1503,7 @@ const {
   toggleVisible,
   selectVisible: selectCurrentPage,
   batchUpdate
-} = useTableSelection<Account>({
+} = useTableSelection<AccountListItem>({
   rows: accounts,
   getId: (account) => account.id,
 });
@@ -1542,8 +1550,6 @@ const resetAutoRefreshCache = () => {
   upstreamBillingRateETag.value = null
 };
 
-const isFirstLoad = ref(true);
-
 type AccountLoadOptions = { refreshTodayStats?: boolean }
 const load = async (options: AccountLoadOptions = {}) => {
   const requestParams = params as any
@@ -1552,14 +1558,8 @@ const load = async (options: AccountLoadOptions = {}) => {
   resetAutoRefreshCache()
   pendingTodayStatsRefresh.value = false
 
-  if (isFirstLoad.value) {
-    requestParams.lite = "1";
-  }
+  requestParams.lite = "1";
   await baseLoad();
-  if (isFirstLoad.value) {
-    isFirstLoad.value = false;
-    delete requestParams.lite;
-  }
   if (options.refreshTodayStats !== false) await refreshTodayStatsBatch()
 };
 
@@ -2333,8 +2333,24 @@ const cols = computed(() =>
   ),
 );
 
-const handleEdit = (a: Account) => {
-  edAcc.value = a;
+const accountDetailLoading = new Set<number>();
+const loadAccountDetails = async (account: Pick<AccountListItem, "id">): Promise<Account | null> => {
+  if (accountDetailLoading.has(account.id)) return null;
+  accountDetailLoading.add(account.id);
+  try {
+    return await adminAPI.accounts.getById(account.id);
+  } catch (error) {
+    console.error("Failed to load account details:", error);
+    appStore.showError(extractApiErrorMessage(error, t("common.error")));
+    return null;
+  } finally {
+    accountDetailLoading.delete(account.id);
+  }
+};
+const handleEdit = async (a: AccountListItem) => {
+  const account = await loadAccountDetails(a);
+  if (!account) return;
+  edAcc.value = account;
   showEdit.value = true;
 };
 const openMenu = (a: Account, e: MouseEvent) => {
@@ -3128,12 +3144,16 @@ const closeReAuthModal = () => {
   showReAuth.value = false;
   reAuthAcc.value = null;
 };
-const handleTest = (a: Account) => {
-  testingAcc.value = a;
+const handleTest = async (a: AccountListItem) => {
+  const account = await loadAccountDetails(a);
+  if (!account) return;
+  testingAcc.value = account;
   showTest.value = true;
 };
-const handleViewStats = (a: Account) => {
-  statsAcc.value = a;
+const handleViewStats = async (a: AccountListItem) => {
+  const account = await loadAccountDetails(a);
+  if (!account) return;
+  statsAcc.value = account;
   showStats.value = true;
 };
 const handleSchedule = async (a: Account) => {
@@ -3385,7 +3405,9 @@ onMounted(async () => {
   const [proxiesResult, groupsResult, ipOptionsResult] = await Promise.allSettled([
     adminAPI.proxies.getAll(),
     adminAPI.groups.getAll(),
-    adminAPI.proxies.getIPOptions()
+    typeof adminAPI.proxies.getIPOptions === "function"
+      ? adminAPI.proxies.getIPOptions()
+      : Promise.resolve([])
   ])
   if (proxiesResult.status === 'fulfilled') {
     proxies.value = proxiesResult.value
