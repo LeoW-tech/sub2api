@@ -133,6 +133,7 @@ export default {
         'Add the following environment variables to your terminal profile or run directly in terminal to configure API access.',
       copy: 'Copy',
       copied: 'Copied',
+      copyFailed: 'Failed to copy',
       download: 'Download',
       note: 'These environment variables will be active in the current terminal session. For permanent configuration, add them to ~/.bashrc, ~/.zshrc, or the appropriate configuration file.',
       claudeSettingsHint: 'User-level persistent configuration. Do not commit this file containing your API key to a project repository.',
@@ -140,16 +141,11 @@ export default {
       noGroupDescription: 'This API key has not been assigned to a group. Please click the group column in the key list to assign one before viewing the configuration.',
       openai: {
         description: 'Add the following configuration files to your Codex CLI config directory.',
-        authModeTitle: 'Codex authentication mode',
-        authModeDescription: 'Compatibility mode keeps the existing setup for older Codex clients. API Key Mode authorizes the client-side image executor.',
-        authModeLegacy: 'Compatibility mode',
-        authModeApiKey: 'API Key Mode',
-        authModeApiKeyRestartNotice: 'After saving this configuration, completely quit and restart Codex Desktop or CLI, then create a new task so the client can rebuild its tool registry.',
         detectedMac: 'Detected macOS',
         detectedWindows: 'Detected Windows',
         detectedOther: 'macOS or Windows was not detected',
         unsupportedSystem: 'One-click setup currently supports macOS and Windows only. Please use Method 2.',
-        installCodexDescription: 'If Codex App is not installed yet, download it from the official page, open it once to initialize, then come back to configure.',
+        installCodexDescription: 'If Codex App is not installed yet, download it from the official page, open it once to initialize, then fully quit Codex before configuring.',
         downloadCodex: 'Link 1: Official Codex download page (click to open)',
         backupDownload: 'Link 2: Backup cloud drive (use this if Link 1 cannot be opened)',
         quitCodexDescriptionPrefix: 'Make sure the Codex App is not running right now and is fully closed.',
@@ -177,7 +173,7 @@ export default {
         },
         professional: {
           title: 'Method 2: For advanced users',
-          description: 'Configure the same Codex setup manually by placing two files in the directory: config.toml and auth.json. config.toml uses approval_policy = "never" and sandbox_mode = "danger-full-access".',
+          description: 'First start Codex App once to initialize it, then fully quit Codex. Manual setup only places two files in the existing directory: config.toml and auth.json. Stop without creating it if the directory does not exist. config.toml uses approval_policy = "never" and sandbox_mode = "danger-full-access".',
           macOpenDir: 'Open Finder, press Command + Shift + G, paste ~/.codex, then press Enter to open the config directory.',
           windowsOpenDir: 'Press Win + R, paste %USERPROFILE%\\.codex, then press Enter to open the config directory.',
           configTomlDownloadHint: 'Click Download the complete config.toml and place it in the directory you just opened.',
@@ -190,14 +186,13 @@ export default {
           }
         },
         configTomlHint: 'Use the following complete content as config.toml and remove old extra fields',
-        note: 'Make sure the config directory exists. macOS/Linux users can run mkdir -p ~/.codex to create it.',
-        noteWindows: 'Press Win+R and enter %userprofile%\\.codex to open the config directory. Create it manually if it does not exist.',
+        note: 'Start Codex once to initialize it, then fully quit and confirm the config directory exists. Stop without creating it if the directory does not exist.',
+        noteWindows: 'Press Win+R and enter %userprofile%\\.codex to open the config directory. Stop without creating it if the directory does not exist.',
       },
       cliTabs: {
         claudeCode: 'Claude Code',
         geminiCli: 'Gemini CLI',
         codexCli: 'Codex CLI',
-        codexCliWs: 'Codex CLI (WebSocket)',
         grokCli: 'Grok CLI',
         opencode: 'OpenCode',
       },
@@ -221,7 +216,7 @@ export default {
         configTomlHint:
           'Official path: ~/.grok/config.toml (or $GROK_HOME). Fill [endpoints] (models_base_url / models_list_url / xai_api_base_url / cli_chat_proxy_base_url), [auth] preferred_method=api_key, [models], [session], and [features] image/video overrides. Prefer env_key over api_key; every text model needs api_backend=responses. Back up before merge, then run grok inspect.',
         codexConfigTomlHint:
-          'Official Codex: wire_api = "responses" only; prefer env_key over experimental_bearer_token; supports_websockets = false for non-OpenAI gateways (Sub2API can still accept client WS and bridge to HTTP/SSE). Back up ~/.codex/config.toml before merge.',
+          'Official Codex: wire_api = "responses" only; use Codex\'s built-in default model list and read the key through env_key. Start Codex once to initialize it, then fully quit; stop without creating the directory if it does not exist. Back up ~/.codex/config.toml before merge.',
         note:
           'Export GROK_MODELS_BASE_URL and XAI_API_KEY, save the full config.toml (endpoints/auth/models/session/features) as ~/.grok/config.toml, run grok inspect, then /model grok-4.5 (or grok-build-0.1 for coding).',
         noteWindows:
@@ -229,35 +224,26 @@ export default {
         claudeNote:
           'Choose one method: terminal env for this session, or ~/.claude/settings.json for persistence. Do not commit files that contain your API key.',
         codexNote:
-          'Export SUB2API_API_KEY, save config.toml under ~/.codex (mkdir -p ~/.codex). Prefer env_key auth; do not commit secrets.',
+          'Start Codex once to initialize it, then fully quit. Export SUB2API_API_KEY and save config.toml under the existing ~/.codex directory. Stop without creating it if the directory does not exist; prefer env_key auth and do not commit secrets.',
         codexNoteWindows:
-          'Set $env:SUB2API_API_KEY, save config.toml under %USERPROFILE%\\.codex. Prefer env_key auth; do not commit secrets.',
+          'Start Codex once to initialize it, then fully quit. Set $env:SUB2API_API_KEY and save config.toml under the existing %USERPROFILE%\\.codex directory. Stop without creating it if the directory does not exist; prefer env_key auth and do not commit secrets.',
       },
       deepseek: {
         description: 'Configure Claude Code, Codex, or OpenCode through the current DeepSeek group.',
         codexDescription: 'Configure Codex with API key authentication through the current DeepSeek group.',
-        codexConfigTomlHint: 'Download the model catalog below, save both files under the Codex config directory, and restart Codex.',
-        codexNote: 'Export SUB2API_API_KEY before starting Codex. The downloaded catalog contains model metadata only, not your API key.',
+        codexConfigTomlHint: 'Use Codex\'s built-in default model list, save config.toml under the existing Codex config directory, and restart Codex. Stop without creating it if the directory does not exist.',
+        codexNote: 'Start Codex once to initialize it, then fully quit. Export SUB2API_API_KEY and save config.toml under the existing config directory; prefer env_key auth. Stop without creating it if the directory does not exist.',
       },
       composite: {
         description: 'Configure supported clients through the current Composite routing group.',
-        codexDescription: 'Configure Codex with API key authentication and the complete model catalog for this Composite group.',
-        codexConfigTomlHint: 'Download the model catalog below, save both files under the Codex config directory, and restart Codex.',
-        codexNote: 'Export SUB2API_API_KEY before starting Codex. Model requests are routed by the selected catalog slug.',
+        codexDescription: 'Configure Codex with API key authentication for this Composite group, using Codex\'s built-in default model list.',
+        codexConfigTomlHint: 'Use Codex\'s built-in default model list, save config.toml under the existing Codex config directory, and restart Codex. Stop without creating it if the directory does not exist.',
+        codexNote: 'Start Codex once to initialize it, then fully quit. Export SUB2API_API_KEY and save config.toml under the existing config directory; prefer env_key auth. Stop without creating it if the directory does not exist.',
       },
       routedCodex: {
-        description: 'Configure Codex with the complete model catalog for the current routed group.',
-        configTomlHint: 'Download the model catalog below, save both files under the Codex config directory, and restart Codex.',
-        note: 'Export SUB2API_API_KEY before starting Codex. The downloaded catalog contains model metadata only, not your API key.',
-      },
-      codexModelCatalog: {
-        title: 'Codex model catalog',
-        description: 'Fetch with this API key, then save the catalog at the path referenced by config.toml.',
-        fetch: 'Fetch catalog',
-        retry: 'Retry',
-        download: 'Download catalog',
-        modelsCount: '{count} models ready to download',
-        errorDescription: 'The catalog could not be fetched with this API key.',
+        description: 'Configure Codex for the current routed group using Codex\'s built-in default model list.',
+        configTomlHint: 'Use Codex\'s built-in default model list, save config.toml under the existing Codex config directory, and restart Codex. Stop without creating it if the directory does not exist.',
+        note: 'Start Codex once to initialize it, then fully quit. Export SUB2API_API_KEY and save config.toml under the existing config directory; prefer env_key auth. Stop without creating it if the directory does not exist.',
       },
       opencode: {
         title: 'OpenCode Example',

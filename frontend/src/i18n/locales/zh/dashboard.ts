@@ -132,6 +132,7 @@ export default {
       description: '将以下环境变量添加到您的终端配置文件或直接在终端中运行。',
       copy: '复制',
       copied: '已复制',
+      copyFailed: '复制失败',
       download: '点击下载',
       note: '这些环境变量将在当前终端会话中生效。如需永久配置，请将其添加到 ~/.bashrc、~/.zshrc 或相应的配置文件中。',
       claudeSettingsHint: '用户级持久配置。此文件包含 API 密钥，请勿提交到项目仓库。',
@@ -140,16 +141,11 @@ export default {
         '此 API 密钥尚未分配分组，请先在密钥列表中点击分组列进行分配，然后才能查看使用配置。',
       openai: {
         description: '将以下配置文件添加到 Codex CLI 配置目录中。',
-        authModeTitle: 'Codex 认证模式',
-        authModeDescription: '兼容模式保留旧版 Codex 配置；API Key Mode 用于授权客户端图片执行器。',
-        authModeLegacy: '兼容模式',
-        authModeApiKey: 'API Key Mode',
-        authModeApiKeyRestartNotice: '保存此配置后，必须完全退出并重启 Codex Desktop 或 CLI，然后新建 task，让客户端重新构建工具注册表。',
         detectedMac: '检测到你正在使用 macOS',
         detectedWindows: '检测到你正在使用 Windows',
         detectedOther: '未检测到 macOS 或 Windows',
         unsupportedSystem: '当前一键配置仅支持 macOS 和 Windows，请使用方法二手动配置。',
-        installCodexDescription: '如果还没有安装 Codex App，请先前往官方下载并打开一次完成初始化，然后再回来配置。',
+        installCodexDescription: '如果还没有安装 Codex App，请先前往官方下载并打开一次完成初始化，然后彻底退出 Codex，再回来配置。',
         downloadCodex: '地址 1：CODEX 官方下载页面（直接点击打开）',
         backupDownload: '地址 2：备用网盘（如果地址 1 官方页面无法打开，请点此下载）',
         quitCodexDescriptionPrefix: '请确保此时此刻，Codex App 没有在运行中，是关闭状态。',
@@ -177,7 +173,7 @@ export default {
         },
         professional: {
           title: '方法二：专业人士使用',
-          description: '手动配置同一套 Codex 配置，需要在目录中放入两个文件：config.toml 和 auth.json。config.toml 使用 approval_policy = "never" 和 sandbox_mode = "danger-full-access"。',
+          description: '请先启动 Codex App 完成初始化，再彻底退出 Codex。手动配置只需在现有目录中放入两个文件：config.toml 和 auth.json。目录不存在时请停止操作，不要手动创建目录。config.toml 使用 approval_policy = "never" 和 sandbox_mode = "danger-full-access"。',
           macOpenDir: '打开 Finder 后按 Command + Shift + G，粘贴 ~/.codex 并回车进入配置目录。',
           windowsOpenDir: '按 Win + R，粘贴 %USERPROFILE%\\.codex 并回车打开配置目录。',
           configTomlDownloadHint: '直接点击下载完整的 config.toml，将文件放入刚才打开的目录中即可。',
@@ -190,15 +186,14 @@ export default {
           }
         },
         configTomlHint: '请使用以下完整内容作为 config.toml，不要保留旧的额外字段',
-        note: '请确保配置目录存在。macOS/Linux 用户可运行 mkdir -p ~/.codex 创建目录。',
+        note: '请先启动 Codex App 完成初始化并彻底退出，再确认配置目录存在；目录不存在时请停止操作，不要手动创建目录。',
         noteWindows:
-          '按 Win+R，输入 %userprofile%\\.codex 打开配置目录。如目录不存在，请先手动创建。'
+          '按 Win+R，输入 %userprofile%\\.codex 打开配置目录。目录不存在时请停止操作，不要手动创建目录。'
       },
       cliTabs: {
         claudeCode: 'Claude Code',
         geminiCli: 'Gemini CLI',
         codexCli: 'Codex CLI',
-        codexCliWs: 'Codex CLI (WebSocket)',
         grokCli: 'Grok CLI',
         opencode: 'OpenCode'
       },
@@ -225,7 +220,7 @@ export default {
         configTomlHint:
           '官方路径：~/.grok/config.toml（或 $GROK_HOME）。请填写 [endpoints]（models_base_url / models_list_url / xai_api_base_url / cli_chat_proxy_base_url）、[auth] preferred_method=api_key、[models]、[session]、[features] 图片/视频覆盖。优先 env_key，勿硬编码 api_key；文本模型必须 api_backend=responses。合并前备份，保存后运行 grok inspect。',
         codexConfigTomlHint:
-          'Codex 官方：wire_api 仅支持 "responses"；优先 env_key，勿与 experimental_bearer_token 混用；非 OpenAI 网关默认 supports_websockets = false（Sub2API 仍可接客户端 WS 并桥接到 HTTP/SSE）。合并前备份 ~/.codex/config.toml。',
+          'Codex 官方：wire_api 仅支持 "responses"；使用 Codex 自身默认模型清单，通过 env_key 读取密钥。请先启动 Codex 完成初始化并彻底退出，目录不存在时停止操作，不要手动创建目录。合并前备份 ~/.codex/config.toml。',
         note:
           '导出 GROK_MODELS_BASE_URL 与 XAI_API_KEY，将完整 config.toml（endpoints/auth/models/session/features）保存为 ~/.grok/config.toml，运行 grok inspect，再用 /model 选择 grok-4.5（编程场景可用 grok-build-0.1）。',
         noteWindows:
@@ -233,35 +228,26 @@ export default {
         claudeNote:
           '二选一：终端环境变量仅当前会话；~/.claude/settings.json 可持久化。请勿把含 API Key 的文件提交到仓库。',
         codexNote:
-          '导出 SUB2API_API_KEY，将 config.toml 保存到 ~/.codex（可用 mkdir -p ~/.codex）。优先 env_key，勿提交密钥。',
+          '先启动 Codex 完成初始化并彻底退出，导出 SUB2API_API_KEY，将 config.toml 保存到已存在的 ~/.codex。目录不存在时停止操作，不要手动创建目录；优先 env_key，勿提交密钥。',
         codexNoteWindows:
-          '设置 $env:SUB2API_API_KEY，将 config.toml 保存到 %USERPROFILE%\\.codex。优先 env_key，勿提交密钥。'
+          '先启动 Codex 完成初始化并彻底退出，设置 $env:SUB2API_API_KEY，将 config.toml 保存到已存在的 %USERPROFILE%\\.codex。目录不存在时停止操作，不要手动创建目录；优先 env_key，勿提交密钥。'
       },
       deepseek: {
         description: '通过当前 DeepSeek 分组配置 Claude Code、Codex 或 OpenCode。',
         codexDescription: '使用 API Key 配置 Codex，并通过当前 DeepSeek 分组发送请求。',
-        codexConfigTomlHint: '下载下方模型目录，将两个文件保存到 Codex 配置目录后重启 Codex。',
-        codexNote: '启动 Codex 前先导出 SUB2API_API_KEY。下载的目录只包含模型元数据，不包含 API Key。'
+        codexConfigTomlHint: '使用 Codex 自身默认模型清单，将 config.toml 保存到已存在的 Codex 配置目录后重启 Codex；目录不存在时停止操作，不要手动创建目录。',
+        codexNote: '先启动 Codex 完成初始化并彻底退出，再导出 SUB2API_API_KEY。将 config.toml 保存到已存在的配置目录；优先 env_key，目录不存在时停止操作，不要手动创建目录。'
       },
       composite: {
         description: '通过当前 Composite 路由分组配置受支持的客户端。',
-        codexDescription: '使用 API Key 和当前 Composite 分组的完整模型目录配置 Codex。',
-        codexConfigTomlHint: '下载下方模型目录，将两个文件保存到 Codex 配置目录后重启 Codex。',
-        codexNote: '启动 Codex 前先导出 SUB2API_API_KEY；分组会根据目录中选中的模型路由请求。'
+        codexDescription: '使用 API Key 和当前 Composite 分组配置 Codex，模型使用 Codex 自身默认模型清单。',
+        codexConfigTomlHint: '使用 Codex 自身默认模型清单，将 config.toml 保存到已存在的 Codex 配置目录后重启 Codex；目录不存在时停止操作，不要手动创建目录。',
+        codexNote: '先启动 Codex 完成初始化并彻底退出，再导出 SUB2API_API_KEY。将 config.toml 保存到已存在的配置目录；优先 env_key，目录不存在时停止操作，不要手动创建目录。'
       },
       routedCodex: {
-        description: '使用当前路由分组的完整模型目录配置 Codex。',
-        configTomlHint: '下载下方模型目录，将两个文件保存到 Codex 配置目录后重启 Codex。',
-        note: '启动 Codex 前先导出 SUB2API_API_KEY。下载的目录只包含模型元数据，不包含 API Key。'
-      },
-      codexModelCatalog: {
-        title: 'Codex 模型目录',
-        description: '使用当前 API Key 获取目录，并保存到 config.toml 引用的路径。',
-        fetch: '获取目录',
-        retry: '重试',
-        download: '下载目录',
-        modelsCount: '已获取 {count} 个模型',
-        errorDescription: '无法使用当前 API Key 获取模型目录。'
+        description: '使用当前路由分组配置 Codex，模型使用 Codex 自身默认模型清单。',
+        configTomlHint: '使用 Codex 自身默认模型清单，将 config.toml 保存到已存在的 Codex 配置目录后重启 Codex；目录不存在时停止操作，不要手动创建目录。',
+        note: '先启动 Codex 完成初始化并彻底退出，再导出 SUB2API_API_KEY。将 config.toml 保存到已存在的配置目录；优先 env_key，目录不存在时停止操作，不要手动创建目录。'
       },
       opencode: {
         title: 'OpenCode 配置示例',

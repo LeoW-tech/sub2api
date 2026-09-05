@@ -51,65 +51,6 @@
           </nav>
         </div>
 
-        <!-- Codex Authentication Mode -->
-        <div
-          v-if="showCodexAuthMode"
-          class="rounded-lg border border-gray-200 p-3 dark:border-dark-700"
-        >
-          <div class="mb-2">
-            <p class="text-sm font-medium text-gray-900 dark:text-white">
-              {{ t('keys.useKeyModal.openai.authModeTitle') }}
-            </p>
-            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              {{ t('keys.useKeyModal.openai.authModeDescription') }}
-            </p>
-          </div>
-          <div
-            class="grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-1 dark:bg-dark-700"
-            role="radiogroup"
-            :aria-label="t('keys.useKeyModal.openai.authModeTitle')"
-          >
-            <button
-              type="button"
-              role="radio"
-              data-testid="codex-auth-mode-legacy"
-              :aria-checked="codexAuthMode === 'legacy'"
-              :class="[
-                'rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                codexAuthMode === 'legacy'
-                  ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
-                  : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
-              ]"
-              @click="codexAuthMode = 'legacy'"
-            >
-              {{ t('keys.useKeyModal.openai.authModeLegacy') }}
-            </button>
-            <button
-              type="button"
-              role="radio"
-              data-testid="codex-auth-mode-api-key"
-              :aria-checked="codexAuthMode === 'api-key'"
-              :class="[
-                'rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                codexAuthMode === 'api-key'
-                  ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
-                  : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
-              ]"
-              @click="codexAuthMode = 'api-key'"
-            >
-              {{ t('keys.useKeyModal.openai.authModeApiKey') }}
-            </button>
-          </div>
-          <div
-            v-if="codexAuthMode === 'api-key'"
-            data-testid="codex-api-key-restart-notice"
-            class="mt-3 flex items-start gap-2 border-l-2 border-amber-400 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-500 dark:bg-amber-950/30 dark:text-amber-200"
-          >
-            <Icon name="exclamationCircle" size="sm" class="mt-0.5 flex-shrink-0" />
-            <p>{{ t('keys.useKeyModal.openai.authModeApiKeyRestartNotice') }}</p>
-          </div>
-        </div>
-
         <template v-if="isOpenAICodex">
           <!-- Beginner one-command setup -->
           <section class="rounded-xl border border-primary-200 dark:border-primary-800 bg-primary-50/60 dark:bg-primary-900/10 p-4 space-y-4">
@@ -216,9 +157,12 @@
                     type="button"
                     data-testid="copy-codex-one-click-command"
                     class="btn btn-primary btn-sm"
-                    @click="copySnippet(oneClickCommand)"
+                    :disabled="!isSupportedOneClickSystem || !oneClickCommand"
+                    @click="copyOneClickCommand"
                   >
-                    {{ t('keys.useKeyModal.openai.copyCommand') }}
+                    {{ oneClickCopyState === 'copied' ? t('keys.useKeyModal.copied')
+                      : oneClickCopyState === 'failed' ? t('keys.useKeyModal.copyFailed')
+                      : t('keys.useKeyModal.openai.copyCommand') }}
                   </button>
                 </li>
                 <li>{{ commandPasteStep }}</li>
@@ -397,64 +341,6 @@
               </div>
             </div>
           </div>
-        <section
-          v-if="showCodexModelCatalog"
-          data-testid="codex-model-catalog"
-          class="overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-dark-700 dark:bg-dark-800/50"
-        >
-          <div class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div class="min-w-0">
-              <h3 class="text-sm font-medium text-gray-900 dark:text-white">
-                {{ t('keys.useKeyModal.codexModelCatalog.title') }}
-              </h3>
-              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {{ t('keys.useKeyModal.codexModelCatalog.description') }}
-              </p>
-              <p class="mt-1 truncate font-mono text-xs text-gray-700 dark:text-gray-300">
-                {{ codexModelCatalogPath }}
-              </p>
-            </div>
-            <button
-              v-if="codexModelManifestState === 'ready'"
-              type="button"
-              class="btn btn-primary min-h-9 flex-shrink-0 px-3 text-xs"
-              @click="downloadCodexModelManifest"
-            >
-              <Icon name="download" size="sm" class="mr-1.5" />
-              {{ t('keys.useKeyModal.codexModelCatalog.download') }}
-            </button>
-            <button
-              v-else
-              type="button"
-              data-testid="codex-model-catalog-fetch"
-              class="btn btn-primary min-h-9 flex-shrink-0 px-3 text-xs"
-              :disabled="codexModelManifestState === 'loading' || !apiKey"
-              @click="loadCodexModelManifest"
-            >
-              <Icon
-                name="refresh"
-                size="sm"
-                class="mr-1.5"
-                :class="codexModelManifestState === 'loading' ? 'animate-spin' : ''"
-              />
-              {{ codexModelManifestState === 'error'
-                ? t('keys.useKeyModal.codexModelCatalog.retry')
-                : t('keys.useKeyModal.codexModelCatalog.fetch') }}
-            </button>
-          </div>
-          <p
-            v-if="codexModelManifestState === 'ready'"
-            class="border-t border-gray-200 px-4 py-2 text-xs text-emerald-700 dark:border-dark-700 dark:text-emerald-300"
-          >
-            {{ t('keys.useKeyModal.codexModelCatalog.modelsCount', { count: codexModelManifestModelCount }) }}
-          </p>
-          <p
-            v-else-if="codexModelManifestState === 'error'"
-            class="border-t border-red-200 px-4 py-2 text-xs text-red-700 dark:border-red-900 dark:text-red-300"
-          >
-            {{ t('keys.useKeyModal.codexModelCatalog.errorDescription') }}
-          </p>
-        </section>
         </template>
         <!-- Usage Note -->
         <div v-if="showPlatformNote" class="flex items-start gap-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
@@ -480,21 +366,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, h, watch, type Component } from 'vue'
+import { ref, computed, h, watch, onBeforeUnmount, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { saveAs } from 'file-saver'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useClipboard } from '@/composables/useClipboard'
 import { CODEX_BACKUP_DOWNLOAD_URL, CODEX_OFFICIAL_DOWNLOAD_URL } from '@/constants/codexDownload'
-import { fetchCodexModelsManifest } from '@/api/codex'
+import { escapeTomlBasicString, generateMacCodexCommand, generateWindowsCodexCommand } from '@/utils/codexSetup'
 import type { GroupPlatform } from '@/types'
-import {
-  findCodexCatalogModel,
-  formatCodexReasoningEffortTomlLine,
-  parseCodexCatalogModels,
-  selectCodexConfigReasoningEffort
-} from '@/utils/codexCatalogConfig'
 
 interface Props {
   show: boolean
@@ -528,33 +407,20 @@ const { t } = useI18n()
 const { copyToClipboard: clipboardCopy } = useClipboard()
 
 const copiedIndex = ref<number | null>(null)
+const oneClickCopyState = ref<'idle' | 'copied' | 'failed'>('idle')
+let copyRequest = 0
+let copyTimer: ReturnType<typeof setTimeout> | undefined
 const activeTab = ref<string>('unix')
 const activeClientTab = ref<string>('claude')
-type CodexAuthMode = 'legacy' | 'api-key'
-const codexAuthMode = ref<CodexAuthMode>('legacy')
-type CodexModelManifestState = 'idle' | 'loading' | 'ready' | 'error'
-const codexModelManifestState = ref<CodexModelManifestState>('idle')
-const codexModelManifestContent = ref('')
-const codexModelManifestModelCount = ref(0)
-let codexModelManifestController: AbortController | null = null
-let codexModelManifestRequestID = 0
 
-const showCodexModelCatalog = computed(() =>
-  props.show &&
-  (activeClientTab.value === 'codex' ||
-    (props.platform === 'openai' && activeClientTab.value === 'codex-ws'))
-)
-
-const codexModelCatalogPath = computed(() => {
-  const isWindows = activeTab.value === 'windows'
-  const configDir = isWindows ? '%userprofile%\\.codex' : '~/.codex'
-  return joinConfigPath(configDir, 'codex-models.json', isWindows)
-})
-
-const codexManifestContext = computed(() => {
-  if (!showCodexModelCatalog.value) return ''
-  return `${props.platform}|${props.baseUrl}|${props.apiKey}`
-})
+const resetCopyFeedback = () => {
+  copyRequest += 1
+  clearTimeout(copyTimer)
+  copiedIndex.value = null
+  oneClickCopyState.value = 'idle'
+}
+watch(() => [props.show, props.apiKey, props.baseUrl, props.platform, activeClientTab.value], resetCopyFeedback)
+onBeforeUnmount(resetCopyFeedback)
 
 // Reset tabs when platform changes
 const defaultClientTab = computed(() => {
@@ -575,22 +441,7 @@ const defaultClientTab = computed(() => {
 watch(() => props.platform, () => {
   activeTab.value = 'unix'
   activeClientTab.value = defaultClientTab.value
-  codexAuthMode.value = 'legacy'
 }, { immediate: true })
-
-watch(() => props.show, (show) => {
-  if (show) {
-    codexAuthMode.value = 'legacy'
-  } else {
-    resetCodexModelManifest()
-  }
-})
-
-watch(codexManifestContext, (context, previousContext) => {
-  if (context !== previousContext) {
-    resetCodexModelManifest()
-  }
-})
 
 // Reset shell tab when client changes
 watch(activeClientTab, () => {
@@ -665,8 +516,7 @@ const clientTabs = computed((): TabConfig[] => {
   switch (props.platform) {
     case 'openai': {
       const tabs: TabConfig[] = [
-        { id: 'codex', label: t('keys.useKeyModal.cliTabs.codexCli'), icon: TerminalIcon },
-        { id: 'codex-ws', label: t('keys.useKeyModal.cliTabs.codexCliWs'), icon: TerminalIcon }
+        { id: 'codex', label: t('keys.useKeyModal.cliTabs.codexCli'), icon: TerminalIcon }
       ]
       if (props.allowMessagesDispatch) {
         tabs.push({ id: 'claude', label: t('keys.useKeyModal.cliTabs.claudeCode'), icon: TerminalIcon })
@@ -723,18 +573,13 @@ const openaiTabs: TabConfig[] = [
   { id: 'windows', label: 'Windows', icon: WindowsIcon }
 ]
 
-const showCodexAuthMode = computed(() =>
-  props.platform === 'openai' &&
-  (activeClientTab.value === 'codex' || activeClientTab.value === 'codex-ws')
-)
-
 const isOpenAICodex = computed(() => props.platform === 'openai' && activeClientTab.value === 'codex')
 
 const showShellTabs = computed(() => activeClientTab.value !== 'opencode')
 
 const currentTabs = computed(() => {
   if (!showShellTabs.value) return []
-  if (activeClientTab.value === 'codex' || activeClientTab.value === 'codex-ws' || activeClientTab.value === 'grok') {
+  if (activeClientTab.value === 'codex' || activeClientTab.value === 'grok') {
     return openaiTabs
   }
   return shellTabs
@@ -834,8 +679,10 @@ type DetectedSystem = 'mac' | 'windows' | 'other'
 
 const detectedSystem = computed<DetectedSystem>(() => {
   const userAgent = window.navigator.userAgent.toLowerCase()
-  if (userAgent.includes('mac')) return 'mac'
-  if (userAgent.includes('win')) return 'windows'
+  if (/android|iphone|ipad|ipod/.test(userAgent) ||
+      (userAgent.includes('mac') && window.navigator.maxTouchPoints > 1)) return 'other'
+  if (userAgent.includes('macintosh')) return 'mac'
+  if (userAgent.includes('windows nt')) return 'windows'
   return 'other'
 })
 
@@ -891,66 +738,6 @@ const commandPasteStep = computed(() =>
     ? t('keys.useKeyModal.openai.commandStep2Windows')
     : t('keys.useKeyModal.openai.commandStep2Mac')
 )
-
-function resetCodexModelManifest() {
-  codexModelManifestController?.abort()
-  codexModelManifestController = null
-  codexModelManifestRequestID += 1
-  codexModelManifestState.value = 'idle'
-  codexModelManifestContent.value = ''
-  codexModelManifestModelCount.value = 0
-}
-
-async function loadCodexModelManifest() {
-  if (!showCodexModelCatalog.value || !props.apiKey) return
-
-  codexModelManifestController?.abort()
-  const controller = new AbortController()
-  const requestID = ++codexModelManifestRequestID
-  codexModelManifestController = controller
-  codexModelManifestState.value = 'loading'
-
-  try {
-    const result = await fetchCodexModelsManifest(props.baseUrl, props.apiKey, controller.signal)
-    if (requestID !== codexModelManifestRequestID) return
-    codexModelManifestContent.value = result.content
-    codexModelManifestModelCount.value = result.modelCount
-    codexModelManifestState.value = 'ready'
-  } catch (error) {
-    const errorName = error && typeof error === 'object' && 'name' in error
-      ? String((error as { name?: unknown }).name || '')
-      : ''
-    if (requestID !== codexModelManifestRequestID || errorName === 'AbortError') return
-    codexModelManifestState.value = 'error'
-  } finally {
-    if (requestID === codexModelManifestRequestID) {
-      codexModelManifestController = null
-    }
-  }
-}
-
-function downloadCodexModelManifest() {
-  if (!codexModelManifestContent.value) return
-  saveAs(
-    new Blob([codexModelManifestContent.value], { type: 'application/json;charset=utf-8' }),
-    'codex-models.json'
-  )
-}
-
-const codexCatalogModelSlugs = computed(() =>
-  parseCodexCatalogModels(codexModelManifestContent.value).map((model) => model.slug)
-)
-
-function selectCodexCatalogModel(preferredModel: string): string {
-  if (codexCatalogModelSlugs.value.includes(preferredModel)) return preferredModel
-  return codexCatalogModelSlugs.value[0] || preferredModel
-}
-
-function codexReasoningEffortTomlLine(modelSlug: string): string {
-  return formatCodexReasoningEffortTomlLine(
-    selectCodexConfigReasoningEffort(findCodexCatalogModel(codexModelManifestContent.value, modelSlug))
-  )
-}
 
 const escapeHtml = (value: string) => value
   .replace(/&/g, '&amp;')
@@ -1014,9 +801,6 @@ const currentFiles = computed((): FileConfig[] => {
       if (activeClientTab.value === 'claude') {
         return generateAnthropicFiles(baseUrl, apiKey)
       }
-      if (activeClientTab.value === 'codex-ws') {
-        return generateOpenAIWsFiles(baseUrl, apiKey)
-      }
       return generateOpenAIFiles(baseUrl, apiKey)
     case 'gemini':
       if (activeClientTab.value === 'codex') {
@@ -1060,12 +844,14 @@ const currentFiles = computed((): FileConfig[] => {
 function generateAnthropicFiles(baseUrl: string, apiKey: string): FileConfig[] {
   let path: string
   let content: string
+  const shellBaseUrl = escapeEnvironmentValue(baseUrl)
+  const shellApiKey = escapeEnvironmentValue(apiKey)
 
   switch (activeTab.value) {
     case 'unix':
       path = 'Terminal'
-      content = `export ANTHROPIC_BASE_URL="${baseUrl}"
-export ANTHROPIC_AUTH_TOKEN="${apiKey}"
+      content = `export ANTHROPIC_BASE_URL="${shellBaseUrl}"
+export ANTHROPIC_AUTH_TOKEN="${shellApiKey}"
 export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`
       break
     case 'cmd':
@@ -1076,8 +862,8 @@ set CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`
       break
     case 'powershell':
       path = 'PowerShell'
-      content = `$env:ANTHROPIC_BASE_URL="${baseUrl}"
-$env:ANTHROPIC_AUTH_TOKEN="${apiKey}"
+      content = `$env:ANTHROPIC_BASE_URL="${shellBaseUrl}"
+$env:ANTHROPIC_AUTH_TOKEN="${shellApiKey}"
 $env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`
       break
     default:
@@ -1089,14 +875,14 @@ $env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`
     ? '~/.claude/settings.json'
     : '%USERPROFILE%\\.claude\\settings.json'
 
-  const vscodeContent = `{
-  "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "env": {
-    "ANTHROPIC_BASE_URL": "${baseUrl}",
-    "ANTHROPIC_AUTH_TOKEN": "${apiKey}",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
-  }
-}`
+  const vscodeContent = JSON.stringify({
+    $schema: 'https://json.schemastore.org/claude-code-settings.json',
+    env: {
+      ANTHROPIC_BASE_URL: baseUrl,
+      ANTHROPIC_AUTH_TOKEN: apiKey,
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
+    }
+  }, null, 2)
 
   return [
     { path, content },
@@ -1127,7 +913,7 @@ function generateGrokClaudeFiles(baseUrl: string, apiKey: string): FileConfig[] 
     case 'unix':
       path = 'Terminal'
       content = Object.entries(environment)
-        .map(([name, value]) => `export ${name}="${value}"`)
+        .map(([name, value]) => `export ${name}="${escapeEnvironmentValue(value)}"`)
         .join('\n')
       break
     case 'cmd':
@@ -1139,7 +925,7 @@ function generateGrokClaudeFiles(baseUrl: string, apiKey: string): FileConfig[] 
     case 'powershell':
       path = 'PowerShell'
       content = Object.entries(environment)
-        .map(([name, value]) => `$env:${name}="${value}"`)
+        .map(([name, value]) => `$env:${name}="${escapeEnvironmentValue(value)}"`)
         .join('\n')
       break
     default:
@@ -1165,6 +951,8 @@ function generateGrokClaudeFiles(baseUrl: string, apiKey: string): FileConfig[] 
 }
 
 function generateGeminiCliContent(baseUrl: string, apiKey: string): FileConfig {
+  baseUrl = escapeEnvironmentValue(baseUrl)
+  apiKey = escapeEnvironmentValue(apiKey)
   const model = 'gemini-2.0-flash'
   const modelComment = t('keys.useKeyModal.gemini.modelComment')
   let path: string
@@ -1212,40 +1000,28 @@ ${keyword('$env:')}${variable('GEMINI_MODEL')}${operator('=')}${string(`"${model
 function generateOpenAIFiles(baseUrl: string, apiKey: string, isWindows = activeTab.value === 'windows'): FileConfig[] {
   const configDir = isWindows ? '%userprofile%\\.codex' : '~/.codex'
 
-  const model = selectCodexCatalogModel('gpt-5.5')
-  const reasoningEffortLine = codexReasoningEffortTomlLine(model)
+  const model = 'gpt-5.5'
 
   // config.toml content
   const configContent = `model_provider = "OpenAI"
 model = "${model}"
 review_model = "${model}"
-${reasoningEffortLine}approval_policy = "never"
+approval_policy = "never"
 sandbox_mode = "danger-full-access"
 disable_response_storage = true
-model_catalog_json = "${escapeTomlBasicString(codexModelCatalogPath.value)}"
 network_access = "enabled"
 windows_wsl_setup_acknowledged = true
 
 [model_providers.OpenAI]
 name = "OpenAI"
-base_url = "${baseUrl}"
+base_url = "${escapeTomlBasicString(baseUrl)}"
 wire_api = "responses"
-${generateCodexProviderAuthConfig(apiKey)}
+requires_openai_auth = true
 
 [features]
 goals = true`
 
   return buildOpenAICodexFileConfigs(configDir, configContent, apiKey)
-}
-
-function generateCodexProviderAuthConfig(apiKey: string): string {
-  if (codexAuthMode.value === 'api-key') {
-    return `requires_openai_auth = false
-experimental_bearer_token = "${escapeTomlBasicString(apiKey)}"
-http_headers = { "x-openai-actor-authorization" = "local-image-extension" }`
-  }
-
-  return 'requires_openai_auth = true'
 }
 
 function buildOpenAICodexFileConfigs(
@@ -1261,12 +1037,10 @@ function buildOpenAICodexFileConfigs(
     }
   ]
 
-  if (codexAuthMode.value === 'legacy') {
-    files.push({
-      path: `${configDir}/auth.json`,
-      content: JSON.stringify({ OPENAI_API_KEY: apiKey }, null, 2)
-    })
-  }
+  files.push({
+    path: `${configDir}/auth.json`,
+    content: JSON.stringify({ OPENAI_API_KEY: apiKey }, null, 2)
+  })
 
   return files
 }
@@ -1276,8 +1050,12 @@ function joinConfigPath(dir: string, file: string, windows: boolean): string {
   return `${dir}\\${file}`
 }
 
-function escapeTomlBasicString(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+function escapeEnvironmentValue(value: string): string {
+  if (activeTab.value === 'powershell' || activeTab.value === 'windows') {
+    return value.replace(/[`$"]/g, '`$&')
+  }
+  if (activeTab.value === 'cmd') return value
+  return value.replace(/[\\$`"]/g, '\\$&')
 }
 
 function generateGrokFiles(baseUrl: string, apiKey: string): FileConfig[] {
@@ -1297,13 +1075,13 @@ set XAI_API_KEY=${apiKey}`
     case 'powershell':
     case 'windows':
       envPath = 'PowerShell'
-      envContent = `$env:GROK_MODELS_BASE_URL="${baseUrl}"
-$env:XAI_API_KEY="${apiKey}"`
+      envContent = `$env:GROK_MODELS_BASE_URL="${escapeEnvironmentValue(baseUrl)}"
+$env:XAI_API_KEY="${escapeEnvironmentValue(apiKey)}"`
       break
     default:
       envPath = 'Terminal'
-      envContent = `export GROK_MODELS_BASE_URL="${baseUrl}"
-export XAI_API_KEY="${apiKey}"`
+      envContent = `export GROK_MODELS_BASE_URL="${escapeEnvironmentValue(baseUrl)}"
+export XAI_API_KEY="${escapeEnvironmentValue(apiKey)}"`
   }
 
   // Shape follows Grok Build user guide (~/.grok/docs + custom-models) and production-ready Sub2API setups.
@@ -1324,10 +1102,10 @@ export XAI_API_KEY="${apiKey}"`
 # Global inference / catalog endpoints (same role as env GROK_MODELS_BASE_URL).
 # When models_base_url is set, Grok uses API-key Bearer auth (no grok login required).
 [endpoints]
-models_base_url = "${baseUrl}"              # inference base; model list defaults to {base}/models
-models_list_url = "${modelsListUrl}"        # optional override (env: GROK_MODELS_LIST_URL)
-xai_api_base_url = "${baseUrl}"             # public xAI API base override for gateway routing
-cli_chat_proxy_base_url = "${baseUrl}"      # CLI chat-proxy base (env: GROK_CLI_CHAT_PROXY_BASE_URL)
+models_base_url = "${escapeTomlBasicString(baseUrl)}"              # inference base; model list defaults to {base}/models
+models_list_url = "${escapeTomlBasicString(modelsListUrl)}"        # optional override (env: GROK_MODELS_LIST_URL)
+xai_api_base_url = "${escapeTomlBasicString(baseUrl)}"             # public xAI API base override for gateway routing
+cli_chat_proxy_base_url = "${escapeTomlBasicString(baseUrl)}"      # CLI chat-proxy base (env: GROK_CLI_CHAT_PROXY_BASE_URL)
 
 # Prefer API key when using a custom gateway (matches Sub2API).
 # Requires XAI_API_KEY env or per-model env_key / api_key.
@@ -1339,8 +1117,8 @@ model = "grok-4.5"                          # id sent to the API
 name = "Grok 4.5"                           # shown in /model picker
 description = "Grok 4.5 via Sub2API (Responses)"
 # base_url inherits from [endpoints].models_base_url; override only if needed:
-# base_url = "${baseUrl}"
-env_key = "XAI_API_KEY"                     # or: api_key = "${apiKey}"  (not recommended)
+# base_url = "${escapeTomlBasicString(baseUrl)}"
+env_key = "XAI_API_KEY"
 api_backend = "responses"                   # chat_completions | responses | messages
 context_window = 500000                     # drives auto-compaction timing
 # Optional sampling (global defaults can live under [models] instead):
@@ -1423,12 +1201,11 @@ image_edit_model_override = "grok-imagine-edit"
 }
 
 function generateGrokCodexFiles(baseUrl: string, apiKey: string): FileConfig[] {
-  // Codex config reference: wire_api = "responses" only; prefer env_key over experimental_bearer_token.
-  // Non-OpenAI gateways should set supports_websockets = false (HTTP/SSE).
+  // Routed providers read their API key from the environment.
   const shell = activeTab.value
   const isWindowsPath = shell === 'windows' || shell === 'cmd' || shell === 'powershell'
   const configDir = isWindowsPath ? '%userprofile%\\.codex' : '~/.codex'
-  const model = selectCodexCatalogModel('grok-4.5')
+  const model = 'grok-4.5'
 
   let envPath: string
   let envContent: string
@@ -1440,11 +1217,11 @@ function generateGrokCodexFiles(baseUrl: string, apiKey: string): FileConfig[] {
     case 'powershell':
     case 'windows':
       envPath = 'PowerShell'
-      envContent = `$env:SUB2API_API_KEY="${apiKey}"`
+      envContent = `$env:SUB2API_API_KEY="${escapeEnvironmentValue(apiKey)}"`
       break
     default:
       envPath = 'Terminal'
-      envContent = `export SUB2API_API_KEY="${apiKey}"`
+      envContent = `export SUB2API_API_KEY="${escapeEnvironmentValue(apiKey)}"`
   }
 
   const configContent = `# Codex CLI → Sub2API Grok group
@@ -1455,7 +1232,6 @@ function generateGrokCodexFiles(baseUrl: string, apiKey: string): FileConfig[] {
 
 model_provider = "sub2api"
 model = "${model}"
-model_catalog_json = "${escapeTomlBasicString(codexModelCatalogPath.value)}"
 # Optional:
 # review_model = "${model}"
 # model_reasoning_effort = "medium"
@@ -1466,17 +1242,11 @@ model_catalog_json = "${escapeTomlBasicString(codexModelCatalogPath.value)}"
 
 [model_providers.sub2api]
 name = "Sub2API Grok"
-base_url = "${baseUrl}"
-# Prefer env_key (variable NAME). Do not combine with experimental_bearer_token.
+base_url = "${escapeTomlBasicString(baseUrl)}"
 env_key = "SUB2API_API_KEY"
-# Fallback only if you cannot set env (discouraged — keeps secret on disk):
-# experimental_bearer_token = "${apiKey}"
 wire_api = "responses"
 # API-key providers: do not require ChatGPT OAuth login
 requires_openai_auth = false
-# Grok/Sub2API path is HTTP/SSE; disable WS (Codex may otherwise try WebSocket first)
-supports_websockets = false
-
 # Optional:
 # [features]
 # goals = true`
@@ -1505,7 +1275,7 @@ const authJsonFile = computed(() => codexManualFiles.value.find((file) => file.p
 const oneClickCommand = computed(() => {
   const configFile = configTomlFile.value
   const authFile = authJsonFile.value
-  if (!configFile || !authFile) return ''
+  if (!isSupportedOneClickSystem.value || !configFile || !authFile) return ''
   return detectedSystem.value === 'windows'
     ? generateWindowsCodexCommand(configFile.content, authFile.content)
     : generateMacCodexCommand(configFile.content, authFile.content)
@@ -1529,7 +1299,7 @@ function generateRoutedCodexFiles(
     composite: 'gpt-5.5'
   }
   const preferredModel = preferredModels[platform] || ''
-  const model = selectCodexCatalogModel(preferredModel)
+  const model = preferredModel
   const labels: Record<GroupPlatform, string> = {
     anthropic: 'Anthropic',
     openai: 'OpenAI',
@@ -1543,23 +1313,21 @@ function generateRoutedCodexFiles(
   }
   const label = labels[platform]
   const envContent = isWindows
-    ? `$env:SUB2API_API_KEY="${apiKey}"`
-    : `export SUB2API_API_KEY="${apiKey}"`
+    ? `$env:SUB2API_API_KEY="${escapeEnvironmentValue(apiKey)}"`
+    : `export SUB2API_API_KEY="${escapeEnvironmentValue(apiKey)}"`
 
   const configContent = `# Codex CLI -> Sub2API ${label} group
 model_provider = "sub2api"
 model = "${model}"
 review_model = "${model}"
 disable_response_storage = true
-model_catalog_json = "${escapeTomlBasicString(codexModelCatalogPath.value)}"
 
 [model_providers.sub2api]
 name = "Sub2API ${label}"
-base_url = "${baseUrl}"
+base_url = "${escapeTomlBasicString(baseUrl)}"
 env_key = "SUB2API_API_KEY"
 wire_api = "responses"
-requires_openai_auth = false
-supports_websockets = false`
+requires_openai_auth = false`
 
   return [
     { path: isWindows ? 'PowerShell' : 'Terminal', content: envContent },
@@ -1575,310 +1343,6 @@ supports_websockets = false`
   ]
 }
 
-function generateOpenAIWsFiles(baseUrl: string, apiKey: string): FileConfig[] {
-  const isWindows = activeTab.value === 'windows'
-  const configDir = isWindows ? '%userprofile%\\.codex' : '~/.codex'
-  const model = selectCodexCatalogModel('gpt-5.5')
-  const reasoningEffortLine = codexReasoningEffortTomlLine(model)
-
-  // config.toml content with WebSocket v2
-  const configContent = `model_provider = "OpenAI"
-model = "${model}"
-review_model = "${model}"
-${reasoningEffortLine}approval_policy = "never"
-sandbox_mode = "danger-full-access"
-disable_response_storage = true
-model_catalog_json = "${escapeTomlBasicString(codexModelCatalogPath.value)}"
-network_access = "enabled"
-windows_wsl_setup_acknowledged = true
-
-[model_providers.OpenAI]
-name = "OpenAI"
-base_url = "${baseUrl}"
-wire_api = "responses"
-supports_websockets = true
-${generateCodexProviderAuthConfig(apiKey)}
-
-[features]
-responses_websockets_v2 = true
-goals = true`
-
-  return buildOpenAICodexFileConfigs(configDir, configContent, apiKey)
-}
-
-function generateMacCodexCommand(configContent: string, authContent: string): string {
-  return `set -Eeuo pipefail
-CODEX_DIR="$HOME/.codex"
-CONFIG_FILE="$CODEX_DIR/config.toml"
-AUTH_FILE="$CODEX_DIR/auth.json"
-STAMP="$(date +%Y%m%d-%H%M%S)"
-
-big_error() {
-  echo ""
-  echo "============================================================"
-  echo "❌❌❌  配置失败  ❌❌❌"
-  echo "============================================================"
-  printf "%b\n" "$1"
-  echo "============================================================"
-  echo ""
-}
-
-TEMP_CONFIG_FILE=""
-TEMP_AUTH_FILE=""
-
-cleanup() {
-  if [ -n "$TEMP_CONFIG_FILE" ]; then
-    rm -f "$TEMP_CONFIG_FILE" >/dev/null 2>&1 || true
-  fi
-  if [ -n "$TEMP_AUTH_FILE" ]; then
-    rm -f "$TEMP_AUTH_FILE" >/dev/null 2>&1 || true
-  fi
-}
-
-trap cleanup EXIT
-trap 'big_error "命令执行失败，错误发生在第 \${LINENO} 行。"' ERR
-
-validate_config_toml() {
-  local file="$1"
-  local line
-  local has_provider=0
-  local has_model=0
-  local has_review_model=0
-  local has_approval_policy=0
-  local has_sandbox_mode=0
-  local has_catalog=0
-  local has_network=0
-  local has_windows_ack=0
-  local has_provider_section=0
-  local has_base_url=0
-  local has_wire_api=0
-  local has_auth=0
-
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    case "$line" in
-      'model_provider = "OpenAI"') has_provider=1 ;;
-      'model = "'?*'"') has_model=1 ;;
-      'review_model = "'?*'"') has_review_model=1 ;;
-      'approval_policy = "never"') has_approval_policy=1 ;;
-      'sandbox_mode = "danger-full-access"') has_sandbox_mode=1 ;;
-      'model_catalog_json = "'?*'"') has_catalog=1 ;;
-      'network_access = "enabled"') has_network=1 ;;
-      'windows_wsl_setup_acknowledged = true') has_windows_ack=1 ;;
-      '[model_providers.OpenAI]') has_provider_section=1 ;;
-      'base_url = "'?*'"') has_base_url=1 ;;
-      'wire_api = "responses"') has_wire_api=1 ;;
-      'requires_openai_auth = true'|'requires_openai_auth = false') has_auth=1 ;;
-    esac
-  done < "$file"
-
-  [[ "$has_provider" -eq 1 && "$has_model" -eq 1 && "$has_review_model" -eq 1 \
-    && "$has_approval_policy" -eq 1 && "$has_sandbox_mode" -eq 1 \
-    && "$has_catalog" -eq 1 && "$has_network" -eq 1 && "$has_windows_ack" -eq 1 \
-    && "$has_provider_section" -eq 1 && "$has_base_url" -eq 1 && "$has_wire_api" -eq 1 \
-    && "$has_auth" -eq 1 ]]
-}
-
-validate_auth_json() {
-  osascript -l JavaScript -e 'ObjC.import("Foundation"); var data=$.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile; var text=$.NSString.alloc.initWithDataEncoding(data,$.NSUTF8StringEncoding).js; var value=JSON.parse(text); var keys=Object.keys(value); if (keys.length !== 1 || keys[0] !== "OPENAI_API_KEY" || typeof value.OPENAI_API_KEY !== "string" || value.OPENAI_API_KEY.length === 0) throw new Error("Invalid auth.json");' < "$1" >/dev/null 2>&1
-}
-
-if [ ! -d "$CODEX_DIR" ]; then
-  big_error "未找到 Codex 配置目录：$CODEX_DIR\n请先安装 Codex App，并打开一次完成初始化。\n官方下载：${CODEX_OFFICIAL_DOWNLOAD_URL}\n备用网盘：${CODEX_BACKUP_DOWNLOAD_URL}\n安装完成后，请回到网页从第一步重新执行配置。"
-  exit 1
-fi
-
-if pgrep -if '(^|/)Codex( |$)' >/dev/null 2>&1; then
-  big_error "检测到 Codex App 仍在运行。\n请先右键 Dock / 菜单栏里的 Codex，选择退出，确保它已完全退出后再重新执行本命令。"
-  exit 1
-fi
-
-TEMP_CONFIG_FILE="$(mktemp "$CODEX_DIR/.sub2api-config.XXXXXX")"
-TEMP_AUTH_FILE="$(mktemp "$CODEX_DIR/.sub2api-auth.XXXXXX")"
-
-cat > "$TEMP_CONFIG_FILE" <<'SUB2API_CONFIG_TOML'
-${configContent}
-SUB2API_CONFIG_TOML
-
-cat > "$TEMP_AUTH_FILE" <<'SUB2API_AUTH_JSON'
-${authContent}
-SUB2API_AUTH_JSON
-
-if ! validate_config_toml "$TEMP_CONFIG_FILE"; then
-  big_error "config.toml 临时文件解析校验失败。旧配置未被替换，请联系网页右上角客服咨询。"
-  exit 1
-fi
-
-if ! validate_auth_json "$TEMP_AUTH_FILE"; then
-  big_error "auth.json 临时文件解析校验失败。旧配置未被替换，请联系网页右上角客服咨询。"
-  exit 1
-fi
-
-[ -f "$CONFIG_FILE" ] && cp "$CONFIG_FILE" "$CONFIG_FILE.sub2api.bak-$STAMP"
-[ -f "$AUTH_FILE" ] && cp "$AUTH_FILE" "$AUTH_FILE.sub2api.bak-$STAMP"
-
-mv -f "$TEMP_CONFIG_FILE" "$CONFIG_FILE"
-TEMP_CONFIG_FILE=""
-mv -f "$TEMP_AUTH_FILE" "$AUTH_FILE"
-TEMP_AUTH_FILE=""
-
-open "$CODEX_DIR" >/dev/null 2>&1 || true
-echo ""
-echo "============================================================"
-echo "✅ Codex完成接入！"
-echo "============================================================"
-echo "已写入："
-echo "  $CONFIG_FILE"
-echo "  $AUTH_FILE"
-echo ""
-echo "旧配置已自动备份在同一目录中。"
-echo "现在可以打开 Codex 开始使用。"
-echo "如有疑问，请点击网页右上角联系客服咨询。"
-echo "============================================================"`
-}
-
-function generateWindowsCodexCommand(configContent: string, authContent: string): string {
-  return `$ErrorActionPreference = 'Stop'
-Set-StrictMode -Version Latest
-$codexDir = Join-Path $env:USERPROFILE '.codex'
-$configFile = Join-Path $codexDir 'config.toml'
-$authFile = Join-Path $codexDir 'auth.json'
-$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$tempConfigFile = $null
-$tempAuthFile = $null
-
-function Show-Sub2ApiError([string]$message) {
-  Write-Host ''
-  Write-Host '============================================================' -ForegroundColor Red
-  Write-Host '❌❌❌  配置失败  ❌❌❌' -ForegroundColor Red
-  Write-Host '============================================================' -ForegroundColor Red
-  Write-Host $message -ForegroundColor Yellow
-  Write-Host '============================================================' -ForegroundColor Red
-  Write-Host ''
-}
-
-trap {
-  $errorLine = $_.InvocationInfo.ScriptLineNumber
-  Show-Sub2ApiError "命令执行失败，错误发生在第 $errorLine 行。"
-  if ($null -ne $tempConfigFile -and (Test-Path -LiteralPath $tempConfigFile)) {
-    Remove-Item -LiteralPath $tempConfigFile -Force -ErrorAction SilentlyContinue
-  }
-  if ($null -ne $tempAuthFile -and (Test-Path -LiteralPath $tempAuthFile)) {
-    Remove-Item -LiteralPath $tempAuthFile -Force -ErrorAction SilentlyContinue
-  }
-  exit 1
-}
-
-function Stop-CodexSetup([string]$message) {
-  Show-Sub2ApiError $message
-  if ($null -ne $tempConfigFile -and (Test-Path -LiteralPath $tempConfigFile)) {
-    Remove-Item -LiteralPath $tempConfigFile -Force -ErrorAction SilentlyContinue
-  }
-  if ($null -ne $tempAuthFile -and (Test-Path -LiteralPath $tempAuthFile)) {
-    Remove-Item -LiteralPath $tempAuthFile -Force -ErrorAction SilentlyContinue
-  }
-  exit 1
-}
-
-function Validate-CodexConfigToml([string]$Path) {
-  $lines = @(Get-Content -LiteralPath $Path)
-  $hasProvider = $lines -contains 'model_provider = "OpenAI"'
-  $hasModel = $lines -match '^model = ".+"$'
-  $hasReviewModel = $lines -match '^review_model = ".+"$'
-  $hasApprovalPolicy = $lines -contains 'approval_policy = "never"'
-  $hasSandboxMode = $lines -contains 'sandbox_mode = "danger-full-access"'
-  $hasCatalog = $lines -match '^model_catalog_json = ".+"$'
-  $hasNetwork = $lines -contains 'network_access = "enabled"'
-  $hasWindowsAck = $lines -contains 'windows_wsl_setup_acknowledged = true'
-  $hasProviderSection = $lines -contains '[model_providers.OpenAI]'
-  $hasBaseUrl = $lines -match '^base_url = "[^"]+"$'
-  $hasWireApi = $lines -contains 'wire_api = "responses"'
-  $hasAuth = $lines -match '^requires_openai_auth = (true|false)$'
-
-  return $hasProvider -and $hasModel -and $hasReviewModel -and $hasApprovalPolicy -and
-    $hasSandboxMode -and $hasCatalog -and
-    $hasNetwork -and $hasWindowsAck -and $hasProviderSection -and $hasBaseUrl -and
-    $hasWireApi -and $hasAuth
-}
-
-function Validate-CodexAuthJson([string]$Path) {
-  $json = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
-  if ($null -eq $json) {
-    return $false
-  }
-
-  $properties = @($json.PSObject.Properties)
-  if ($properties.Count -ne 1 -or $properties[0].Name -ne 'OPENAI_API_KEY') {
-    return $false
-  }
-
-  return -not [string]::IsNullOrEmpty([string]$properties[0].Value)
-}
-
-function Replace-CodexFile([string]$TempPath, [string]$TargetPath) {
-  if (Test-Path -LiteralPath $TargetPath) {
-    [System.IO.File]::Replace($TempPath, $TargetPath, $null)
-  } else {
-    [System.IO.File]::Move($TempPath, $TargetPath)
-  }
-}
-
-if (!(Test-Path -LiteralPath $codexDir)) {
-  Stop-CodexSetup "未找到 Codex 配置目录：$codexDir\`n请先安装 Codex App，并打开一次完成初始化。\`n官方下载：${CODEX_OFFICIAL_DOWNLOAD_URL}\`n备用网盘：${CODEX_BACKUP_DOWNLOAD_URL}\`n安装完成后，请回到网页从第一步重新执行配置。"
-}
-
-$codexProcess = Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -match '^Codex$|^codex$' }
-if ($codexProcess) {
-  Stop-CodexSetup "检测到 Codex App 仍在运行。\`n请先右键任务栏里的 Codex，选择退出，确保它不在后台运行后再重新执行本命令。"
-}
-
-$tempConfigFile = Join-Path $codexDir ('.sub2api-config-' + [Guid]::NewGuid().ToString('N') + '.tmp')
-$tempAuthFile = Join-Path $codexDir ('.sub2api-auth-' + [Guid]::NewGuid().ToString('N') + '.tmp')
-
-$configContent = @'
-${configContent}
-'@
-
-$authContent = @'
-${authContent}
-'@
-
-Set-Content -LiteralPath $tempConfigFile -Value $configContent -Encoding UTF8
-Set-Content -LiteralPath $tempAuthFile -Value $authContent -Encoding UTF8
-
-if (!(Validate-CodexConfigToml -Path $tempConfigFile)) {
-  Stop-CodexSetup "config.toml 临时文件解析校验失败。旧配置未被替换，请联系网页右上角客服咨询。"
-}
-
-if (!(Validate-CodexAuthJson -Path $tempAuthFile)) {
-  Stop-CodexSetup "auth.json 临时文件解析校验失败。旧配置未被替换，请联系网页右上角客服咨询。"
-}
-
-if (Test-Path -LiteralPath $configFile) {
-  Copy-Item -LiteralPath $configFile -Destination "$configFile.sub2api.bak-$stamp" -Force
-}
-if (Test-Path -LiteralPath $authFile) {
-  Copy-Item -LiteralPath $authFile -Destination "$authFile.sub2api.bak-$stamp" -Force
-}
-
-Replace-CodexFile -TempPath $tempConfigFile -TargetPath $configFile
-$tempConfigFile = $null
-Replace-CodexFile -TempPath $tempAuthFile -TargetPath $authFile
-$tempAuthFile = $null
-
-try { Invoke-Item -LiteralPath $codexDir -ErrorAction Stop } catch {}
-Write-Host ''
-Write-Host '============================================================' -ForegroundColor Green
-Write-Host '✅ Codex完成接入！' -ForegroundColor Green
-Write-Host '============================================================' -ForegroundColor Green
-Write-Host '已写入：'
-Write-Host "  $configFile"
-Write-Host "  $authFile"
-Write-Host ''
-Write-Host '旧配置已自动备份在同一目录中。'
-Write-Host '现在可以打开 Codex 开始使用。'
-Write-Host '如有疑问，请点击网页右上角联系客服咨询。'
-Write-Host '============================================================' -ForegroundColor Green`
-}
 
 function generateOpenCodeConfig(platform: string, baseUrl: string, apiKey: string, pathLabel?: string): FileConfig {
   const provider: Record<string, any> = {
@@ -2439,12 +1903,31 @@ function generateOpenCodeConfig(platform: string, baseUrl: string, apiKey: strin
 }
 
 const copyContent = async (content: string, index: number) => {
+  const request = ++copyRequest
   const success = await clipboardCopy(content, t('keys.copied'))
+  if (request !== copyRequest) return
+  clearTimeout(copyTimer)
+  copiedIndex.value = null
   if (success) {
     copiedIndex.value = index
-    setTimeout(() => {
+    copyTimer = setTimeout(() => {
       copiedIndex.value = null
     }, 2000)
+  }
+}
+
+const copyOneClickCommand = async () => {
+  if (!isSupportedOneClickSystem.value || !oneClickCommand.value) return
+  const request = ++copyRequest
+  try {
+    const success = await clipboardCopy(oneClickCommand.value, t('keys.copied'))
+    if (request === copyRequest) {
+      clearTimeout(copyTimer)
+      oneClickCopyState.value = success ? 'copied' : 'failed'
+      copyTimer = setTimeout(() => { oneClickCopyState.value = 'idle' }, 2000)
+    }
+  } catch {
+    if (request === copyRequest) oneClickCopyState.value = 'failed'
   }
 }
 

@@ -5,6 +5,7 @@ import zh from '../locales/zh'
 
 const openAICodexKeys = [
   'keys.useKeyModal.download',
+  'keys.useKeyModal.copyFailed',
   'keys.useKeyModal.openai.description',
   'keys.useKeyModal.openai.detectedMac',
   'keys.useKeyModal.openai.detectedWindows',
@@ -66,8 +67,45 @@ describe('UseKeyModal OpenAI Codex locales', () => {
     expect(zh.keys.useKeyModal.openai.professional.title).toBe('方法二：专业人士使用')
     expect(zh.keys.useKeyModal.openai.professional.description).toContain('config.toml')
     expect(zh.keys.useKeyModal.openai.professional.description).toContain('auth.json')
+    expect(zh.keys.useKeyModal.openai.professional.description).toContain('彻底退出 Codex')
+    expect(zh.keys.useKeyModal.openai.professional.description).toContain('不要手动创建目录')
     expect(zh.keys.useKeyModal.openai.professional.description).toContain('approval_policy = "never"')
     expect(zh.keys.useKeyModal.openai.professional.description).toContain('sandbox_mode = "danger-full-access"')
+  })
+
+  it('removes retired Codex authentication and model-catalog messages', () => {
+    for (const messages of [zh, en]) {
+      expect(messages.keys.useKeyModal.openai).not.toHaveProperty('authModeTitle')
+      expect(messages.keys.useKeyModal.openai).not.toHaveProperty('authModeDescription')
+      expect(messages.keys.useKeyModal.openai).not.toHaveProperty('authModeLegacy')
+      expect(messages.keys.useKeyModal.openai).not.toHaveProperty('authModeApiKey')
+      expect(messages.keys.useKeyModal.openai).not.toHaveProperty('authModeApiKeyRestartNotice')
+      expect(messages.keys.useKeyModal.cliTabs).not.toHaveProperty('codexCliWs')
+      expect(messages.keys.useKeyModal).not.toHaveProperty('codexModelCatalog')
+    }
+    expect(zh.keys.useKeyModal.openai.note).not.toContain('mkdir')
+    expect(zh.keys.useKeyModal.openai.noteWindows).toContain('不要手动创建')
+    expect(en.keys.useKeyModal.openai.note).not.toContain('mkdir')
+    expect(en.keys.useKeyModal.openai.noteWindows).not.toContain('Create it manually')
+  })
+
+  it('keeps env_key guidance for routed Codex configurations without auth.json', () => {
+    for (const messages of [zh, en]) {
+      const routed = [
+        messages.keys.useKeyModal.grok.codexConfigTomlHint,
+        messages.keys.useKeyModal.grok.codexNote,
+        messages.keys.useKeyModal.grok.codexNoteWindows,
+        messages.keys.useKeyModal.deepseek.codexConfigTomlHint,
+        messages.keys.useKeyModal.deepseek.codexNote,
+        messages.keys.useKeyModal.composite.codexConfigTomlHint,
+        messages.keys.useKeyModal.composite.codexNote,
+        messages.keys.useKeyModal.routedCodex.configTomlHint,
+        messages.keys.useKeyModal.routedCodex.note
+      ].join(' ')
+      expect(routed).toContain('env_key')
+      expect(routed).not.toContain('auth.json')
+      expect(routed).not.toContain('supports_websockets')
+    }
   })
 
   it('keeps the Codex download links and manual download action in Chinese', () => {

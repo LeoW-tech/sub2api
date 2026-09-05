@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
@@ -19,6 +19,7 @@ vi.mock('@/composables/useClipboard', () => ({
 }))
 
 import UseKeyModal from '../UseKeyModal.vue'
+import { generateMacCodexCommand, generateWindowsCodexCommand } from '@/utils/codexSetup'
 
 describe('UseKeyModal', () => {
   const originalUserAgent = window.navigator.userAgent
@@ -29,6 +30,8 @@ describe('UseKeyModal', () => {
       configurable: true
     })
   }
+
+  beforeEach(() => copyToClipboardMock.mockResolvedValue(true))
 
   afterEach(() => {
     setUserAgent(originalUserAgent)
@@ -254,12 +257,11 @@ describe('UseKeyModal', () => {
     expect(configToml).toContain('wire_api = "responses"')
     // API-key provider: Codex must not require a ChatGPT OAuth login.
     expect(configToml).toContain('requires_openai_auth = false')
-    expect(configToml).toContain('supports_websockets = false')
+    expect(configToml).not.toContain('supports_websockets')
     expect(configToml).toContain('grok-4.20-multi-agent-0309 (text / web_search)')
     expect(configToml).toContain('grok-imagine-image')
     expect(configToml).toContain('grok-imagine-video')
-    // Hardcoded bearer is only a commented fallback when env cannot be set.
-    expect(configToml).toMatch(/# experimental_bearer_token = "sk-grok-codex-test"/)
+    expect(configToml).not.toContain('experimental_bearer_token')
     expect(configToml).not.toContain('supports_websockets = true')
     expect(configToml).not.toContain('responses_websockets_v2')
     expect(wrapper.text()).not.toContain('auth.json')
@@ -274,7 +276,7 @@ describe('UseKeyModal', () => {
 
     codeBlocks = wrapper.findAll('pre code').map((code) => code.text())
     expect(wrapper.text().toLowerCase()).toContain('%userprofile%\\.codex\\config.toml'.toLowerCase())
-    expect(codeBlocks.join('\n')).toContain('experimental_bearer_token = "sk-grok-codex-test"')
+    expect(codeBlocks.join('\n')).toContain('$env:SUB2API_API_KEY="sk-grok-codex-test"')
   })
 
   it('keeps legacy OpenAI Codex config as the default', () => {
@@ -308,7 +310,6 @@ describe('UseKeyModal', () => {
       'approval_policy = "never"',
       'sandbox_mode = "danger-full-access"',
       'disable_response_storage = true',
-      'model_catalog_json = "~/.codex/codex-models.json"',
       'network_access = "enabled"',
       'windows_wsl_setup_acknowledged = true',
       '',
@@ -399,9 +400,9 @@ describe('UseKeyModal', () => {
     expect(wrapper.text()).toContain('keys.useKeyModal.openai.steps.quit')
     expect(wrapper.text()).toContain('keys.useKeyModal.openai.copyCommand')
     expect(wrapper.find('nav[aria-label="Client"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="codex-auth-mode-legacy"]').exists()).toBe(true)
+    expect(wrapper.find('[role="radiogroup"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('keys.useKeyModal.cliTabs.opencode')
-    expect(wrapper.text()).toContain('keys.useKeyModal.cliTabs.codexCliWs')
+    expect(wrapper.text()).not.toContain('keys.useKeyModal.cliTabs.codexCliWs')
 
     const downloadLinks = wrapper.findAll('a[target="_blank"]')
     const hrefs = downloadLinks.map((link) => link.attributes('href'))
@@ -449,6 +450,7 @@ describe('UseKeyModal', () => {
     expect(wrapper.find('[data-testid="codex-one-click-command"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('CODEX_DIR="$HOME/.codex"')
 
+    copyToClipboardMock.mockClear()
     await commandButton.trigger('click')
     expect(copyToClipboardMock).toHaveBeenCalledTimes(1)
     const copiedCommand = String(copyToClipboardMock.mock.calls[0]?.[0] ?? '')
@@ -458,8 +460,8 @@ describe('UseKeyModal', () => {
     expect(copiedCommand).toContain('TEMP_CONFIG_FILE="$(mktemp "$CODEX_DIR/.sub2api-config.XXXXXX")"')
     expect(copiedCommand).toContain('TEMP_AUTH_FILE="$(mktemp "$CODEX_DIR/.sub2api-auth.XXXXXX")"')
     expect(copiedCommand).toContain('trap cleanup EXIT')
-    expect(copiedCommand).toContain("trap 'big_error \"命令执行失败，错误发生在第 ${LINENO} 行。\"' ERR")
-    expect(copiedCommand).toContain('validate_config_toml "$TEMP_CONFIG_FILE"')
+    expect(copiedCommand).toContain('REPLACE_STARTED=0')
+    expect(copiedCommand).toContain('cmp -s "$TEMP_CONFIG_FILE"')
     expect(copiedCommand).toContain('osascript -l JavaScript')
     expect(copiedCommand).toContain('mv -f "$TEMP_CONFIG_FILE" "$CONFIG_FILE"')
     expect(copiedCommand).toContain('mv -f "$TEMP_AUTH_FILE" "$AUTH_FILE"')
@@ -468,7 +470,7 @@ describe('UseKeyModal', () => {
     expect(copiedCommand).not.toContain('grep -Fq')
     expect(copiedCommand).toContain('approval_policy = "never"')
     expect(copiedCommand).toContain('sandbox_mode = "danger-full-access"')
-    expect(copiedCommand).toContain('✅ Codex完成接入！')
+    expect(copiedCommand).toContain('Codex 配置完成。')
     expect(copiedCommand).not.toContain('配置成功！Codex CLI 已完成接入')
     expect(copiedCommand).toContain('review_model = "gpt-5.5"')
     expect(copiedCommand).toContain('disable_response_storage = true')
@@ -478,8 +480,8 @@ describe('UseKeyModal', () => {
     expect(copiedCommand).not.toContain('https://chatgpt.com/codex/for-work/')
 
     const configToml = wrapper.find('[data-testid="professional-config-toml-step"] pre code').text()
-    expect(copiedCommand).toContain(configToml)
-    expect(copiedCommand).toContain('{\n  "OPENAI_API_KEY": "sk-test"\n}')
+    const authJson = wrapper.find('[data-testid="professional-auth-json-step"] pre code').text()
+    expect(copiedCommand).toBe(generateMacCodexCommand(configToml, authJson))
   })
 
 
@@ -511,6 +513,7 @@ describe('UseKeyModal', () => {
     expect(wrapper.find('[data-testid="codex-one-click-command"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('$codexDir = Join-Path')
 
+    copyToClipboardMock.mockClear()
     await wrapper.find('[data-testid="copy-codex-one-click-command"]').trigger('click')
     expect(copyToClipboardMock).toHaveBeenCalledTimes(1)
     const copiedCommand = String(copyToClipboardMock.mock.calls[0]?.[0] ?? '')
@@ -520,19 +523,19 @@ describe('UseKeyModal', () => {
     expect(copiedCommand).toContain('Set-StrictMode -Version Latest')
     expect(copiedCommand).toContain('$tempConfigFile = Join-Path $codexDir')
     expect(copiedCommand).toContain('$tempAuthFile = Join-Path $codexDir')
-    expect(copiedCommand).toContain('trap {')
-    expect(copiedCommand).toContain('命令执行失败，错误发生在第')
-    expect(copiedCommand).toContain('Validate-CodexConfigToml')
+    expect(copiedCommand.startsWith('& {\n')).toBe(true)
+    expect(copiedCommand).toContain('$_.Exception.Message')
+    expect(copiedCommand).not.toContain('exit 1')
     expect(copiedCommand).toContain('ConvertFrom-Json')
     expect(copiedCommand).toContain('[System.IO.File]::Replace')
-    expect(copiedCommand).toContain('Set-Content -LiteralPath $tempConfigFile')
-    expect(copiedCommand).toContain('Set-Content -LiteralPath $tempAuthFile')
-    expect(copiedCommand).toContain('try { Invoke-Item -LiteralPath $codexDir -ErrorAction Stop } catch {}')
+    expect(copiedCommand).toContain('[System.IO.File]::WriteAllText($tempConfigFile')
+    expect(copiedCommand).toContain('[System.IO.File]::WriteAllText($tempAuthFile')
+    expect(copiedCommand).toContain('Invoke-Item -LiteralPath $codexDir -ErrorAction Stop')
     expect(copiedCommand).not.toContain('Set-Content -Path $configFile')
     expect(copiedCommand).not.toContain('$writtenConfig.Contains')
     expect(copiedCommand).toContain('approval_policy = "never"')
     expect(copiedCommand).toContain('sandbox_mode = "danger-full-access"')
-    expect(copiedCommand).toContain('✅ Codex完成接入！')
+    expect(copiedCommand).toContain('Codex 配置完成。')
     expect(copiedCommand).not.toContain('配置成功！Codex CLI 已完成接入')
     expect(copiedCommand).toContain('review_model = "gpt-5.5"')
     expect(copiedCommand).toContain('disable_response_storage = true')
@@ -542,8 +545,8 @@ describe('UseKeyModal', () => {
     expect(copiedCommand).not.toContain('https://chatgpt.com/codex/for-work/')
 
     const configToml = wrapper.find('[data-testid="professional-config-toml-step"] pre code').text()
-    expect(copiedCommand).toContain(configToml)
-    expect(copiedCommand).toContain('{\n  "OPENAI_API_KEY": "sk-test"\n}')
+    const authJson = wrapper.find('[data-testid="professional-auth-json-step"] pre code').text()
+    expect(copiedCommand).toBe(generateWindowsCodexCommand(configToml, authJson))
   })
 
 
@@ -584,6 +587,48 @@ describe('UseKeyModal', () => {
 
     expect(wrapper.findAll('[data-testid="copy-snippet-button"]').length).toBeGreaterThanOrEqual(3)
     expect(wrapper.findAll('[data-testid="download-config-button"]')).toHaveLength(2)
+  })
+
+  const mountCodex = () => mount(UseKeyModal, {
+    props: { show: true, apiKey: 'sk-test', baseUrl: 'https://example.com', platform: 'openai', allowMessagesDispatch: true },
+    global: { stubs: { BaseDialog: { template: '<div><slot /></div>' }, Icon: true } }
+  })
+
+  it.each(['Linux', 'Android', 'iPhone; CPU iPhone OS 17_0 like Mac OS X', 'iPad; CPU OS 17_0 like Mac OS X'])('disables one-click setup on %s', async (agent) => {
+    setUserAgent(agent)
+    const wrapper = mountCodex()
+    const button = wrapper.get('[data-testid="copy-codex-one-click-command"]')
+    expect(button.attributes('disabled')).toBeDefined()
+  })
+
+  it('only offers the three supported OpenAI clients with no extra Codex setup dependencies', () => {
+    const wrapper = mountCodex()
+    expect(wrapper.findAll('nav[aria-label="Client"] button').map((button) => button.text())).toEqual([
+      'keys.useKeyModal.cliTabs.codexCli', 'keys.useKeyModal.cliTabs.claudeCode', 'keys.useKeyModal.cliTabs.opencode'
+    ])
+    expect(wrapper.find('[role="radiogroup"]').exists()).toBe(false)
+    const content = wrapper.findAll('pre code').map((code) => code.text()).join('\n')
+    expect(content).not.toMatch(/model_catalog_json|codex-models\.json|supports_websockets|responses_websockets_v2|experimental_bearer_token|http_headers/)
+  })
+
+  it('shows copy results and resets them when the key or modal changes', async () => {
+    setUserAgent('Windows NT 10.0')
+    const wrapper = mountCodex()
+    const button = wrapper.get('[data-testid="copy-codex-one-click-command"]')
+    copyToClipboardMock.mockClear()
+    await button.trigger('click')
+    await nextTick()
+    expect(button.text()).toBe('keys.useKeyModal.copied')
+    await wrapper.setProps({ apiKey: 'sk-new' })
+    expect(button.text()).toBe('keys.useKeyModal.openai.copyCommand')
+    copyToClipboardMock.mockResolvedValueOnce(false)
+    copyToClipboardMock.mockClear()
+    await button.trigger('click')
+    await nextTick()
+    expect(button.text()).toBe('keys.useKeyModal.copyFailed')
+    await wrapper.setProps({ show: false })
+    await wrapper.setProps({ show: true })
+    expect(button.text()).toBe('keys.useKeyModal.openai.copyCommand')
   })
 
 })
