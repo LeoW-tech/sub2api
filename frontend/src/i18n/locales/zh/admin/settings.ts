@@ -13,6 +13,16 @@ export default {
         backup: '数据备份',
         payment: '支付设置',
       },
+      failedToSendTestTelegram: "\u53D1\u9001 Telegram \u6D4B\u8BD5\u5931\u8D25",
+      telegram: {
+        title: "Telegram", description: "\u914D\u7F6E Telegram \u901A\u77E5", enabled: "\u542F\u7528", enabledHint: "\u542F\u7528 Telegram \u901A\u77E5",
+        botToken: "\u673A\u5668\u4EBA\u4EE4\u724C", botTokenHint: "Telegram \u673A\u5668\u4EBA\u4EE4\u724C", botTokenPlaceholder: "\u8F93\u5165\u673A\u5668\u4EBA\u4EE4\u724C", botTokenConfiguredPlaceholder: "\u5DF2\u914D\u7F6E", botTokenConfiguredHint: "\u673A\u5668\u4EBA\u4EE4\u724C\u5DF2\u914D\u7F6E",
+        chatIds: "\u804A\u5929 ID", chatIdsHint: "\u591A\u4E2A\u804A\u5929 ID \u7528\u9017\u53F7\u5206\u9694", chatIdsPlaceholder: "\u8F93\u5165\u804A\u5929 ID",
+        proxyUrls: "\u4EE3\u7406 URL", proxyUrlsHint: "\u53EF\u9009\u4EE3\u7406 URL", proxyUrlsPlaceholder: "\u8F93\u5165\u4EE3\u7406 URL",
+        testTelegram: { enterChatIdsHint: "\u8F93\u5165\u804A\u5929 ID", sendTestTelegram: "\u53D1\u9001 Telegram \u6D4B\u8BD5", sending: "\u53D1\u9001\u4E2D..." }, testTelegramSent: "Telegram \u6D4B\u8BD5\u5DF2\u53D1\u9001"
+      },
+      testTelegram: { enterChatIdsHint: "\u8F93\u5165\u804A\u5929 ID", sendTestTelegram: "\u53D1\u9001 Telegram \u6D4B\u8BD5", sending: "\u53D1\u9001\u4E2D..." },
+      testTelegramSent: "Telegram \u6D4B\u8BD5\u5DF2\u53D1\u9001",
       features: {
         channelMonitor: {
           title: '渠道监控',
@@ -34,6 +44,9 @@ export default {
           showQuota: '向用户展示渠道用量/余额',
           showQuotaHint:
             '开启后，配额模式的渠道监控会在用户端渠道状态页展示关联账号的用量滚动窗口/余额。默认关闭；管理员始终可见。',
+          hideUserRanking: '对用户隐藏用户排行',
+          hideUserRankingHint:
+            '开启后，用户端渠道监控 V2 不再显示「用户排行」页，用户 API 也不返回排行数据。管理员仍可查看。',
         },
         availableChannels: {
           title: '可用渠道',
@@ -458,7 +471,7 @@ export default {
         grokDefaultTextModel: '默认 Grok 文本模型',
         grokDefaultTextModelHint: '用于空模型值；仅在右侧开关开启时也用于其他客户端模型命名空间。允许填写自定义 Grok 模型 ID。',
         grokCrossClientMap: '映射其他客户端模型到 Grok',
-        grokCrossClientMapHint: '默认关闭。开启后，GPT、Codex、o 系列和 Claude 模型 ID 会路由到左侧默认 Grok 文本模型。',
+        grokCrossClientMapHint: '为兼容客户端，默认开启。GPT、Codex、o 系列和 Claude 模型 ID 会路由到左侧默认 Grok 文本模型；关闭后必须使用 Grok 模型 ID。',
         grokDefaultBaseURLMode: '默认 Grok 上游',
         grokDefaultBaseURLModeHint: '仅用于 Grok 账号未配置显式 base URL 的文本请求；媒体和语音仍使用官方 API 主机。',
         grokBaseURLModeCLI: 'CLI 聊天代理',
@@ -683,6 +696,7 @@ export default {
         moveDown: '下移',
       },
       payment: {
+        helpImageHint: "\u5E2E\u52A9\u56FE\u7247",
         title: '支付设置',
         description: '配置支付系统选项',
         configGuide: '支付配置指南',

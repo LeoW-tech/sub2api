@@ -234,6 +234,12 @@ export default {
         codexConfigTomlHint: 'Use Codex\'s built-in default model list, save config.toml under the existing Codex config directory, and restart Codex. Stop without creating it if the directory does not exist.',
         codexNote: 'Start Codex once to initialize it, then fully quit. Export SUB2API_API_KEY and save config.toml under the existing config directory; prefer env_key auth. Stop without creating it if the directory does not exist.',
       },
+      minimax: {
+        description: 'Configure Claude Code, Codex, or OpenCode through the current MiniMax group.',
+        codexDescription: 'Configure Codex with API key authentication through the current MiniMax group.',
+        codexConfigTomlHint: 'Download the model catalog below, save both files under the Codex config directory, and restart Codex.',
+        codexNote: 'Export SUB2API_API_KEY before starting Codex. The downloaded catalog contains model metadata only, not your API key.',
+      },
       composite: {
         description: 'Configure supported clients through the current Composite routing group.',
         codexDescription: 'Configure Codex with API key authentication for this Composite group, using Codex\'s built-in default model list.',
@@ -497,7 +503,8 @@ export default {
       antigravity: 'Antigravity',
       kimi: 'Kimi',
       zhipu: 'Zhipu GLM',
-      deepseek: 'DeepSeek'
+      deepseek: 'DeepSeek',
+      minimax: 'MiniMax'
     },
     // Check modes (how a monitor performs its checks)
     checkMode: {

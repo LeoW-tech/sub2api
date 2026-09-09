@@ -240,6 +240,9 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 			updateInput.Port = created.Port
 			updateInput.Username = created.Username
 			updateInput.Password = created.Password
+			// CreateProxy 已写入完整的导入配置，状态同步只更新状态。
+			updateInput.ClearExpiresAt = false
+			updateInput.ClearBackupID = false
 			if _, err := h.adminService.UpdateProxy(ctx, created.ID, updateInput); err != nil {
 				result.Errors = append(result.Errors, DataImportError{
 					Kind:     "proxy",

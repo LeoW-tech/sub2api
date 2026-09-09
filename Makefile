@@ -9,6 +9,7 @@
 PNPM := $(shell if command -v pnpm >/dev/null 2>&1; then printf 'pnpm'; else printf 'corepack pnpm'; fi)
 
 FRONTEND_CRITICAL_VITEST := \
+	src/i18n/__tests__/localeKeyCompleteness.spec.ts \
 	src/api/__tests__/client.spec.ts \
 	src/api/__tests__/tokenRefresh.spec.ts \
 	src/api/__tests__/channelMonitorV2.spec.ts \

@@ -819,6 +819,11 @@ func defaultProxyName(name string) string {
 }
 
 func buildImportedProxyUpdate(item DataProxy, normalizedStatus string) *service.UpdateProxyInput {
+	warnDays := importedExpiryWarnDays(item.ExpiryWarnDays)
+	fallbackMode := strings.TrimSpace(item.FallbackMode)
+	if fallbackMode == "" {
+		fallbackMode = service.FallbackModeNone
+	}
 	return &service.UpdateProxyInput{
 		Name:           defaultProxyName(item.Name),
 		Protocol:       item.Protocol,
@@ -830,8 +835,10 @@ func buildImportedProxyUpdate(item DataProxy, normalizedStatus string) *service.
 		ExternalKey:    nonEmptyStringPtr(item.ProxyExternalKey),
 		ExitIP:         nonEmptyStringPtr(item.ExitIP),
 		ExpiresAt:      unixPtrToTime(item.ExpiresAt),
-		FallbackMode:   strings.TrimSpace(item.FallbackMode),
-		ExpiryWarnDays: importedExpiryWarnDays(item.ExpiryWarnDays),
+		FallbackMode:   fallbackMode,
+		ClearExpiresAt: item.ExpiresAt == nil,
+		ClearBackupID:  strings.TrimSpace(item.BackupProxyName) == "",
+		ExpiryWarnDays: &warnDays,
 	}
 }
 

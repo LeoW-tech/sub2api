@@ -267,6 +267,7 @@ func ProvideAccountTestService(
 		tlsFPProfileService,
 	)
 	service.agentIdentityWS = openAIGatewayService
+	service.SetOpenAIGatewayService(openAIGatewayService)
 	service.SetSettingService(settingService)
 	service.SetPluginManager(pluginManager)
 	return service
@@ -675,6 +676,7 @@ func ProvideAccountInitialProbeService(
 }
 
 func ProvideAdminService(
+	cfg *config.Config,
 	userRepo UserRepository,
 	groupRepo AdminGroupRepository,
 	accountRepo AdminAccountRepository,
@@ -698,9 +700,10 @@ func ProvideAdminService(
 	affiliateService *AffiliateService,
 	compositeRouteRepo CompositeModelRouteRepository,
 	compositeRouteResolver *CompositeRouteResolver,
-	channelService *ChannelService,
+	channelCacheInvalidator ChannelCacheInvalidator,
 ) AdminService {
 	svc := NewAdminService(
+		cfg,
 		userRepo,
 		groupRepo,
 		accountRepo,
@@ -723,7 +726,7 @@ func ProvideAdminService(
 		affiliateService,
 		compositeRouteRepo,
 		compositeRouteResolver,
-		channelService,
+		channelCacheInvalidator,
 	)
 	if impl, ok := svc.(*adminServiceImpl); ok {
 		impl.SetInitialProbeEnqueuer(initialProbeSvc)

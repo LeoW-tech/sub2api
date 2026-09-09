@@ -21,7 +21,6 @@
                 @input="handleSearch"
               />
             </div>
-
             <div class="proxy-toolbar-select w-full sm:w-40 sm:shrink-0">
               <Select
                 v-model="filters.protocol"
@@ -1730,6 +1729,14 @@ const qualityTargetLabel = (target: string) => {
       return 'Gemini'
     case 'grok':
       return 'Grok'
+    case 'kimi':
+      return 'Kimi'
+    case 'zhipu':
+      return 'Zhipu GLM'
+    case 'deepseek':
+      return 'DeepSeek'
+    case 'minimax':
+      return 'MiniMax'
     default:
       return target
   }
