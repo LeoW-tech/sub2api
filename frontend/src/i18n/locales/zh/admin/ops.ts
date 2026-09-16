@@ -151,15 +151,15 @@ export default {
             custom: "\u81EA\u5B9A\u4E49"
         },
         openaiTokenStats: {
-            title: "OpenAI Token \u8BF7\u6C42\u7EDF\u8BA1",
+            title: "Token \u8BF7\u6C42\u7EDF\u8BA1",
             viewModeTopN: "TopN",
             viewModePagination: "\u5206\u9875",
             prevPage: "\u4E0A\u4E00\u9875",
             nextPage: "\u4E0B\u4E00\u9875",
             pageInfo: "\u7B2C {page}/{total} \u9875",
             totalModels: "\u6A21\u578B\u603B\u6570\uFF1A{total}",
-            failedToLoad: "\u52A0\u8F7D OpenAI Token \u7EDF\u8BA1\u5931\u8D25",
-            empty: "\u5F53\u524D\u7B5B\u9009\u6761\u4EF6\u4E0B\u6682\u65E0 OpenAI Token \u8BF7\u6C42\u7EDF\u8BA1\u6570\u636E",
+            failedToLoad: "\u52A0\u8F7D Token \u8BF7\u6C42\u7EDF\u8BA1\u5931\u8D25",
+            empty: "\u5F53\u524D\u7B5B\u9009\u6761\u4EF6\u4E0B\u6682\u65E0 Token \u8BF7\u6C42\u7EDF\u8BA1\u6570\u636E",
             table: {
                 model: "\u6A21\u578B",
                 requestCount: "\u8BF7\u6C42\u6570",
