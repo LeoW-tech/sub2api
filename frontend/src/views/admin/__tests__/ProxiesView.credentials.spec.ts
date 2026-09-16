@@ -58,6 +58,35 @@ describe('proxy credential updates', () => {
     expect(payload).not.toHaveProperty('password')
   })
 
+  it('omits unedited expiry and fallback settings when renaming a proxy', async () => {
+    list.mockResolvedValue({
+      items: [{
+        id: 9,
+        name: 'proxy',
+        protocol: 'http',
+        host: 'proxy.example',
+        port: 8080,
+        username: 'old-user',
+        status: 'active',
+        expires_at: '2026-10-01T12:34:56Z',
+        fallback_mode: 'proxy',
+        backup_proxy_id: 12,
+        expiry_warn_days: 3,
+      }],
+      total: 1,
+      pages: 1,
+    })
+    await edit()
+    const name = wrapper.findAll<HTMLInputElement>('#edit-proxy-form input').find(input => input.element.value === 'proxy')!
+    await name.setValue('renamed proxy')
+    const payload = await submit()
+    expect(payload.name).toBe('renamed proxy')
+    expect(payload).not.toHaveProperty('expires_at')
+    expect(payload).not.toHaveProperty('fallback_mode')
+    expect(payload).not.toHaveProperty('backup_proxy_id')
+    expect(payload).not.toHaveProperty('expiry_warn_days')
+  })
+
   it('keeps trimming a replacement password', async () => {
     await edit()
     await wrapper.get('#edit-proxy-form input[type="password"]').setValue(' new-password ')

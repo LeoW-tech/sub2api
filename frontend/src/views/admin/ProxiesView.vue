@@ -1126,11 +1126,7 @@ const editForm = reactive({
   port: 8080,
   username: '',
   password: '',
-  status: 'active' as 'active' | 'inactive' | 'expired',
-  expires_at: '',
-  fallback_mode: 'none' as 'none' | 'proxy' | 'direct',
-  backup_proxy_id: null as number | null,
-  expiry_warn_days: 7
+  status: 'active' as 'active' | 'inactive' | 'expired'
 })
 
 let abortController: AbortController | null = null
@@ -1420,10 +1416,6 @@ const handleEdit = (proxy: Proxy) => {
   editForm.username = proxy.username || ''
   editForm.password = proxy.password || ''
   editForm.status = proxy.status
-  editForm.expires_at = proxy.expires_at ? proxy.expires_at.slice(0, 10) : ''
-  editForm.fallback_mode = proxy.fallback_mode || 'none'
-  editForm.backup_proxy_id = proxy.backup_proxy_id ?? null
-  editForm.expiry_warn_days = proxy.expiry_warn_days ?? 7
   editPasswordVisible.value = false
   editPasswordDirty.value = false
   showEditModal.value = true
@@ -1459,11 +1451,7 @@ const handleUpdateProxy = async () => {
       host: editForm.host.trim(),
       port: editForm.port,
       username: editForm.username.trim(),
-      status: editForm.status,
-      expires_at: editForm.expires_at ? Math.floor(new Date(editForm.expires_at).getTime() / 1000) : null,
-      fallback_mode: editForm.fallback_mode,
-      backup_proxy_id: editForm.fallback_mode === 'proxy' ? editForm.backup_proxy_id : null,
-      expiry_warn_days: editForm.expiry_warn_days,
+      status: editForm.status
     }
 
     // Only include password if user actually modified the field
