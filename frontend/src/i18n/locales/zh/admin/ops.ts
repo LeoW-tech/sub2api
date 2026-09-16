@@ -739,8 +739,8 @@ export default {
             dashboardCards: "\u4EEA\u8868\u76D8\u5361\u7247",
             displayAlertEvents: "\u5C55\u793A\u544A\u8B66\u4E8B\u4EF6",
             displayAlertEventsHint: "\u63A7\u5236\u8FD0\u7EF4\u76D1\u63A7\u4EEA\u8868\u76D8\u4E2D\u544A\u8B66\u4E8B\u4EF6\u5361\u7247\u662F\u5426\u663E\u793A\uFF0C\u9ED8\u8BA4\u5F00\u542F\u3002",
-            displayOpenAITokenStats: "\u5C55\u793A OpenAI Token \u8BF7\u6C42\u7EDF\u8BA1",
-            displayOpenAITokenStatsHint: "\u63A7\u5236\u8FD0\u7EF4\u76D1\u63A7\u4EEA\u8868\u76D8\u4E2D OpenAI Token \u8BF7\u6C42\u7EDF\u8BA1\u5361\u7247\u662F\u5426\u663E\u793A\uFF0C\u9ED8\u8BA4\u5173\u95ED\u3002",
+            displayOpenAITokenStats: "\u5C55\u793A Token \u8BF7\u6C42\u7EDF\u8BA1",
+            displayOpenAITokenStatsHint: "\u6309\u6A21\u578B\u7EDF\u8BA1\u6240\u6709\u5E73\u53F0\u7684 Token \u8BF7\u6C42\uFF0C\u652F\u6301\u5E73\u53F0\u548C\u5206\u7EC4\u7B5B\u9009\uFF0C\u9ED8\u8BA4\u5173\u95ED\u3002",
             autoRefreshCountdown: "\u81EA\u52A8\u5237\u65B0\uFF1A{seconds}s",
             validation: {
                 title: "\u8BF7\u5148\u4FEE\u6B63\u4EE5\u4E0B\u95EE\u9898",

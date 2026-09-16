@@ -739,8 +739,8 @@ export default {
             dashboardCards: "Dashboard Cards",
             displayAlertEvents: "Display alert events",
             displayAlertEventsHint: "Show or hide the recent alert events card on the ops dashboard. Enabled by default.",
-            displayOpenAITokenStats: "Display OpenAI token request stats",
-            displayOpenAITokenStatsHint: "Show or hide the OpenAI token request stats card on the ops dashboard. Hidden by default.",
+            displayOpenAITokenStats: "Display token request stats",
+            displayOpenAITokenStatsHint: "Show token request stats by model across all platforms, with platform and group filters. Hidden by default.",
             autoRefreshCountdown: "Auto refresh: {seconds}s",
             validation: {
                 title: "Please fix the following issues",
