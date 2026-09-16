@@ -193,6 +193,8 @@ export default {
         github: "GitHub",
         mySubscriptions: "\u6211\u7684\u8BA2\u9605",
         buySubscription: "\u5145\u503C/\u8BA2\u9605",
+        recharge: "\u5145\u503C",
+        subscribe: "\u8BA2\u9605",
         docs: "\u6587\u6863",
         myOrders: "\u6211\u7684\u8BA2\u5355",
         orderManagement: "\u8BA2\u5355\u7BA1\u7406",

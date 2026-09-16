@@ -327,7 +327,8 @@ export default {
             kimi: "Kimi",
             zhipu: "Zhipu GLM",
             deepseek: "DeepSeek",
-            minimax: "MiniMax"
+            minimax: "MiniMax",
+            opencode_go: "OpenCode"
         },
         cnProviders: {
             accountMode: {
@@ -369,12 +370,30 @@ export default {
             balance: "\u4F59\u989D --",
             window5h: "5h",
             windowWeekly: "7d",
+            windowMonthly: "30d",
             probe: "\u67E5\u8BE2",
             probeTooltip: "\u8BF7\u6C42\u4F9B\u5E94\u5546\u989D\u5EA6\u7AEF\u70B9\uFF0C\u67E5\u8BE2 5 \u5C0F\u65F6 / \u6BCF\u5468\u6EDA\u52A8\u7A97\u53E3\u7528\u91CF",
             balanceProbeTooltip: "\u8BF7\u6C42\u4F9B\u5E94\u5546\u4F59\u989D\u7AEF\u70B9\uFF0C\u67E5\u8BE2\u8D26\u6237\u4F59\u989D",
             balanceLow: "\u4F59\u989D\u4E0D\u8DB3",
             noBalanceEndpoint: "\u8BE5\u5E73\u53F0\u6682\u65E0\u4F59\u989D\u67E5\u8BE2\u63A5\u53E3",
             resetSoon: "\u5373\u5C06\u91CD\u7F6E"
+        },
+        opencodeGo: {
+            accountMode: {
+                zen: "Zen",
+                zenDesc: "\u6309\u91CF\u4ED8\u8D39\u7F51\u5173\uFF0C\u6309 token \u6D88\u8017\u8D26\u6237\u4F59\u989D\u3002",
+                go: "GO",
+                goDesc: "\u8BA2\u9605\u5236\u7F51\u5173\uFF0C\u6309 5 \u5C0F\u65F6 / \u6BCF\u5468 / \u6BCF\u6708\u6EDA\u52A8\u7528\u91CF\u7A97\u53E3\u9650\u6D41\u3002"
+            },
+            protocolRules: {
+                title: "\u6A21\u578B\u534F\u8BAE\u5206\u6D41",
+                hint: "\u81EA\u9002\u5E94\u6A21\u5F0F\u4E0B\uFF0C\u6BCF\u4E2A\u6A21\u578B\u4F1A\u53D1\u9001\u5230\u5BF9\u5E94\u7684\u4E0A\u6E38\u539F\u751F\u534F\u8BAE\u3002\u652F\u6301\u7CBE\u786E ID \u6216\u672B\u5C3E\u5E26 * \u7684\u901A\u914D\u7B26\uFF08\u4F8B\u5982 grok-*\u3001qwen*\uFF09\u3002\u6309\u987A\u5E8F\u4F7F\u7528\u9996\u6761\u5339\u914D\u89C4\u5219\uFF1B\u672A\u5339\u914D\u6A21\u578B\u4F7F\u7528 Chat Completions\u3002",
+                patternPlaceholder: "grok-* \u6216 deepseek-v4-flash",
+                add: "\u6DFB\u52A0\u89C4\u5219",
+                remove: "\u5220\u9664\u89C4\u5219",
+                restoreDefaults: "\u6062\u590D\u9ED8\u8BA4",
+                fallback: "\u672A\u5339\u914D\u6A21\u578B \u2192 Chat Completions (/v1/chat/completions)"
+            }
         },
         types: {
             oauth: "OAuth",
@@ -708,6 +727,8 @@ export default {
             wsModeDedicated: "\u72EC\u4EAB\uFF08dedicated\uFF09",
             wsModeConcurrencyHint: "\u542F\u7528 WS mode \u540E\uFF0C\u8BE5\u8D26\u53F7\u5E76\u53D1\u6570\u5C06\u4F5C\u4E3A\u8BE5\u8D26\u53F7 WS \u8FDE\u63A5\u6C60\u4E0A\u9650\u3002",
             wsModePassthroughHint: "passthrough \u6A21\u5F0F\u4E0D\u4F7F\u7528 WS \u8FDE\u63A5\u6C60\u3002",
+            wsModeCtxPoolHint: "\u7F51\u5173\u4ECE\u8FDE\u63A5\u6C60\u83B7\u53D6\u5E76\u590D\u7528\u4E0A\u6E38 WS \u8FDE\u63A5\uFF0C\u8FDE\u63A5\u6C60\u4E0A\u9650\u7531\u7F51\u5173\u914D\u7F6E\u51B3\u5B9A\u3002",
+            wsModeHttpBridgeHint: "\u7F51\u5173\u5C06\u5BA2\u6237\u7AEF WS \u8BF7\u6C42\u8F6C\u4E3A\u4E0A\u6E38 HTTP \u8BF7\u6C42\uFF0C\u518D\u5C06 SSE \u6D41\u5F0F\u54CD\u5E94\u8F6C\u56DE WS \u6D88\u606F\u3002"
             oauthResponsesWebsocketsV2: "OAuth WebSocket Mode",
             oauthResponsesWebsocketsV2Desc: "\u4EC5\u5BF9 OpenAI OAuth \u751F\u6548\u3002\u5F00\u542F\u540E\u8BE5\u8D26\u53F7\u624D\u5141\u8BB8\u4F7F\u7528 OpenAI WebSocket Mode \u534F\u8BAE\u3002",
             apiKeyResponsesWebsocketsV2: "API Key WebSocket Mode",

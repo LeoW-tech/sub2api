@@ -26,7 +26,7 @@
                 v-model="filters.protocol"
                 :options="protocolOptions"
                 :placeholder="t('admin.proxies.allProtocols')"
-                @change="loadProxies"
+                @change="handleFilterChange"
               />
             </div>
             <div class="proxy-toolbar-select w-full sm:w-36 sm:shrink-0">
@@ -34,7 +34,7 @@
                 v-model="filters.status"
                 :options="statusOptions"
                 :placeholder="t('admin.proxies.allStatus')"
-                @change="loadProxies"
+                @change="handleFilterChange"
               />
             </div>
 
@@ -1222,6 +1222,11 @@ const loadProxies = async () => {
   }
 }
 
+const handleFilterChange = () => {
+  pagination.page = 1
+  loadProxies()
+}
+
 let searchTimeout: ReturnType<typeof setTimeout>
 const handleSearch = () => {
   clearTimeout(searchTimeout)
@@ -1446,12 +1451,16 @@ const handleUpdateProxy = async () => {
       host: editForm.host.trim(),
       port: editForm.port,
       username: editForm.username.trim() || null,
-      status: editForm.status
+      status: editForm.status,
+      expires_at: editForm.expires_at ? Math.floor(new Date(editForm.expires_at).getTime() / 1000) : null,
+      fallback_mode: editForm.fallback_mode,
+      backup_proxy_id: editForm.fallback_mode === 'proxy' ? editForm.backup_proxy_id : null,
+      expiry_warn_days: editForm.expiry_warn_days,
     }
 
     // Only include password if user actually modified the field
     if (editPasswordDirty.value) {
-      updateData.password = editForm.password.trim() || null
+      updateData.password = editForm.password.trim()
     }
 
     await adminAPI.proxies.update(editingProxy.value.id, updateData)

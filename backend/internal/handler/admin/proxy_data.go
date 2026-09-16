@@ -238,8 +238,8 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 			updateInput.Protocol = created.Protocol
 			updateInput.Host = created.Host
 			updateInput.Port = created.Port
-			updateInput.Username = created.Username
-			updateInput.Password = created.Password
+			updateInput.Username = &created.Username
+			updateInput.Password = &created.Password
 			// CreateProxy 已写入完整的导入配置，状态同步只更新状态。
 			updateInput.ClearExpiresAt = false
 			updateInput.ClearBackupID = false

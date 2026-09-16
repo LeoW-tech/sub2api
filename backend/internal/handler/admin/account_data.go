@@ -401,8 +401,8 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 			updateInput.Protocol = created.Protocol
 			updateInput.Host = created.Host
 			updateInput.Port = created.Port
-			updateInput.Username = created.Username
-			updateInput.Password = created.Password
+			updateInput.Username = &created.Username
+			updateInput.Password = &created.Password
 			_, _ = h.adminService.UpdateProxy(ctx, created.ID, updateInput)
 		}
 	}
@@ -824,13 +824,15 @@ func buildImportedProxyUpdate(item DataProxy, normalizedStatus string) *service.
 	if fallbackMode == "" {
 		fallbackMode = service.FallbackModeNone
 	}
+	username := item.Username
+	password := item.Password
 	return &service.UpdateProxyInput{
 		Name:           defaultProxyName(item.Name),
 		Protocol:       item.Protocol,
 		Host:           item.Host,
 		Port:           item.Port,
-		Username:       item.Username,
-		Password:       item.Password,
+		Username:       &username,
+		Password:       &password,
 		Status:         normalizedStatus,
 		ExternalKey:    nonEmptyStringPtr(item.ProxyExternalKey),
 		ExitIP:         nonEmptyStringPtr(item.ExitIP),
